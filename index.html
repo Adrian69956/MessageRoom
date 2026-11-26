@@ -12,37 +12,213 @@
 <body>
   <div class="app" id="app">
 
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <button class="icon-btn" id="menuBtn" title="Меню">
-          <svg class="ic" viewBox="0 0 24 24"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
-        </button>
-        <h1>MessageRoom</h1>
-      </div>
-      <div class="search-wrap">
-        <input type="text" id="search" placeholder="Поиск">
-      </div>
-      <div class="chat-list" id="chatList"></div>
+    <aside class="left" id="left">
+      <section class="screen active" id="scrChats">
+        <div class="left-head">
+          <button class="icon-btn" id="menuBtn" title="Меню">
+            <svg class="ic" viewBox="0 0 24 24"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+          </button>
+          <div class="search-box">
+            <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input type="text" id="search" placeholder="Поиск" autocomplete="off">
+          </div>
+        </div>
+        <div class="chat-list" id="chatList"></div>
+      </section>
+
+      <section class="screen" id="scrArchive">
+        <div class="left-head">
+          <button class="icon-btn" data-back title="Назад"><svg class="ic" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
+          <div class="screen-title">Архив</div>
+        </div>
+        <div class="chat-list" id="archiveList"></div>
+      </section>
+
+      <section class="screen" id="scrSettings">
+        <div class="left-head">
+          <button class="icon-btn" data-back title="Назад"><svg class="ic" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
+          <div class="screen-title">Настройки</div>
+        </div>
+        <div class="screen-body">
+          <div class="profile-card">
+            <div class="avatar huge" id="setAvatarView"></div>
+            <div class="pc-name" id="setNameView"></div>
+            <div class="pc-status">в сети</div>
+          </div>
+          <div class="tg-list">
+            <div class="tg-row"><span class="ii plain"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span><div><div id="setEmailView"></div><div class="tg-sub">Почта</div></div></div>
+            <div class="tg-row"><span class="ii plain"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg></span><div><div id="setHandleView"></div><div class="tg-sub">Имя пользователя</div></div></div>
+            <div class="tg-row" id="setBioRow"><span class="ii plain"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span><div><div id="setBioView"></div><div class="tg-sub">О себе</div></div></div>
+          </div>
+          <div class="tg-list">
+            <button class="tg-item" data-go="scrAccount"><span class="ii c-blue"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>Мой аккаунт</button>
+            <button class="tg-item" data-go="scrPrivacy"><span class="ii c-gray"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>Конфиденциальность</button>
+            <button class="tg-item" data-go="scrNotif"><span class="ii c-red"><svg class="ic" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>Уведомления и звуки</button>
+            <button class="tg-item" data-go="scrAppearance"><span class="ii c-green"><svg class="ic" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>Настройки чатов</button>
+            <button class="tg-item" id="adminOpen" style="display:none"><span class="ii c-violet"><svg class="ic" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></span>Админ-панель</button>
+          </div>
+          <div class="tg-list">
+            <button class="tg-item danger" id="logoutBtn"><span class="ii c-red"><svg class="ic" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></span>Выйти</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="scrAccount">
+        <div class="left-head">
+          <button class="icon-btn" data-back title="Назад"><svg class="ic" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
+          <div class="screen-title">Мой аккаунт</div>
+        </div>
+        <div class="screen-body">
+          <div class="profile-card">
+            <label class="avatar huge editable" id="setAvatarEdit" title="Выбрать фото"></label>
+            <input type="file" id="avatarFile" accept="image/*" hidden>
+            <div class="pc-actions">
+              <button class="link-btn" id="avatarPick">Выбрать фото</button>
+              <button class="link-btn danger" id="avatarRemove">Удалить фото</button>
+            </div>
+          </div>
+          <div class="form">
+            <label class="field"><span>Имя</span><input type="text" id="setName" maxlength="64"></label>
+            <label class="field"><span>О себе</span><textarea id="setBio" maxlength="200" rows="3"></textarea><em id="bioCount"></em></label>
+            <div class="hint">Пара слов о себе: возраст, профессия или город.</div>
+            <label class="field"><span>Имя пользователя</span><input type="text" id="setHandle" maxlength="33"></label>
+            <div class="hint">По этому имени вас смогут найти в поиске. Можно использовать a–z, 0–9 и _, от 5 символов.</div>
+            <div class="settings-msg" id="setMsg"></div>
+            <button class="save-btn" id="saveProfile">Сохранить</button>
+          </div>
+          <div class="form">
+            <div class="form-title">Пароль</div>
+            <label class="field"><span>Новый пароль</span><input type="password" id="setPass" autocomplete="new-password"></label>
+            <div class="settings-msg" id="passMsg"></div>
+            <button class="save-btn secondary" id="savePass">Сменить пароль</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="scrPrivacy">
+        <div class="left-head">
+          <button class="icon-btn" data-back title="Назад"><svg class="ic" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
+          <div class="screen-title">Конфиденциальность</div>
+        </div>
+        <div class="screen-body">
+          <div class="form">
+            <div class="form-title">Кто видит время моего последнего входа</div>
+            <label class="radio"><input type="radio" name="lsPriv" value="everyone"> Все</label>
+            <label class="radio"><input type="radio" name="lsPriv" value="nobody"> Никто</label>
+            <div class="hint">Если скрыть своё время входа, вы тоже не увидите чужое. Вместо точного времени будет «был(а) недавно».</div>
+          </div>
+          <div class="form">
+            <div class="form-title">Кто может начать со мной новый чат</div>
+            <label class="radio"><input type="radio" name="dmPriv" value="everyone"> Все</label>
+            <label class="radio"><input type="radio" name="dmPriv" value="nobody"> Никто</label>
+          </div>
+          <div class="tg-list">
+            <button class="tg-item" data-go="scrBlocked"><span class="ii c-red"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg></span>Заблокированные<span class="tg-value" id="blockedCount"></span></button>
+          </div>
+          <div class="settings-msg center" id="privMsg"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="scrBlocked">
+        <div class="left-head">
+          <button class="icon-btn" data-back title="Назад"><svg class="ic" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
+          <div class="screen-title">Заблокированные</div>
+        </div>
+        <div class="screen-body">
+          <div class="chat-list" id="blockedList"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="scrNotif">
+        <div class="left-head">
+          <button class="icon-btn" data-back title="Назад"><svg class="ic" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
+          <div class="screen-title">Уведомления и звуки</div>
+        </div>
+        <div class="screen-body">
+          <div class="tg-list">
+            <label class="tg-item toggle">Уведомления о новых сообщениях<input type="checkbox" id="notifMsgs"><i class="switch"></i></label>
+            <label class="tg-item toggle">Звук<input type="checkbox" id="notifSound"><i class="switch"></i></label>
+          </div>
+          <div class="hint pad">Уведомления о сообщениях приходят, пока сайт открыт во вкладке браузера.</div>
+          <div class="form">
+            <div class="form-title">Push-уведомления от MessageRoom</div>
+            <div class="settings-msg" id="pushMsg"></div>
+            <button class="save-btn secondary" id="pushToggle">Включить push-уведомления</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="scrAppearance">
+        <div class="left-head">
+          <button class="icon-btn" data-back title="Назад"><svg class="ic" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
+          <div class="screen-title">Настройки чатов</div>
+        </div>
+        <div class="screen-body">
+          <div class="form">
+            <div class="form-title" id="scaleLabel">Размер текста сообщений: 100%</div>
+            <input type="range" id="setScale" min="80" max="140" step="10" value="100">
+          </div>
+          <div class="form">
+            <div class="form-title">Тема</div>
+            <div class="theme-options">
+              <button class="theme-btn" data-theme="light">Светлая</button>
+              <button class="theme-btn" data-theme="dark">Тёмная</button>
+            </div>
+          </div>
+          <div class="form">
+            <div class="form-title">Фон чата</div>
+            <div class="wallpapers" id="wallpapers"></div>
+          </div>
+          <div class="tg-list">
+            <label class="tg-item toggle">Отправка по Enter<input type="checkbox" id="enterSend"><i class="switch"></i></label>
+          </div>
+          <div class="hint pad">Если выключить, сообщение отправляется по Ctrl+Enter, а Enter переносит строку.</div>
+        </div>
+      </section>
     </aside>
 
-    <main class="chat">
-      <header class="chat-header">
+    <main class="chat" id="chatPane">
+      <div class="chat-empty" id="chatEmpty"><span>Выберите, кому хотели бы написать</span></div>
+      <header class="chat-header" id="chatHeader">
         <button class="icon-btn back-btn" id="backBtn" title="Назад">
           <svg class="ic" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
         </button>
         <div class="avatar" id="headAvatar"></div>
-        <div>
+        <div class="head-info">
           <div class="chat-name" id="headName"></div>
           <div class="status" id="headStatus"></div>
         </div>
-      </header>
-      <div class="messages" id="messages"></div>
-      <footer class="input-bar">
-        <input type="text" id="messageInput" placeholder="Напишите сообщение...">
-        <button class="send-btn" id="sendBtn" title="Отправить">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        <button class="icon-btn" id="headInfoBtn" title="Информация">
+          <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
         </button>
+      </header>
+      <div class="messages-wrap" id="messagesWrap">
+        <div class="messages" id="messages"></div>
+        <button class="to-bottom" id="toBottom" title="Вниз">
+          <svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+          <span class="badge" id="toBottomBadge"></span>
+        </button>
+      </div>
+      <footer class="composer" id="composer">
+        <div class="compose-bar" id="composeBar">
+          <span class="cb-icon" id="cbIcon"></span>
+          <div class="cb-body"><div class="cb-title" id="cbTitle"></div><div class="cb-text" id="cbText"></div></div>
+          <button class="icon-btn" id="cbClose" title="Отмена"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <div class="emoji-panel" id="emojiPanel"></div>
+        <div class="compose-row">
+          <div class="input-wrap">
+            <button class="icon-btn" id="emojiBtn" title="Смайлики">
+              <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg>
+            </button>
+            <textarea id="messageInput" rows="1" placeholder="Сообщение" maxlength="4000"></textarea>
+          </div>
+          <button class="send-btn" id="sendBtn" title="Отправить">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          </button>
+        </div>
       </footer>
+      <div class="readonly-bar" id="readonlyBar"><button class="link-btn" id="readonlyBtn"></button></div>
     </main>
 
     <aside class="info-panel" id="infoPanel">
@@ -53,23 +229,28 @@
         <div class="info-title">Информация</div>
       </div>
       <div class="info-body">
-        <div class="avatar big" id="infoAvatar"></div>
-        <div class="info-name" id="infoName"></div>
-        <div class="info-sub" id="infoSub"></div>
-        <div class="info-row" id="infoBioRow">
-          <div class="info-label">О себе</div>
-          <div id="infoBio"></div>
+        <div class="profile-card">
+          <div class="avatar huge" id="infoAvatar"></div>
+          <div class="pc-name" id="infoName"></div>
+          <div class="pc-status" id="infoStatus"></div>
         </div>
-        <div class="info-row" id="infoHandleRow">
-          <div class="info-label">Юзернейм</div>
-          <div id="infoHandle"></div>
-        </div>
-        <button class="info-btn" id="infoPin"></button>
-        <button class="info-btn" id="infoCopy"></button>
+        <div class="tg-list" id="infoRows"></div>
+        <div class="tg-list" id="infoActions"></div>
       </div>
     </aside>
 
   </div>
+
+  <div class="menu-pop" id="mainMenu">
+    <button id="mmArchive"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>Архив<span class="mm-count" id="mmArchiveCount"></span></button>
+    <button id="mmSettings"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Настройки</button>
+    <label class="mm-toggle"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>Ночной режим<input type="checkbox" id="mmNight"><i class="switch"></i></label>
+    <button id="mmAdmin" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>Админ-панель</button>
+  </div>
+
+  <div class="context-menu" id="ctxMenu"></div>
+  <div class="viewer" id="photoViewer"><img id="photoViewerImg" alt=""></div>
+  <div class="toast" id="toast"></div>
 
   <div class="auth-screen" id="authScreen">
     <div class="auth-box">
@@ -96,61 +277,6 @@
       <p class="status-text" id="statusText"></p>
       <div class="auth-switch" id="statusAdminLogin">Вход для администратора</div>
       <button class="auth-submit" id="statusLogout">Выйти из аккаунта</button>
-    </div>
-  </div>
-
-  <div class="overlay" id="settingsOverlay">
-    <div class="settings">
-      <div class="settings-head">
-        <h2>Настройки</h2>
-        <button class="icon-btn" id="closeSettings" title="Закрыть">
-          <svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-        </button>
-      </div>
-      <div class="settings-title" id="accountInfo"></div>
-
-      <div class="settings-section">
-        <div class="settings-title">Мой аккаунт</div>
-        <input type="text" id="setName" placeholder="Имя">
-        <input type="text" id="setHandle" placeholder="Юзернейм">
-        <textarea id="setBio" placeholder="О себе (до 200 символов)" maxlength="200"></textarea>
-        <div class="settings-title">Кто может начать со мной новый чат</div>
-        <select id="setDm">
-          <option value="everyone">Все</option>
-          <option value="nobody">Никто</option>
-        </select>
-        <div class="settings-msg" id="setMsg"></div>
-        <button class="save-btn" id="saveProfile">Сохранить</button>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-title">Уведомления</div>
-        <div class="settings-msg" id="pushMsg"></div>
-        <button class="save-btn secondary" id="pushToggle">Включить push-уведомления</button>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-title">Тема оформления</div>
-        <div class="theme-options">
-          <button class="theme-btn" data-theme="light">
-            <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
-            Светлая
-          </button>
-          <button class="theme-btn" data-theme="dark">
-            <svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-            Тёмная
-          </button>
-        </div>
-        <div class="settings-title" id="scaleLabel" style="margin-top:14px">Масштаб сообщений: 100%</div>
-        <input type="range" id="setScale" min="80" max="140" step="10" value="100">
-      </div>
-
-      <button class="save-btn admin-open" id="adminOpen" style="display:none">Админ-панель</button>
-
-      <button class="logout-btn" id="logoutBtn">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-        Выйти из аккаунта
-      </button>
     </div>
   </div>
 
@@ -189,25 +315,6 @@
         <button class="save-btn" id="mtSave">Сохранить</button>
       </div>
     </div>
-  </div>
-
-  <div class="context-menu" id="contextMenu">
-    <button data-action="reply">
-      <svg class="ic" viewBox="0 0 24 24"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-      Ответить
-    </button>
-    <button data-action="edit">
-      <svg class="ic" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-      Редактировать
-    </button>
-    <button data-action="react">
-      <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg>
-      Реакция
-    </button>
-    <button data-action="delete" class="danger">
-      <svg class="ic" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-      Удалить
-    </button>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

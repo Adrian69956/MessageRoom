@@ -107,7 +107,6 @@ document.getElementById("mtSave").addEventListener("click", async () => {
 
 document.getElementById("adminOpen").addEventListener("click", async () => {
   if (!window.appStatus.is_admin) return;
-  document.getElementById("settingsOverlay").classList.remove("open");
   adminOverlay.classList.add("open");
   adminNote(bcMsg, "", false);
   adminNote(mtMsg, "", false);

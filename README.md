@@ -14,7 +14,7 @@
 ## База данных
 
 Файлы из `supabase/` выполняются по порядку в Supabase → SQL Editor:
-`001_init.sql`, `002_usernames_pins_edit.sql`, `003_profile_fix.sql`, `004_admin.sql`.
+`001_init.sql` … `005_telegram_ui.sql`.
 
 ## Рассылка (push и почта)
 

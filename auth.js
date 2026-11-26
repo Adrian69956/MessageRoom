@@ -13,7 +13,6 @@ const authPassword = document.getElementById("authPassword");
 const authError = document.getElementById("authError");
 const authSubmit = document.getElementById("authSubmit");
 const authSwitch = document.getElementById("authSwitch");
-const accountInfo = document.getElementById("accountInfo");
 const logoutBtn = document.getElementById("logoutBtn");
 
 let authMode = "login";     // login (вход), register (регистрация), setup (выбор юзернейма)
@@ -78,7 +77,7 @@ async function doRegister() {
   const { data, error } = await sb.auth.signUp({
     email: email,
     password: password,
-    options: { data: { display_name: name, username: handle } }
+    options: { data: { display_name: name, username: handle }, emailRedirectTo: location.origin + location.pathname }
   });
   if (error) { authError.textContent = translateError(error.message); return; }
   if (!data.session) {
@@ -180,7 +179,6 @@ statusLogout.addEventListener("click", () => sb.auth.signOut());
 
 function enterApp(user, prof) {
   authScreen.style.display = "none";
-  accountInfo.textContent = "Вы вошли как " + prof.display_name + " (@" + prof.username + ")";
   startApp(user);
 }
 
@@ -238,7 +236,7 @@ authSwitch.addEventListener("click", async () => {
   field.addEventListener("keydown", (e) => { if (e.key === "Enter") submitAuth(); });
 });
 logoutBtn.addEventListener("click", async () => {
-  document.getElementById("settingsOverlay").classList.remove("open");
+  if (!confirm("Выйти из аккаунта?")) return;
   await sb.auth.signOut();
 });
 

@@ -60,7 +60,6 @@ pushToggle.addEventListener("click", async () => {
   }
 });
 
-document.getElementById("menuBtn").addEventListener("click", refreshPushUi);
 
 // После входа привязываем уже существующую подписку браузера к текущему аккаунту
 async function relinkPushSub() {
