@@ -302,6 +302,8 @@ function renderChatList() {
 function updateTitle() {
   const n = me ? chats.filter((c) => !c.muted).reduce((s, c) => s + unreadCount(c), 0) : 0;
   document.title = (n ? "(" + n + ") " : "") + "MessageRoom";
+  $("railBadge").textContent = n ? (n > 99 ? "99+" : String(n)) : "";
+  if (me) setAvatar($("railAvatar"), Object.assign({ id: me.id }, profiles[me.id] || {}));
 }
 
 // ---------- Поиск людей ----------
@@ -450,7 +452,7 @@ async function markRead() {
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { markRead(); touchPresence(); } });
 
 // ---------- Поле ввода: отправка, ответ, правка ----------
-function autoGrow() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 180) + "px"; }
+function autoGrow() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 180) + "px"; input.style.overflowY = input.scrollHeight > 180 ? "auto" : "hidden"; }
 function showComposeBar(kind, m) {
   $("cbIcon").innerHTML = kind === "edit" ? ICONS.edit : ICONS.reply;
   $("cbTitle").textContent = kind === "edit" ? "Редактирование" : "В ответ " + (m.sender_id === me.id ? "себе" : nameOf(m.sender_id));
@@ -756,6 +758,8 @@ async function startApp(user) {
   const admin = !!window.appStatus.is_admin;
   $("adminOpen").style.display = admin ? "flex" : "none";
   $("mmAdmin").style.display = admin ? "flex" : "none";
+  $("railAdmin").style.display = admin ? "flex" : "none";
+  updateTitle();
   relinkPushSub();
   touchPresence(); refreshPresence();
   clearInterval(presenceTimer);
@@ -776,6 +780,8 @@ function stopApp() {
 // ===================== Левая колонка: экраны и меню =====================
 function showScreen(id) {
   document.querySelectorAll("#left .screen").forEach((s) => s.classList.toggle("active", s.id === id));
+  const railId = id === "scrChats" || id === "scrArchive" ? id : "scrSettings";
+  document.querySelectorAll(".rail-btn[data-rail]").forEach((b) => b.classList.toggle("active", b.dataset.rail === railId));
   if (id === "scrSettings") fillSettingsView();
   if (id === "scrAccount") fillAccount();
   if (id === "scrPrivacy") fillPrivacy();
@@ -799,6 +805,16 @@ $("mmArchive").addEventListener("click", () => go("scrArchive"));
 $("mmSettings").addEventListener("click", () => go("scrSettings"));
 $("mmAdmin").addEventListener("click", () => { closeMenus(); $("adminOpen").click(); });
 $("mmNight").addEventListener("change", (e) => setTheme(e.target.checked ? "dark" : "light"));
+document.querySelectorAll(".rail-btn[data-rail]").forEach((b) => b.addEventListener("click", () => {
+  closeMenus();
+  screenStack = b.dataset.rail === "scrChats" ? ["scrChats"] : ["scrChats", b.dataset.rail];
+  showScreen(b.dataset.rail);
+  if (window.innerWidth <= 768 && currentId) closeChat();
+}));
+$("railMe").addEventListener("click", () => { screenStack = ["scrChats", "scrSettings"]; showScreen("scrSettings"); if (window.innerWidth <= 768 && currentId) closeChat(); });
+$("railTheme").addEventListener("click", () => setTheme(prefs.theme === "dark" ? "light" : "dark"));
+$("railAdmin").addEventListener("click", () => $("adminOpen").click());
+$("railStories").addEventListener("click", () => toast("Истории появятся на одном из следующих этапов"));
 
 // ---------- Настройки: главная ----------
 function myProfile() { return (me && profiles[me.id]) || {}; }

@@ -1,55 +1,63 @@
 :root {
-  --accent: #1d4ed8;
-  --accent-2: #3b82f6;
+  --accent: #0077ff;
+  --accent-2: #7b5cff;
+  --grad: linear-gradient(135deg, #0077ff 0%, #5b6cff 55%, #8a5cff 100%);
+  --grad-soft: linear-gradient(135deg, rgba(0, 119, 255, .12), rgba(138, 92, 255, .12));
   --on-accent: #ffffff;
-  --accent-soft: #dbe6ff;
+  --accent-soft: #dbe9ff;
   --bg: #ffffff;
   --bg-side: #ffffff;
-  --bg-2: #f4f4f5;
-  --text: #0f172a;
-  --text-muted: #707579;
+  --bg-2: #f2f3f5;
+  --rail-bg: #f7f8fa;
+  --text: #000000;
+  --text-muted: #818c99;
   --bubble-their: #ffffff;
-  --bubble-mine: #dbe8ff;
-  --mine-text: #0f172a;
-  --mine-meta: #3b6fd8;
-  --border: #e5e7eb;
-  --hover: #f4f4f5;
-  --active: #1d4ed8;
+  --mine-bg: linear-gradient(135deg, #1a82ff 0%, #6366ff 70%, #7c5cff 100%);
+  --mine-tail: #7a5dff;
+  --mine-text: #ffffff;
+  --mine-meta: rgba(255, 255, 255, .78);
+  --border: #e7e8ec;
+  --hover: #f2f3f5;
   --input-bg: #ffffff;
-  --menu-bg: rgba(255, 255, 255, .96);
-  --chat-bg: #c9dcf7;
-  --pattern: rgba(29, 78, 216, .09);
-  --danger: #e53935;
-  --online: #1d4ed8;
-  --shadow: 0 1px 2px rgba(16, 35, 47, .15);
-  --switch-off: #c4c9cc;
+  --menu-bg: rgba(255, 255, 255, .97);
+  --chat-bg: #dfe7f5;
+  --pattern: rgba(91, 108, 255, .10);
+  --danger: #e64646;
+  --online: #0077ff;
+  --shadow: 0 1px 2px rgba(0, 20, 60, .12);
+  --switch-off: #c4c8cc;
+  --radius: 20px;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --accent: #c026d3;
-  --accent-2: #d946ef;
+  --accent: #3d8bff;
+  --accent-2: #8f6bff;
+  --grad: linear-gradient(135deg, #1a7cff 0%, #5a63f0 55%, #8a5cff 100%);
+  --grad-soft: linear-gradient(135deg, rgba(26, 124, 255, .18), rgba(138, 92, 255, .18));
   --on-accent: #ffffff;
-  --accent-soft: #f5d0fe;
-  --bg: #120c1f;
-  --bg-side: #150f24;
-  --bg-2: #1d1530;
-  --text: #ece7f5;
-  --text-muted: #9d93b3;
-  --bubble-their: #22193a;
-  --bubble-mine: #6b1f7c;
+  --accent-soft: #c9dcff;
+  --bg: #19191a;
+  --bg-side: #19191a;
+  --bg-2: #252527;
+  --rail-bg: #141415;
+  --text: #e1e3e6;
+  --text-muted: #8c9199;
+  --bubble-their: #2a2a2d;
+  --mine-bg: linear-gradient(135deg, #1a72e8 0%, #4f56e0 70%, #6d4fe6 100%);
+  --mine-tail: #6b50e6;
   --mine-text: #ffffff;
-  --mine-meta: #f0c6f7;
-  --border: #2a2040;
-  --hover: #211835;
-  --active: #a21caf;
-  --input-bg: #1d1530;
-  --menu-bg: rgba(30, 22, 48, .97);
-  --chat-bg: #0b0714;
-  --pattern: rgba(192, 38, 211, .10);
-  --danger: #f87171;
-  --online: #e879f9;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .4);
-  --switch-off: #4a4060;
+  --mine-meta: rgba(255, 255, 255, .7);
+  --border: #2c2c2f;
+  --hover: #242426;
+  --input-bg: #232325;
+  --menu-bg: rgba(38, 38, 41, .97);
+  --chat-bg: #0f0f11;
+  --pattern: rgba(120, 110, 255, .09);
+  --danger: #ff6b6b;
+  --online: #4d9bff;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .45);
+  --switch-off: #46464b;
+  --radius: 20px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -106,7 +114,7 @@ svg.ic {
   border-radius: 12px; cursor: pointer; user-select: none; position: relative;
 }
 .chat-item:hover { background: var(--hover); }
-.chat-item.active { background: var(--active); color: var(--on-accent); }
+.chat-item.active { background: var(--accent); color: var(--on-accent); }
 .chat-info { flex: 1; min-width: 0; }
 .chat-top, .chat-bottom { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .chat-bottom { margin-top: 2px; }
@@ -123,7 +131,7 @@ svg.ic {
   font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .badge.muted { background: var(--switch-off); }
-.chat-item.active .badge { background: #fff; color: var(--active); }
+.chat-item.active .badge { background: #fff; color: var(--accent); }
 .pin, .mute-ic { display: inline-flex; color: var(--text-muted); }
 .pin svg, .mute-ic svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .mute-ic svg { width: 14px; height: 14px; }
@@ -135,7 +143,7 @@ svg.ic {
 .verified { width: 18px; height: 18px; fill: var(--accent); }
 .verified .vcheck { fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .chat-item.active .verified { fill: #fff; }
-.chat-item.active .verified .vcheck { stroke: var(--active); }
+.chat-item.active .verified .vcheck { stroke: var(--accent); }
 .list-note { padding: 16px 14px; font-size: 14px; color: var(--text-muted); text-align: center; line-height: 1.45; }
 .list-title { padding: 10px 12px 6px; font-size: 14px; font-weight: 600; color: var(--text-muted); }
 .archive-row .chat-name { font-weight: 600; }
@@ -168,7 +176,7 @@ svg.ic {
   width: 14px; height: 14px; border-radius: 50%;
   background: #22c55e; border: 2.5px solid var(--bg-side);
 }
-.chat-item.active .dot { border-color: var(--active); }
+.chat-item.active .dot { border-color: var(--accent); }
 .avatar.big { width: 80px; height: 80px; font-size: 32px; }
 .avatar.huge { width: 120px; height: 120px; font-size: 48px; }
 .avatar.editable { cursor: pointer; }
@@ -298,7 +306,7 @@ svg.ic {
 .input-wrap .icon-btn { width: 40px; height: 40px; }
 .input-wrap textarea {
   flex: 1; border: none; outline: none; resize: none; background: transparent; color: var(--text);
-  font-family: inherit; font-size: 16px; line-height: 1.35; padding: 10px 4px; max-height: 180px; min-height: 40px;
+  font-family: inherit; font-size: 16px; line-height: 1.35; padding: 10px 4px; max-height: 180px; min-height: 40px; overflow-y: hidden; height: 40px;
 }
 .send-btn {
   width: 48px; height: 48px; border: none; border-radius: 50%; flex-shrink: 0;
@@ -529,3 +537,88 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .admin-ban.danger { color: var(--danger); }
 .check { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 15px; cursor: pointer; }
 .check input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+/* ===================== Стиль MessageRoom: TG + VK + MAX ===================== */
+/* Колонка иконок слева (как в VK) */
+.rail {
+  width: 76px; flex-shrink: 0; background: var(--rail-bg); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 0;
+}
+.rail-logo {
+  width: 44px; height: 44px; border-radius: 14px; background: var(--grad);
+  display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
+  box-shadow: 0 4px 14px rgba(91, 108, 255, .4);
+}
+.rail-logo svg { width: 24px; height: 24px; fill: #fff; }
+.rail-btn {
+  position: relative; width: 64px; padding: 8px 0 6px; border: none; background: none; border-radius: 14px;
+  color: var(--text-muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  transition: background .15s, color .15s;
+}
+.rail-btn:hover { background: var(--hover); color: var(--text); }
+.rail-btn svg.ic { width: 24px; height: 24px; }
+.rail-label { font-size: 11px; font-weight: 500; }
+.rail-btn.active { color: var(--accent); }
+.rail-btn.active svg.ic { background: var(--grad-soft); border-radius: 12px; box-sizing: content-box; padding: 6px 14px; margin: -6px 0 -2px; }
+.rail-badge {
+  position: absolute; top: 2px; right: 8px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--grad); color: #fff; font-size: 11px; font-weight: 600; display: none; align-items: center; justify-content: center;
+}
+.rail-badge:not(:empty) { display: flex; }
+.rail-spacer { flex: 1; }
+.rail-extra { width: 48px; padding: 10px 0; }
+.rail-me { border: none; background: none; cursor: pointer; padding: 4px; border-radius: 50%; margin-top: 6px; }
+.rail-me .avatar { width: 40px; height: 40px; font-size: 16px; }
+.rail-me:hover .avatar { box-shadow: 0 0 0 2px var(--accent); }
+#menuBtn { display: none; }
+.left-head { padding-left: 14px; }
+
+/* Градиенты и скругления (как в MAX) */
+.chat-item { border-radius: 16px; }
+.chat-item.active { background: var(--grad); }
+.chat-item.active .badge { color: var(--accent); }
+.chat-item.active .verified .vcheck { stroke: var(--accent); }
+.chat-item.active .dot { border-color: #5b6cff; }
+.badge { background: var(--grad); }
+.badge.muted { background: var(--switch-off); }
+.send-btn, .save-btn, .auth-submit { background: var(--grad); box-shadow: 0 4px 12px rgba(91, 108, 255, .35); }
+.save-btn.secondary { background: var(--bg-2); box-shadow: none; }
+.avatar.av-system, .av-system { background: var(--grad); }
+.search-box { border-radius: 14px; }
+.input-wrap { border-radius: 22px; }
+.message { border-radius: var(--radius); padding: 7px 11px 7px 12px; }
+.message.mine { background: var(--mine-bg); color: var(--mine-text); }
+.message.mine.tail::after { background: radial-gradient(circle at 100% 0, transparent 9px, var(--mine-tail) 9.5px); }
+.message.mine .meta, .message.mine .meta .ticks { color: var(--mine-meta); }
+.message.mine a { color: #fff; }
+.message.mine .quote { border-color: rgba(255, 255, 255, .85); background: rgba(255, 255, 255, .16); }
+.message.mine .q-name { color: #fff; }
+.compose-bar { border-radius: 20px 20px 0 0; }
+.form-title, .settings-msg { color: var(--accent); }
+input:checked + .switch { background: var(--grad); }
+.auth-logo, .settings h2 { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tg-list, .form { border-bottom-width: 6px; }
+.chat-header { box-shadow: 0 1px 0 var(--border); border-bottom: none; }
+.pc-name { font-size: 24px; }
+.profile-card .avatar.huge { box-shadow: 0 6px 20px rgba(91, 108, 255, .25); }
+.day-sep span { background: rgba(40, 50, 90, .28); backdrop-filter: blur(6px); }
+:root[data-theme="dark"] .day-sep span { background: rgba(255, 255, 255, .1); }
+.c-blue { background: linear-gradient(135deg, #2a8bff, #0062e0); }
+.c-gray { background: linear-gradient(135deg, #a1aab5, #7c8794); }
+.c-red { background: linear-gradient(135deg, #ff6b6b, #e64646); }
+.c-green { background: linear-gradient(135deg, #4bd27a, #2bb05a); }
+.c-violet { background: linear-gradient(135deg, #9b7bff, #6c4cf0); }
+
+/* Телефон: иконки превращаются в нижнюю панель */
+@media (max-width: 768px) {
+  .app { flex-direction: column-reverse; }
+  .rail {
+    width: 100%; height: 62px; flex-direction: row; justify-content: space-around; padding: 0 6px;
+    border-right: none; border-top: 1px solid var(--border); gap: 0;
+  }
+  .rail-logo, .rail-spacer, .rail-extra { display: none !important; }
+  .rail-btn { flex: 1; width: auto; }
+  .app.in-chat .rail { display: none; }
+  .left { flex: 1; min-height: 0; }
+  .app.in-chat .chat { flex: 1; min-height: 0; }
+}
