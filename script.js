@@ -468,6 +468,9 @@ function setTheme(theme) {
 themeBtns.forEach((b) => b.addEventListener("click", () => setTheme(b.dataset.theme)));
 document.getElementById("menuBtn").addEventListener("click", () => overlay.classList.add("open"));
 document.getElementById("closeSettings").addEventListener("click", () => overlay.classList.remove("open"));
+let savedTheme = "light";
+try { savedTheme = localStorage.getItem("theme") || "light"; } catch (e) {}
+setTheme(savedTheme);
 // ===================== Профиль собеседника =====================
 const infoPanel = document.getElementById("infoPanel");
 const infoAvatar = document.getElementById("infoAvatar");
