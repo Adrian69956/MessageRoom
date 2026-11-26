@@ -1,5 +1,5 @@
 -- ===== Этап 2: админ, блокировка, техперерыв, служебный чат, push =====
--- ВАЖНО: перед запуском замените ADMIN_EMAIL ниже на почту своего аккаунта.
+-- Админом становится аккаунт с почтой bossadriancs@gmail.com (строка ниже).
 
 -- 1. Администраторы (таблица закрыта для сайта, видна только базе)
 create table if not exists public.app_admins (
@@ -9,13 +9,13 @@ alter table public.app_admins enable row level security;
 revoke all on public.app_admins from anon, authenticated;
 
 insert into public.app_admins (user_id)
-select id from auth.users where lower(email) = lower('ADMIN_EMAIL')
+select id from auth.users where lower(email) = lower('bossadriancs@gmail.com')
 on conflict do nothing;
 
 do $$
 begin
   if not exists (select 1 from public.app_admins) then
-    raise exception 'Аккаунт с такой почтой не найден: замените ADMIN_EMAIL на свою почту';
+    raise exception 'Аккаунт bossadriancs@gmail.com не найден: сначала зарегистрируйтесь на сайте с этой почтой';
   end if;
 end $$;
 

@@ -306,3 +306,27 @@ svg.ic {
 @media (max-width: 768px) {
   .info-panel.open { position: fixed; inset: 0; width: auto; z-index: 150; }
 }
+/* ---------- Техперерыв и блокировка ---------- */
+.status-screen {
+  display: none; position: fixed; inset: 0; z-index: 400;
+  background: var(--bg); align-items: center; justify-content: center; text-align: center;
+}
+.status-text { color: var(--text); margin-bottom: 20px; white-space: pre-wrap; }
+.status-screen .auth-switch { margin-bottom: 14px; }
+
+/* ---------- Уведомления и админ-панель ---------- */
+.save-btn.secondary { background: var(--bg-side); color: var(--accent); border: 2px solid var(--border); }
+.save-btn.admin-open { margin-bottom: 12px; }
+.settings.admin { width: min(620px, 96vw); }
+.admin-stats { padding: 10px 12px; margin-bottom: 16px; background: var(--bg-side); border-radius: 12px; font-size: 14px; }
+.admin-users { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.admin-user { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; background: var(--bg-side); }
+.admin-user.banned { opacity: .7; }
+.admin-user .avatar { width: 40px; height: 40px; }
+.admin-ban {
+  padding: 8px 12px; border: 2px solid var(--border); border-radius: 10px;
+  background: var(--bg); color: var(--accent); cursor: pointer; font-size: 13px; flex-shrink: 0;
+}
+.admin-ban.danger { color: var(--danger); }
+.check { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 15px; cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }

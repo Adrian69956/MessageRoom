@@ -28,6 +28,7 @@ const headName = document.getElementById("headName");
 const headStatus = document.getElementById("headStatus");
 const menu = document.getElementById("contextMenu");
 const chatEl = document.querySelector(".chat");
+const inputBar = document.querySelector(".input-bar");
 const chatMenu = document.createElement("div");   // меню чата (закрепить, архив)
 chatMenu.className = "context-menu";
 document.body.append(chatMenu);
@@ -44,6 +45,7 @@ function currentChat() { return chats.find((c) => c.id === currentId); }
 function nameOf(id) { const p = profiles[id]; return p ? p.display_name : "Пользователь"; }
 function otherUserId(c) { return c.members.find((id) => id !== me.id); }
 function chatTitle(c) { return c.type === "private" ? nameOf(otherUserId(c)) : (c.title || "Чат"); }
+function canWrite(c) { return c.type !== "system" || window.appStatus.is_admin; }
 function fmtTime(iso) { return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }); }
 function fmtDate(iso) { return new Date(iso).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" }); }
 function lastMessage(c) { return c.messages[c.messages.length - 1]; }
@@ -207,10 +209,13 @@ function renderHeader() {
   if (c.type === "private") {
     const p = profiles[otherUserId(c)];
     headStatus.textContent = p && p.username ? "@" + p.username : "";
+  } else if (c.type === "system") {
+    headStatus.textContent = "официальные уведомления";
   } else {
     headStatus.textContent = c.members.length + " участн.";
   }
   headStatus.className = "status";
+  inputBar.style.display = canWrite(c) ? "flex" : "none";
 }
 
 function renderMessages() {
@@ -221,7 +226,7 @@ function renderMessages() {
     const mine = m.sender_id === me.id;
     const div = el("div", "message " + (mine ? "mine" : "their"));
     div.dataset.index = index;
-    if (!mine && c.type !== "private") div.append(el("div", "sender", nameOf(m.sender_id)));
+    if (!mine && c.type !== "private" && c.type !== "system") div.append(el("div", "sender", nameOf(m.sender_id)));
     div.append(el("div", "", m.text));
     const meta = el("div", "meta", (m.edited_at ? "изм. " : "") + fmtTime(m.created_at));
     if (mine) {
@@ -268,7 +273,7 @@ function addMessage(m) {
 async function sendMessage() {
   const c = currentChat();
   const text = input.value.trim();
-  if (!c || !text) return;
+  if (!c || !text || !canWrite(c)) return;
   input.value = "";
   input.focus();
   const { data, error } = await sb.from("messages").insert({ chat_id: c.id, text: text }).select().single();
@@ -434,6 +439,8 @@ async function startApp(user) {
   search.value = "";
   await loadAll();
   subscribeRealtime();
+  document.getElementById("adminOpen").style.display = window.appStatus.is_admin ? "block" : "none";
+  relinkPushSub();
   if (window.innerWidth > 768) {
     const first = chats.find((c) => !c.archived);
     if (first) openChat(first.id);
@@ -494,7 +501,7 @@ function refreshInfo() {
   const title = chatTitle(c);
   infoAvatar.textContent = initial(title);
   infoName.textContent = title;
-  infoSub.textContent = c.type === "private" ? "" : c.members.length + " участн.";
+  infoSub.textContent = c.type === "private" ? "" : c.type === "system" ? "Официальные уведомления MessageRoom" : c.members.length + " участн.";
   infoBio.textContent = p && p.bio ? p.bio : "";
   infoBioRow.style.display = p && p.bio ? "block" : "none";
   infoHandle.textContent = p && p.username ? "@" + p.username : "";

@@ -1,7 +1,5 @@
 // ---------- Подключение к Supabase ----------
-const SUPABASE_URL = "https://dcjttptbuiaxkwiagjtm.supabase.co";
-const SUPABASE_KEY = "sb_publishable_tgAuOvM_lrb4goVzsGABXg_KLV_WPLh";
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = window.supabase.createClient(window.APP_CONFIG.supabaseUrl, window.APP_CONFIG.supabaseKey);
 
 // ---------- Элементы экрана входа ----------
 const authScreen = document.getElementById("authScreen");
@@ -113,6 +111,73 @@ async function submitAuth() {
 }
 
 // ---------- Вход в приложение и выход ----------
+// ---------- Состояние сайта: техперерыв и блокировка ----------
+const statusScreen = document.getElementById("statusScreen");
+const statusTitle = document.getElementById("statusTitle");
+const statusText = document.getElementById("statusText");
+const statusAdminLogin = document.getElementById("statusAdminLogin");
+const statusLogout = document.getElementById("statusLogout");
+window.appStatus = { maintenance: false, is_admin: false, banned: false, system_chat_id: null };
+let statusShown = null;     // null, "maintenance" или "banned"
+let statusTimer = null;
+let adminLoginOpen = false;
+
+async function loadStatus() {
+  const { data, error } = await sb.rpc("get_app_status");
+  if (!error && data) window.appStatus = data;
+  return window.appStatus;
+}
+
+function blockedReason(st, signedIn) {
+  if (signedIn && st.banned) return "banned";
+  if (st.maintenance && !st.is_admin) return "maintenance";
+  return null;
+}
+
+function showStatusScreen(reason, signedIn) {
+  statusShown = reason;
+  if (reason === "banned") {
+    statusTitle.textContent = "Аккаунт заблокирован";
+    statusText.textContent = "Администратор заблокировал ваш аккаунт.";
+  } else {
+    statusTitle.textContent = "Технический перерыв";
+    statusText.textContent = window.appStatus.maintenance_text;
+  }
+  statusAdminLogin.style.display = reason === "maintenance" && !signedIn ? "block" : "none";
+  statusLogout.style.display = signedIn ? "block" : "none";
+  statusScreen.style.display = "flex";
+}
+
+function hideStatusScreen() {
+  statusShown = null;
+  statusScreen.style.display = "none";
+}
+
+// Раз в 30 секунд проверяем, не начался ли техперерыв и не заблокирован ли аккаунт
+async function checkStatus() {
+  const st = await loadStatus();
+  const signedIn = activeUserId !== null;
+  const reason = blockedReason(st, signedIn);
+  if (reason && reason !== statusShown && !(reason === "maintenance" && adminLoginOpen && !signedIn)) {
+    if (signedIn) stopApp();
+    showStatusScreen(reason, signedIn);
+  } else if (!reason && statusShown) {
+    location.reload();
+  }
+}
+function startStatusPolling() {
+  clearInterval(statusTimer);
+  statusTimer = setInterval(checkStatus, 30000);
+}
+
+statusAdminLogin.addEventListener("click", () => {
+  adminLoginOpen = true;
+  hideStatusScreen();
+  showAuth();
+  setAuthMode("login");
+});
+statusLogout.addEventListener("click", () => sb.auth.signOut());
+
 function enterApp(user, prof) {
   authScreen.style.display = "none";
   accountInfo.textContent = "Вы вошли как " + prof.display_name + " (@" + prof.username + ")";
@@ -130,6 +195,14 @@ async function handleSession(user) {
     authError.textContent = "Не удалось загрузить профиль. Обновите страницу.";
     return;
   }
+  const st = await loadStatus();
+  const reason = blockedReason(st, true);
+  if (reason) {
+    authScreen.style.display = "none";
+    showStatusScreen(reason, true);
+    return;
+  }
+  hideStatusScreen();
   if (!prof.username) {            // юзернейм обязателен
     pendingUser = user;
     pendingProfile = prof;
@@ -140,10 +213,17 @@ async function handleSession(user) {
   enterApp(user, prof);
 }
 
-function handleSignedOut() {
+async function handleSignedOut() {
   activeUserId = null;
   pendingUser = null;
   stopApp();
+  const st = await loadStatus();
+  if (blockedReason(st, false) && !adminLoginOpen) {
+    authScreen.style.display = "none";
+    showStatusScreen("maintenance", false);
+    return;
+  }
+  hideStatusScreen();
   showAuth();
   setAuthMode("login");
 }
@@ -164,6 +244,8 @@ logoutBtn.addEventListener("click", async () => {
 
 // Запускаем, когда загружены все файлы страницы
 document.addEventListener("DOMContentLoaded", () => {
+  startStatusPolling();
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
   sb.auth.onAuthStateChange((event, session) => {
     setTimeout(() => {
       if (session) handleSession(session.user); else handleSignedOut();

@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MessageRoom</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg">
+  <meta name="theme-color" content="#1d4ed8">
 </head>
 <body>
   <div class="app" id="app">
@@ -86,6 +89,16 @@
     </div>
   </div>
 
+  <div class="status-screen" id="statusScreen">
+    <div class="auth-box">
+      <div class="auth-logo">MessageRoom</div>
+      <h2 id="statusTitle"></h2>
+      <p class="status-text" id="statusText"></p>
+      <div class="auth-switch" id="statusAdminLogin">Вход для администратора</div>
+      <button class="auth-submit" id="statusLogout">Выйти из аккаунта</button>
+    </div>
+  </div>
+
   <div class="overlay" id="settingsOverlay">
     <div class="settings">
       <div class="settings-head">
@@ -111,6 +124,12 @@
       </div>
 
       <div class="settings-section">
+        <div class="settings-title">Уведомления</div>
+        <div class="settings-msg" id="pushMsg"></div>
+        <button class="save-btn secondary" id="pushToggle">Включить push-уведомления</button>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-title">Тема оформления</div>
         <div class="theme-options">
           <button class="theme-btn" data-theme="light">
@@ -126,10 +145,49 @@
         <input type="range" id="setScale" min="80" max="140" step="10" value="100">
       </div>
 
+      <button class="save-btn admin-open" id="adminOpen" style="display:none">Админ-панель</button>
+
       <button class="logout-btn" id="logoutBtn">
         <svg class="ic" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
         Выйти из аккаунта
       </button>
+    </div>
+  </div>
+
+  <div class="overlay" id="adminOverlay">
+    <div class="settings admin">
+      <div class="settings-head">
+        <h2>Админ-панель</h2>
+        <button class="icon-btn" id="adminClose" title="Закрыть">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div class="admin-stats" id="adminStats"></div>
+
+      <div class="settings-section">
+        <div class="settings-title">Пользователи</div>
+        <input type="text" id="adminSearch" placeholder="Имя, @юзернейм или почта">
+        <div class="admin-users" id="adminUsers"></div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-title">Рассылка</div>
+        <input type="text" id="bcSubject" placeholder="Заголовок (для push и почты)">
+        <textarea id="bcText" placeholder="Текст уведомления" maxlength="4000"></textarea>
+        <label class="check"><input type="checkbox" id="bcChat" checked> В чат MessageRoom</label>
+        <label class="check"><input type="checkbox" id="bcPush"> Push-уведомление в браузере</label>
+        <label class="check"><input type="checkbox" id="bcEmail"> На почту</label>
+        <div class="settings-msg" id="bcMsg"></div>
+        <button class="save-btn" id="bcSend">Отправить</button>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-title">Технический перерыв</div>
+        <label class="check"><input type="checkbox" id="mtOn"> Сайт закрыт для всех, кроме меня</label>
+        <textarea id="mtText" placeholder="Текст для пользователей"></textarea>
+        <div class="settings-msg" id="mtMsg"></div>
+        <button class="save-btn" id="mtSave">Сохранить</button>
+      </div>
     </div>
   </div>
 
@@ -153,7 +211,10 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
   <script src="auth.js"></script>
   <script src="script.js"></script>
+  <script src="push.js"></script>
+  <script src="admin.js"></script>
 </body>
 </html>
