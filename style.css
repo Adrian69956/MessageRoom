@@ -697,3 +697,33 @@ input:checked + .switch { background: var(--grad); }
   .app.feed-mode .left { display: none; }
   .app.feed-mode .feed { display: flex; flex: 1; min-height: 0; border-left: none; }
 }
+
+/* ---------- Голосовые сообщения ---------- */
+.rec-bar {
+  display: none; align-items: center; gap: 10px; padding: 8px 14px; margin-bottom: 4px;
+  background: var(--bg); border-radius: 16px; box-shadow: var(--shadow);
+}
+.rec-bar.show { display: flex; }
+.rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); animation: recPulse 1s infinite; flex-shrink: 0; }
+@keyframes recPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.8); } }
+.rec-time { font-variant-numeric: tabular-nums; font-size: 15px; color: var(--text); flex: 1; }
+.rec-bar .link-btn { color: var(--text-muted); }
+.rec-send { width: auto; padding: 8px 16px; font-size: 14px; border-radius: 10px; }
+.icon-btn.recording, .rail-btn.recording { color: var(--danger); }
+
+.voice { display: flex; align-items: center; gap: 8px; min-width: 170px; padding: 3px 0; }
+.voice-play {
+  width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer;
+  background: var(--accent); color: var(--on-accent); font-size: 13px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.voice-play:disabled { opacity: .6; }
+.voice-bar { flex: 1; height: 4px; border-radius: 2px; background: rgba(127, 127, 127, .35); overflow: hidden; }
+.voice-fill { width: 0; height: 100%; background: var(--accent); transition: width .15s linear; }
+.voice-time { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.message.mine .voice-play { background: rgba(255, 255, 255, .92); color: var(--bubble-mine); }
+.message.mine .voice-fill { background: rgba(255, 255, 255, .92); }
+.message.mine .voice-time { color: var(--mine-meta); }
+.post .voice { margin: 4px 0 12px; max-width: 320px; }
+.feed-compose-row #postMic { color: var(--text-muted); }
+.feed-compose-row #postMic.recording { color: var(--danger); }
