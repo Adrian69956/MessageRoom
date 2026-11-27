@@ -14,6 +14,9 @@ const bcSend = document.getElementById("bcSend");
 const mtOn = document.getElementById("mtOn");
 const mtText = document.getElementById("mtText");
 const mtMsg = document.getElementById("mtMsg");
+const postPolicy = document.getElementById("postPolicy");
+const postPolicySave = document.getElementById("postPolicySave");
+const postPolicyMsg = document.getElementById("postPolicyMsg");
 let adminSearchTimer = null;
 
 function adminNote(box, text, isError) {
@@ -110,10 +113,23 @@ document.getElementById("adminOpen").addEventListener("click", async () => {
   adminOverlay.classList.add("open");
   adminNote(bcMsg, "", false);
   adminNote(mtMsg, "", false);
+  adminNote(postPolicyMsg, "", false);
   const st = await loadStatus();
   mtOn.checked = st.maintenance;
   mtText.value = st.maintenance_text;
+  postPolicy.value = st.posting_policy || "everyone";
   loadAdminStats();
   searchAdminUsers();
 });
 document.getElementById("adminClose").addEventListener("click", () => adminOverlay.classList.remove("open"));
+
+// ---------- Лента: кто может публиковать посты ----------
+postPolicySave.addEventListener("click", async () => {
+  const value = postPolicy.value;
+  const { error } = await sb.rpc("admin_set_posting_policy", { value: value });
+  if (error) { adminNote(postPolicyMsg, "Ошибка: " + error.message, true); return; }
+  await loadStatus();
+  adminNote(postPolicyMsg, value === "everyone" ? "Писать посты могут все пользователи"
+    : value === "admin" ? "Писать посты может только администратор"
+    : "Лента закрыта для публикации: только чтение", false);
+});
