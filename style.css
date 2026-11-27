@@ -727,3 +727,7 @@ input:checked + .switch { background: var(--grad); }
 .post .voice { margin: 4px 0 12px; max-width: 320px; }
 .feed-compose-row #postMic { color: var(--text-muted); }
 .feed-compose-row #postMic.recording { color: var(--danger); }
+
+/* «Забыли пароль» на экране входа */
+.auth-forgot { text-align: center; color: var(--accent); font-size: 14px; cursor: pointer; margin: -4px 0 12px; }
+.auth-forgot:hover { text-decoration: underline; }
