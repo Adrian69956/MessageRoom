@@ -13,11 +13,13 @@ const authPassword = document.getElementById("authPassword");
 const authError = document.getElementById("authError");
 const authSubmit = document.getElementById("authSubmit");
 const authSwitch = document.getElementById("authSwitch");
+const authForgot = document.getElementById("authForgot");
 const logoutBtn = document.getElementById("logoutBtn");
 
-let authMode = "login";     // login (вход), register (регистрация), setup (выбор юзернейма)
+let authMode = "login";     // login (вход), register (регистрация), setup (юзернейм), recovery (новый пароль)
 let pendingUser = null;     // кому нужно выбрать юзернейм
 let pendingProfile = null;
+let pendingRecovery = false; // пришёл по ссылке «сбросить пароль»
 let activeUserId = null;
 
 const HANDLE_RULE = /^[A-Za-z][A-Za-z0-9_]{4,31}$/;
@@ -27,13 +29,16 @@ function setAuthMode(mode) {
   authMode = mode;
   const reg = mode === "register";
   const setup = mode === "setup";
+  const recovery = mode === "recovery";
   authUsernameWrap.style.display = reg ? "block" : "none";
   authHandleWrap.style.display = reg || setup ? "block" : "none";
-  authEmail.style.display = setup ? "none" : "block";
+  authEmail.style.display = setup || recovery ? "none" : "block";
   authPassword.style.display = setup ? "none" : "block";
-  authTitle.textContent = setup ? "Придумайте юзернейм" : reg ? "Регистрация" : "Вход";
-  authSubmit.textContent = setup ? "Сохранить" : reg ? "Зарегистрироваться" : "Войти";
-  authSwitch.textContent = setup ? "Выйти из аккаунта"
+  authForgot.style.display = setup || recovery ? "none" : "block";
+  authTitle.textContent = recovery ? "Новый пароль" : setup ? "Придумайте юзернейм" : reg ? "Регистрация" : "Вход";
+  authSubmit.textContent = recovery ? "Сохранить пароль" : setup ? "Сохранить" : reg ? "Зарегистрироваться" : "Войти";
+  authSwitch.textContent = recovery ? "Отменить"
+    : setup ? "Выйти из аккаунта"
     : reg ? "Уже есть аккаунт? Войти" : "Нет аккаунта? Зарегистрироваться";
   authError.textContent = "";
 }
@@ -44,7 +49,9 @@ function translateError(message) {
   if (message.includes("already registered")) return "Эта почта уже зарегистрирована";
   if (message.includes("at least 6")) return "Пароль должен быть не короче 6 символов";
   if (message.includes("valid email") || message.includes("invalid format")) return "Введите настоящую почту";
+  if (message.includes("Email not confirmed")) return "Почта не подтверждена — проверьте письмо";
   if (message.includes("Database error")) return "Не удалось создать аккаунт (возможно, юзернейм занят)";
+  if (/security purposes|rate limit|too many/i.test(message)) return "Слишком много попыток. Подождите минуту и попробуйте снова";
   return message;
 }
 
@@ -103,10 +110,25 @@ async function submitAuth() {
   try {
     if (authMode === "setup") await doSetup();
     else if (authMode === "register") await doRegister();
+    else if (authMode === "recovery") await doRecovery();
     else await doLogin();
   } finally {
     authSubmit.disabled = false;
   }
+}
+
+// Пришёл по ссылке «восстановить пароль» — просим новый
+async function doRecovery() {
+  const password = authPassword.value;
+  if (password.length < 6) { authError.textContent = "Пароль должен быть не короче 6 символов"; return; }
+  const { error } = await sb.auth.updateUser({ password: password });
+  if (error) { authError.textContent = translateError(error.message); return; }
+  pendingRecovery = false;
+  authPassword.value = "";
+  authError.textContent = "";
+  const { data } = await sb.auth.getUser();
+  if (data && data.user) { hideStatusScreen(); enterApp(data.user, null); }
+  else setAuthMode("login");
 }
 
 // ---------- Вход в приложение и выход ----------
@@ -183,6 +205,7 @@ function enterApp(user, prof) {
 }
 
 async function handleSession(user) {
+  if (pendingRecovery) { showAuth(); setAuthMode("recovery"); return; }
   if (activeUserId === user.id) return;
   activeUserId = user.id;
   const { data: prof, error } = await sb.from("profiles")
@@ -229,8 +252,26 @@ async function handleSignedOut() {
 // ---------- Кнопки ----------
 authSubmit.addEventListener("click", submitAuth);
 authSwitch.addEventListener("click", async () => {
-  if (authMode === "setup") await sb.auth.signOut();
-  else setAuthMode(authMode === "login" ? "register" : "login");
+  if (authMode === "setup") { await sb.auth.signOut(); return; }
+  if (authMode === "recovery") {
+    pendingRecovery = false;
+    await sb.auth.signOut();
+    setAuthMode("login");
+    return;
+  }
+  setAuthMode(authMode === "login" ? "register" : "login");
+});
+
+authForgot.addEventListener("click", async () => {
+  const email = authEmail.value.trim();
+  if (!email) { authError.textContent = "Сначала введите почту в поле выше"; return; }
+  authForgot.style.pointerEvents = "none";
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: location.origin + location.pathname,
+  });
+  authForgot.style.pointerEvents = "";
+  if (error) { authError.textContent = translateError(error.message); return; }
+  authError.textContent = "Письмо отправлено на " + email + ". Откройте его и перейдите по ссылке.";
 });
 [authEmail, authPassword, authUsername, authHandle].forEach((field) => {
   field.addEventListener("keydown", (e) => { if (e.key === "Enter") submitAuth(); });
@@ -246,6 +287,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
   sb.auth.onAuthStateChange((event, session) => {
     setTimeout(() => {
+      if (event === "PASSWORD_RECOVERY") {
+        pendingRecovery = true;
+        showAuth();
+        setAuthMode("recovery");
+        return;
+      }
       if (session) handleSession(session.user); else handleSignedOut();
     }, 0);
   });
