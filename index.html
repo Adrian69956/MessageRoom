@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MessageRoom</title>
-  <link rel="stylesheet" href="style.css?v=1795779437">
+  <link rel="stylesheet" href="style.css?v=1795780369">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#0077ff">
@@ -204,6 +204,9 @@
         <div class="feed-compose" id="feedCompose">
           <textarea id="postText" placeholder="Что нового?" maxlength="4000" rows="2"></textarea>
           <div class="feed-compose-row">
+            <button class="icon-btn" id="postMic" title="Голосовой пост">
+              <svg class="ic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" x2="12" y1="18" y2="22"/></svg>
+            </button>
             <span class="feed-count" id="postCount"></span>
             <button class="save-btn" id="postSend">Опубликовать</button>
           </div>
@@ -242,12 +245,21 @@
           <button class="icon-btn" id="cbClose" title="Отмена"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </div>
         <div class="emoji-panel" id="emojiPanel"></div>
+        <div class="rec-bar" id="recBar">
+          <span class="rec-dot"></span>
+          <span class="rec-time" id="recTime">0:00</span>
+          <button class="link-btn" id="recCancel">Отмена</button>
+          <button class="save-btn rec-send" id="recSend">Отправить</button>
+        </div>
         <div class="compose-row">
           <div class="input-wrap">
             <button class="icon-btn" id="emojiBtn" title="Смайлики">
               <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg>
             </button>
             <textarea id="messageInput" rows="1" placeholder="Сообщение" maxlength="4000"></textarea>
+            <button class="icon-btn" id="micBtn" title="Голосовое сообщение">
+              <svg class="ic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" x2="12" y1="18" y2="22"/></svg>
+            </button>
           </div>
           <button class="send-btn" id="sendBtn" title="Отправить">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>
@@ -365,10 +377,10 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=1795779437"></script>
-  <script src="auth.js?v=1795779437"></script>
-  <script src="script.js?v=1795779437"></script>
-  <script src="push.js?v=1795779437"></script>
-  <script src="admin.js?v=1795779437"></script>
+  <script src="config.js?v=1795780369"></script>
+  <script src="auth.js?v=1795780369"></script>
+  <script src="script.js?v=1795780369"></script>
+  <script src="push.js?v=1795780369"></script>
+  <script src="admin.js?v=1795780369"></script>
 </body>
 </html>
