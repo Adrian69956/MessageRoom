@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MessageRoom</title>
-  <link rel="stylesheet" href="style.css?v=1795780369">
+  <link rel="stylesheet" href="style.css?v=1795780670">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#0077ff">
@@ -56,7 +56,7 @@
           <div class="profile-card">
             <div class="avatar huge" id="setAvatarView"></div>
             <div class="pc-name" id="setNameView"></div>
-            <div class="pc-status">в сети</div>
+            <div class="pc-status" id="setStatusView">в сети</div>
           </div>
           <div class="tg-list">
             <div class="tg-row"><span class="ii plain"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span><div><div id="setEmailView"></div><div class="tg-sub">Почта</div></div></div>
@@ -79,29 +79,55 @@
       <section class="screen" id="scrAccount">
         <div class="left-head">
           <button class="icon-btn" data-back title="Назад"><svg class="ic" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
-          <div class="screen-title">Мой аккаунт</div>
+          <div class="screen-title">Мой профиль</div>
         </div>
         <div class="screen-body">
           <div class="profile-card">
             <label class="avatar huge editable" id="setAvatarEdit" title="Выбрать фото"></label>
             <input type="file" id="avatarFile" accept="image/*" hidden>
+            <div class="pc-name" id="acctNameView"></div>
+            <div class="pc-status" id="acctStatusView"></div>
             <div class="pc-actions">
               <button class="link-btn" id="avatarPick">Выбрать фото</button>
               <button class="link-btn danger" id="avatarRemove">Удалить фото</button>
             </div>
           </div>
+
           <div class="form">
+            <div class="form-title">Как вас видят другие</div>
             <label class="field"><span>Имя</span><input type="text" id="setName" maxlength="64"></label>
+            <label class="field"><span>Статус</span><input type="text" id="setStatus" maxlength="120" placeholder="Короткая фраза о себе"></label>
             <label class="field"><span>О себе</span><textarea id="setBio" maxlength="200" rows="3"></textarea><em id="bioCount"></em></label>
-            <div class="hint">Пара слов о себе: возраст, профессия или город.</div>
             <label class="field"><span>Имя пользователя</span><input type="text" id="setHandle" maxlength="33"></label>
-            <div class="hint">По этому имени вас смогут найти в поиске. Можно использовать a–z, 0–9 и _, от 5 символов.</div>
+            <div class="hint">По этому имени вас найдут в поиске: латиница, цифры и _, от 5 символов.</div>
             <div class="settings-msg" id="setMsg"></div>
             <button class="save-btn" id="saveProfile">Сохранить</button>
           </div>
+
+          <div class="form">
+            <div class="form-title">Город, дата рождения, ссылки</div>
+            <label class="field"><span>Город</span><input type="text" id="setCity" maxlength="80"></label>
+            <label class="field"><span>Дата рождения</span><input type="date" id="setBirthday"></label>
+            <label class="field"><span>Сайт</span><input type="url" id="setLinkSite" maxlength="200" placeholder="https://"></label>
+            <label class="field"><span>Телеграм</span><input type="text" id="setLinkTg" maxlength="64" placeholder="@ник"></label>
+            <label class="tg-item toggle">Показывать город, дату рождения и ссылки<input type="checkbox" id="setShowExtra"><i class="switch"></i></label>
+            <div class="settings-msg" id="extraMsg"></div>
+            <button class="save-btn" id="saveExtra">Сохранить</button>
+          </div>
+
+          <div class="form">
+            <div class="form-title">Почта</div>
+            <div class="tg-row"><span class="ii plain"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span><div><div id="acctEmailView"></div><div class="tg-sub">Текущая почта</div></div></div>
+            <label class="field"><span>Новая почта</span><input type="email" id="setNewEmail" autocomplete="email"></label>
+            <div class="settings-msg" id="emailMsg"></div>
+            <button class="save-btn secondary" id="saveEmail">Изменить почту</button>
+            <div class="hint">Сначала придёт письмо для подтверждения — адрес сменится после перехода по ссылке.</div>
+          </div>
+
           <div class="form">
             <div class="form-title">Пароль</div>
             <label class="field"><span>Новый пароль</span><input type="password" id="setPass" autocomplete="new-password"></label>
+            <label class="field"><span>Повторите пароль</span><input type="password" id="setPass2" autocomplete="new-password"></label>
             <div class="settings-msg" id="passMsg"></div>
             <button class="save-btn secondary" id="savePass">Сменить пароль</button>
           </div>
@@ -312,6 +338,7 @@
       </div>
       <input type="email" id="authEmail" placeholder="Почта">
       <input type="password" id="authPassword" placeholder="Пароль (минимум 6 символов)">
+      <div class="auth-forgot" id="authForgot">Забыли пароль?</div>
       <div class="auth-error" id="authError"></div>
       <button class="auth-submit" id="authSubmit">Войти</button>
       <div class="auth-switch" id="authSwitch">Нет аккаунта? Зарегистрироваться</div>
@@ -377,10 +404,10 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=1795780369"></script>
-  <script src="auth.js?v=1795780369"></script>
-  <script src="script.js?v=1795780369"></script>
-  <script src="push.js?v=1795780369"></script>
-  <script src="admin.js?v=1795780369"></script>
+  <script src="config.js?v=1795780670"></script>
+  <script src="auth.js?v=1795780670"></script>
+  <script src="script.js?v=1795780670"></script>
+  <script src="push.js?v=1795780670"></script>
+  <script src="admin.js?v=1795780670"></script>
 </body>
 </html>
