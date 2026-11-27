@@ -223,7 +223,7 @@ async function loadAll() {
 }
 async function loadProfiles(ids) {
   if (!ids.length) return;
-  const { data } = await sb.from("profiles").select("id, display_name, username, bio, allow_dm, avatar_url, last_seen_privacy").in("id", ids);
+  const { data } = await sb.from("profiles").select("id, display_name, username, bio, allow_dm, avatar_url, last_seen_privacy, status, show_extra").in("id", ids);
   (data || []).forEach((p) => { profiles[p.id] = p; });
 }
 async function loadBlocked() {
@@ -1052,36 +1052,97 @@ function fillSettingsView() {
   $("setHandleView").textContent = p.username ? "@" + p.username : "";
   $("setBioView").textContent = p.bio || "";
   $("setBioRow").style.display = p.bio ? "flex" : "none";
+  $("setStatusView").textContent = p.status || "";
+  $("setStatusView").style.display = p.status ? "" : "none";
 }
 
 // ---------- Мой аккаунт ----------
 const setName = $("setName"), setHandle = $("setHandle"), setBio = $("setBio");
 function note(id, text, isError) { const n = $(id); n.textContent = text; n.className = "settings-msg" + (isError ? " error" : "") + (n.classList.contains("center") ? " center" : ""); }
-function fillAccount() {
+async function fillAccount() {
   const p = myProfile();
   setAvatar($("setAvatarEdit"), Object.assign({ id: me.id }, p));
   $("avatarRemove").style.display = p.avatar_url ? "inline" : "none";
-  setName.value = p.display_name || ""; setHandle.value = p.username || ""; setBio.value = p.bio || "";
+  $("acctNameView").textContent = p.display_name || "";
+  $("acctStatusView").textContent = p.status || "без статуса";
+  $("acctEmailView").textContent = me.email || "";
+  setName.value = p.display_name || "";
+  setHandle.value = p.username || "";
+  setBio.value = p.bio || "";
+  $("setStatus").value = p.status || "";
   $("bioCount").textContent = String(200 - setBio.value.length);
-  note("setMsg", ""); note("passMsg", ""); $("setPass").value = "";
+  note("setMsg", ""); note("extraMsg", ""); note("emailMsg", ""); note("passMsg", "");
+  $("setPass").value = ""; $("setPass2").value = ""; $("setNewEmail").value = "";
+  $("setCity").value = ""; $("setBirthday").value = ""; $("setLinkSite").value = ""; $("setLinkTg").value = "";
+  $("setShowExtra").checked = p.show_extra !== false;
+  // Город, дата рождения и ссылки приходят отдельной функцией (с учётом приватности)
+  const { data } = await sb.rpc("get_profile_extra", { ids: [me.id] });
+  const extra = data && data[0];
+  if (extra) {
+    $("setCity").value = extra.city || "";
+    $("setBirthday").value = extra.birthday || "";
+    const links = extra.links || {};
+    $("setLinkSite").value = links.site || "";
+    $("setLinkTg").value = links.tg || "";
+  }
 }
 setBio.addEventListener("input", () => { $("bioCount").textContent = String(200 - setBio.value.length); });
 $("saveProfile").addEventListener("click", async () => {
   const name = setName.value.trim(), handle = setHandle.value.trim().replace(/^@/, ""), bio = setBio.value.trim();
+  const status = $("setStatus").value.trim();
   if (!name) { note("setMsg", "Введите имя", true); return; }
   if (!HANDLE_RULE.test(handle)) { note("setMsg", HANDLE_HELP, true); return; }
-  const { error } = await sb.from("profiles").update({ display_name: name, username: handle, bio: bio || null }).eq("id", me.id);
+  const { error } = await sb.from("profiles")
+    .update({ display_name: name, username: handle, bio: bio || null, status: status || null })
+    .eq("id", me.id);
   if (error) { note("setMsg", error.code === "23505" ? "Этот юзернейм уже занят" : "Не сохранилось: " + error.message, true); return; }
-  Object.assign(profiles[me.id], { display_name: name, username: handle, bio: bio || null });
+  Object.assign(profiles[me.id], { display_name: name, username: handle, bio: bio || null, status: status || null });
+  $("acctNameView").textContent = name;
+  $("acctStatusView").textContent = status || "без статуса";
   note("setMsg", "Сохранено");
   renderAll();
 });
+$("saveExtra").addEventListener("click", async () => {
+  const city = $("setCity").value.trim();
+  const birthday = $("setBirthday").value || null;
+  const site = $("setLinkSite").value.trim();
+  const tg = $("setLinkTg").value.trim();
+  if (site && !/^https?:\/\/.+/i.test(site)) { note("extraMsg", "Сайт должен начинаться с http:// или https://", true); return; }
+  const links = {};
+  if (site) links.site = site;
+  if (tg) links.tg = tg.startsWith("@") ? tg : "@" + tg;
+  const { error } = await sb.from("profiles")
+    .update({ city: city || null, birthday: birthday, links: links, show_extra: $("setShowExtra").checked })
+    .eq("id", me.id);
+  if (error) { note("extraMsg", "Не сохранилось: " + error.message, true); return; }
+  profiles[me.id].city = city || null;
+  profiles[me.id].show_extra = $("setShowExtra").checked;
+  note("extraMsg", "Сохранено");
+});
+$("saveEmail").addEventListener("click", async () => {
+  const email = $("setNewEmail").value.trim();
+  if (!email) { note("emailMsg", "Введите новую почту", true); return; }
+  $("saveEmail").disabled = true;
+  const { error } = await sb.auth.updateUser(
+    { email: email },
+    { emailRedirectTo: location.origin + location.pathname },
+  );
+  $("saveEmail").disabled = false;
+  if (error) { note("emailMsg", "Не получилось: " + translateError(error.message), true); return; }
+  $("setNewEmail").value = "";
+  note("emailMsg", "Письмо для подтверждения отправлено на " + email + ". Адрес сменится после перехода по ссылке.", false);
+});
 $("savePass").addEventListener("click", async () => {
   const pass = $("setPass").value;
+  const pass2 = $("setPass2").value;
   if (pass.length < 6) { note("passMsg", "Пароль должен быть не короче 6 символов", true); return; }
+  if (pass !== pass2) { note("passMsg", "Пароли не совпадают", true); return; }
+  $("savePass").disabled = true;
   const { error } = await sb.auth.updateUser({ password: pass });
-  if (error) { note("passMsg", "Не получилось: " + error.message, true); return; }
-  $("setPass").value = ""; note("passMsg", "Пароль изменён");
+  $("savePass").disabled = false;
+  if (error) { note("passMsg", "Не получилось: " + translateError(error.message), true); return; }
+  $("setPass").value = ""; $("setPass2").value = "";
+  note("passMsg", "Пароль изменён");
 });
 
 // Фото профиля: обрезаем до квадрата 512×512 и загружаем в хранилище
@@ -1220,6 +1281,25 @@ function infoAction(icon, label, action, danger) {
   b.addEventListener("click", action);
   return b;
 }
+function fmtBirthday(iso) {
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+}
+
+// Город, дата рождения и ссылки: отдельный запрос, учитывает настройку приватности
+async function fillInfoExtra(p, rows) {
+  const chatId = currentId;
+  const { data } = await sb.rpc("get_profile_extra", { ids: [p.id] });
+  const extra = data && data[0];
+  if (!extra || currentId !== chatId) return;
+  if (extra.city) rows.append(infoRow(ICONS.info, extra.city, "Город"));
+  if (extra.birthday) rows.append(infoRow(ICONS.info, fmtBirthday(extra.birthday), "Дата рождения"));
+  const links = extra.links || {};
+  if (links.site) rows.append(infoRow(ICONS.at, links.site, "Сайт", () => copyText(links.site, "Ссылка скопирована")));
+  if (links.tg) rows.append(infoRow(ICONS.at, links.tg, "Телеграм", () => copyText(links.tg, "Ник скопирован")));
+}
+
 function refreshInfo() {
   if (!infoPanel.classList.contains("open")) return;
   const c = currentChat();
@@ -1235,8 +1315,10 @@ function refreshInfo() {
 
   const rows = $("infoRows"); rows.innerHTML = "";
   if (p) {
+    if (p.status) rows.append(infoRow(ICONS.info, p.status, "Статус"));
     rows.append(infoRow(ICONS.at, "@" + p.username, "Имя пользователя", () => copyText("@" + p.username, "Имя пользователя скопировано")));
     if (p.bio) rows.append(infoRow(ICONS.info, p.bio, "О себе"));
+    fillInfoExtra(p, rows);
   } else if (c.type === "system") {
     rows.append(infoRow(ICONS.info, "Официальные новости и уведомления MessageRoom. Писать в этот чат может только администратор.", "Описание"));
   }
