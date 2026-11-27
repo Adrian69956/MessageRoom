@@ -82,7 +82,7 @@ function isBlockedChat(c) { return c.type === "private" && blocked.has(otherUser
 function canWrite(c) { return (c.type !== "system" || window.appStatus.is_admin) && !isBlockedChat(c); }
 function lastMessage(c) { return c.messages[c.messages.length - 1]; }
 function lastTime(c) { const m = lastMessage(c); return m ? new Date(m.created_at).getTime() : c.createdAt; }
-function unreadCount(c) { return c.messages.filter((m) => m.sender_id !== me.id && new Date(m.created_at).getTime() > c.lastRead).length; }
+function unreadCount(c) { return c.unread || 0; }
 function sortChats() { chats.sort((a, b) => (a.pinned !== b.pinned ? (a.pinned ? -1 : 1) : lastTime(b) - lastTime(a))); }
 function isTyping(c) { const t = typingState[c.id]; return t && t.until > Date.now() ? t : null; }
 
@@ -153,6 +153,23 @@ function toast(text) {
 function copyText(text, note) { navigator.clipboard.writeText(text).then(() => toast(note || "Скопировано")).catch(() => {}); }
 
 // ---------- Загрузка данных ----------
+const MSG_PAGE = 30;        // сколько сообщений одного чата грузим за раз
+const MSG_COLUMNS = "id, chat_id, sender_id, text, created_at, edited_at, reply_to";
+
+// Последние MSG_PAGE сообщений чата. before — подгрузить те, что старше указанной даты.
+async function fetchMessages(chatId, before, clearedAt) {
+  let query = sb.from("messages").select(MSG_COLUMNS)
+    .eq("chat_id", chatId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(MSG_PAGE);
+  if (before) query = query.lt("created_at", before);
+  if (clearedAt) query = query.gt("created_at", new Date(clearedAt).toISOString());
+  const { data, error } = await query;
+  if (error) { console.error(error); return []; }
+  return (data || []).reverse();
+}
+
 async function loadAll() {
   const { data: rows, error } = await sb.from("chat_members")
     .select("chat_id, user_id, pinned, archived, muted, cleared_at, last_read_at, chats(id, type, title, created_at)");
@@ -161,12 +178,6 @@ async function loadAll() {
   const userIds = [...new Set(rows.map((r) => r.user_id).concat(me.id, [...blocked]))];
   await loadProfiles(userIds);
 
-  let msgs = [];
-  if (ids.length) {
-    const res = await sb.from("messages").select("id, chat_id, sender_id, text, created_at, edited_at, reply_to")
-      .in("chat_id", ids).order("created_at", { ascending: false }).limit(1000);
-    msgs = res.data || [];
-  }
   chats = ids.map((id) => {
     const group = rows.filter((r) => r.chat_id === id);
     const mine = group.find((r) => r.user_id === me.id);
@@ -180,9 +191,21 @@ async function loadAll() {
       lastRead: new Date(mine.last_read_at).getTime(),
       otherRead: others.length ? Math.max(...others.map((o) => new Date(o.last_read_at).getTime())) : 0,
       members: group.map((r) => r.user_id),
-      messages: msgs.filter((m) => m.chat_id === id && new Date(m.created_at).getTime() > clearedAt).reverse()
+      messages: [], hasMore: false, loadingOlder: false
     };
   }).filter(Boolean);
+  // История грузится отдельно для каждого чата: раньше один общий лимит на 1000
+  // сообщений «съедал» старые переписки, теперь у каждого чата своя страница.
+  await Promise.all(chats.map(async (c) => {
+    c.messages = await fetchMessages(c.id, null, c.clearedAt);
+    c.hasMore = c.messages.length === MSG_PAGE;
+    // Точное число непрочитанных берём у базы: в памяти лежит только страница истории
+    const { count } = await sb.from("messages").select("id", { count: "exact", head: true })
+      .eq("chat_id", c.id)
+      .gt("created_at", new Date(c.lastRead).toISOString())
+      .neq("sender_id", me.id);
+    c.unread = count || 0;
+  }));
   sortChats();
   if (currentId && !currentChat()) closeChat();
   syncTypingChannels();
@@ -357,6 +380,14 @@ function renderMessages(opts) {
   messagesBox.innerHTML = "";
   if (!c) return;
   messagesBox.dataset.wall = WALLPAPERS[prefs.wallpaper] || "default";
+  if (c.hasMore) {
+    const more = el("div", "history-more");
+    const btn = el("button", "link-btn", c.loadingOlder ? "Загружаем..." : "Показать более старые");
+    btn.disabled = !!c.loadingOlder;
+    btn.addEventListener("click", () => loadOlder(c));
+    more.append(btn);
+    messagesBox.append(more);
+  }
   const group = c.type !== "private" && c.type !== "system";
   let prevDay = null, unreadPlaced = false;
   c.messages.forEach((m, i) => {
@@ -399,7 +430,7 @@ function renderMessages(opts) {
     messagesBox.append(empty);
   }
   if (opts.scroll === "unread" && $("unreadSep")) $("unreadSep").scrollIntoView({ block: "center" });
-  else if (opts.scroll === "bottom" || keepBottom) messagesBox.scrollTop = messagesBox.scrollHeight;
+  else if (opts.scroll === "bottom" || opts.scroll === "unread" || keepBottom) messagesBox.scrollTop = messagesBox.scrollHeight;
   else messagesBox.scrollTop = prevTop;
   updateToBottom();
 }
@@ -417,10 +448,37 @@ function updateToBottom() {
   $("toBottomBadge").textContent = n ? String(n) : "";
   $("toBottomBadge").style.display = n ? "flex" : "none";
 }
-messagesBox.addEventListener("scroll", () => { updateToBottom(); if (isAtBottom()) markRead(); });
+messagesBox.addEventListener("scroll", () => {
+  updateToBottom();
+  if (isAtBottom()) markRead();
+  const c = currentChat();
+  if (c && c.hasMore && !c.loadingOlder && c.messages.length && messagesBox.scrollTop < 80) loadOlder(c);
+});
+
+// Догрузка более старых сообщений открытого чата
+async function loadOlder(c) {
+  if (!c || c.loadingOlder || !c.hasMore || !c.messages.length) return;
+  const before = c.messages[0].created_at;
+  const prevHeight = messagesBox.scrollHeight;
+  const prevTop = messagesBox.scrollTop;
+  c.loadingOlder = true;
+  renderMessages();
+  const older = await fetchMessages(c.id, before, c.clearedAt);
+  c.messages = older.concat(c.messages);
+  c.hasMore = older.length === MSG_PAGE;
+  c.loadingOlder = false;
+  renderMessages();
+  // Сохраняем позицию чтения: иначе список «прыгает», когда подгрузилось сверху
+  messagesBox.scrollTop = prevTop + (messagesBox.scrollHeight - prevHeight);
+}
 toBottom.addEventListener("click", () => { messagesBox.scrollTo({ top: messagesBox.scrollHeight, behavior: "smooth" }); });
 
 function openChat(id) {
+  if (app.classList.contains("feed-mode")) {
+    app.classList.remove("feed-mode");
+    $("railFeed").classList.remove("active");
+    document.querySelector('.rail-btn[data-rail="scrChats"]').classList.add("active");
+  }
   if (currentId !== id) { cancelCompose(); input.value = ""; autoGrow(); }
   currentId = id;
   const c = currentChat();
@@ -446,6 +504,7 @@ async function markRead() {
   if (!c || document.hidden || unreadCount(c) === 0 || !isAtBottom()) return;
   const last = lastMessage(c);
   c.lastRead = new Date(last.created_at).getTime();
+  c.unread = 0;
   renderChatList(); updateTitle(); updateToBottom();
   await sb.from("chat_members").update({ last_read_at: last.created_at }).eq("chat_id", c.id).eq("user_id", me.id);
 }
@@ -539,6 +598,7 @@ function addMessage(m, own) {
   c.messages.push(m);
   c.messages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   if (typingState[c.id] && typingState[c.id].user === m.sender_id) delete typingState[c.id];
+  if (!own && m.sender_id !== me.id) c.unread = (c.unread || 0) + 1;
   sortChats();
   if (c.id === currentId) { renderMessages({ scroll: own || wasBottom ? "bottom" : undefined }); markRead(); renderHeader(); }
   renderChatList(); updateTitle();
@@ -618,12 +678,14 @@ async function clearChat(c, removeFromList) {
     .eq("chat_id", c.id).eq("user_id", me.id);
   if (error) { toast("Не получилось: " + error.message); return; }
   c.clearedAt = new Date(now).getTime(); c.lastRead = c.clearedAt; c.messages = []; c.pinned = false; c.archived = false;
+  c.unread = 0; c.hasMore = false;
   if (removeFromList && c.id === currentId) closeChat(); else renderAll();
 }
 async function markChatRead(c) {
   const last = lastMessage(c);
   if (!last) return;
   c.lastRead = new Date(last.created_at).getTime();
+  c.unread = 0;
   renderChatList(); updateTitle();
   await sb.from("chat_members").update({ last_read_at: last.created_at }).eq("chat_id", c.id).eq("user_id", me.id);
 }
@@ -738,6 +800,9 @@ function subscribeRealtime() {
   channel = sb.channel("messageroom")
     .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, onMessageChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "chat_members" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, scheduleFeedReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "post_reactions" }, scheduleFeedReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "post_comments" }, scheduleFeedReload)
     .subscribe();
 }
 function unsubscribeRealtime() {
@@ -771,7 +836,8 @@ function stopApp() {
   clearInterval(presenceTimer);
   me = null; profiles = {}; chats = []; currentId = null; searchResults = []; presence = {}; blocked = new Set();
   search.value = ""; chatList.innerHTML = ""; archiveList.innerHTML = ""; messagesBox.innerHTML = "";
-  app.classList.remove("in-chat", "has-chat");
+  app.classList.remove("in-chat", "has-chat", "feed-mode");
+  $("railFeed").classList.remove("active");
   closeInfo(); cancelCompose();
   screenStack = ["scrChats"]; showScreen("scrChats");
   document.title = "MessageRoom";
@@ -807,6 +873,8 @@ $("mmAdmin").addEventListener("click", () => { closeMenus(); $("adminOpen").clic
 $("mmNight").addEventListener("change", (e) => setTheme(e.target.checked ? "dark" : "light"));
 document.querySelectorAll(".rail-btn[data-rail]").forEach((b) => b.addEventListener("click", () => {
   closeMenus();
+  app.classList.remove("feed-mode");
+  $("railFeed").classList.remove("active");
   screenStack = b.dataset.rail === "scrChats" ? ["scrChats"] : ["scrChats", b.dataset.rail];
   showScreen(b.dataset.rail);
   if (window.innerWidth <= 768 && currentId) closeChat();
@@ -1047,3 +1115,226 @@ if ("serviceWorker" in navigator) {
     if (e.data && e.data.openChat && chats.some((c) => c.id === e.data.openChat)) openChat(e.data.openChat);
   });
 }
+
+// ===================== Лента постов =====================
+const REACTIONS = ["❤️", "🔥", "😂", "👍", "😮", "😢"];
+let feedPosts = [];
+let feedReloadTimer = null;
+let feedBusy = false;
+
+function isFeedOpen() { return app.classList.contains("feed-mode"); }
+
+function scheduleFeedReload() {
+  clearTimeout(feedReloadTimer);
+  feedReloadTimer = setTimeout(() => { if (isFeedOpen()) loadFeed(); }, 400);
+}
+
+function enterFeed() {
+  app.classList.add("feed-mode");
+  app.classList.remove("in-chat");
+  document.querySelectorAll(".rail-btn[data-rail]").forEach((b) => b.classList.remove("active"));
+  $("railFeed").classList.add("active");
+  loadFeed();
+}
+
+function exitFeed() {
+  app.classList.remove("feed-mode");
+  $("railFeed").classList.remove("active");
+  screenStack = ["scrChats"];
+  showScreen("scrChats");
+  document.querySelector('.rail-btn[data-rail="scrChats"]').classList.add("active");
+}
+
+async function loadFeed() {
+  if (feedBusy) return;
+  feedBusy = true;
+  try {
+    await loadStatus();
+    const { data, error } = await sb.from("posts")
+      .select("id, author_id, text, created_at, edited_at, post_reactions(user_id, emoji), post_comments(count)")
+      .order("created_at", { ascending: false })
+      .limit(40);
+    if (error) { toast("Лента не загрузилась: " + error.message); return; }
+    feedPosts = data || [];
+    const authors = [...new Set(feedPosts.map((p) => p.author_id))];
+    if (authors.length) await loadProfiles(authors);
+    updateFeedComposer();
+    renderFeed();
+  } finally {
+    feedBusy = false;
+  }
+}
+
+function updateFeedComposer() {
+  const can = !!(window.appStatus && window.appStatus.can_post);
+  $("feedCompose").style.display = can ? "block" : "none";
+  $("feedLocked").style.display = can ? "none" : "block";
+}
+
+function fmtPostTime(iso) {
+  const d = new Date(iso), now = new Date();
+  if (sameDay(d, now)) return "сегодня в " + fmtTime(iso);
+  if (sameDay(d, new Date(now.getTime() - 86400000))) return "вчера в " + fmtTime(iso);
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) + " в " + fmtTime(iso);
+}
+
+function authorOf(id) { return profiles[id] || { id: id, display_name: "Пользователь" }; }
+
+function reactionList(post) {
+  const counts = {};
+  let mine = null;
+  (post.post_reactions || []).forEach((r) => {
+    counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+    if (r.user_id === me.id) mine = r.emoji;
+  });
+  return { counts: counts, mine: mine };
+}
+
+function renderFeed() {
+  const list = $("feedList");
+  list.innerHTML = "";
+  if (!feedPosts.length) {
+    list.append(el("div", "no-posts", "Пока постов нет. Напишите первый!"));
+    return;
+  }
+  feedPosts.forEach((post) => list.append(postCard(post)));
+}
+
+function postCard(post) {
+  const card = el("article", "post");
+  const author = authorOf(post.author_id);
+  const head = el("div", "post-head");
+  head.append(makeAvatar(author, ""));
+  const info = el("div", "post-info");
+  info.append(el("div", "post-author", author.display_name || "Пользователь"));
+  info.append(el("div", "post-time", fmtPostTime(post.created_at) + (post.edited_at ? " · изменено" : "")));
+  head.append(info);
+  if (post.author_id === me.id || window.appStatus.is_admin) {
+    const del = el("button", "icon-btn post-del");
+    del.title = "Удалить пост";
+    del.innerHTML = ICONS.trash;
+    del.addEventListener("click", () => deletePost(post));
+    head.append(del);
+  }
+  card.append(head);
+
+  const text = el("div", "post-text");
+  appendText(text, post.text);
+  card.append(text);
+
+  const actions = el("div", "post-actions");
+  const reaction = reactionList(post);
+  REACTIONS.forEach((emoji) => {
+    const count = reaction.counts[emoji] || 0;
+    const btn = el("button", "react" + (reaction.mine === emoji ? " on" : ""), emoji + (count ? " " + count : ""));
+    btn.addEventListener("click", () => toggleReaction(post, emoji));
+    actions.append(btn);
+  });
+  const comments = post.post_comments && post.post_comments[0] ? post.post_comments[0].count : 0;
+  const cbtn = el("button", "react comments-btn", "💬" + (comments ? " " + comments : ""));
+  cbtn.addEventListener("click", () => toggleComments(post, card));
+  actions.append(cbtn);
+  card.append(actions);
+
+  card.append(el("div", "post-comments"));
+  return card;
+}
+
+async function toggleReaction(post, emoji) {
+  const reaction = reactionList(post);
+  let error = null;
+  if (reaction.mine === emoji) {
+    ({ error } = await sb.from("post_reactions").delete().eq("post_id", post.id).eq("user_id", me.id));
+  } else if (reaction.mine) {
+    ({ error } = await sb.from("post_reactions").update({ emoji: emoji }).eq("post_id", post.id).eq("user_id", me.id));
+  } else {
+    const res = await sb.from("post_reactions").insert({ post_id: post.id, user_id: me.id, emoji: emoji });
+    if (res.error && res.error.code === "23505") {
+      ({ error } = await sb.from("post_reactions").update({ emoji: emoji }).eq("post_id", post.id).eq("user_id", me.id));
+    } else {
+      error = res.error;
+    }
+  }
+  if (error) { toast("Не получилось: " + error.message); return; }
+  await loadFeed();
+}
+
+async function deletePost(post) {
+  if (!confirm("Удалить пост?")) return;
+  const { error } = await sb.from("posts").delete().eq("id", post.id);
+  if (error) { toast("Не удалось удалить: " + error.message); return; }
+  await loadFeed();
+}
+
+async function toggleComments(post, card) {
+  card.classList.toggle("comments-open");
+  if (!card.classList.contains("comments-open")) return;
+  const box = card.querySelector(".post-comments");
+  box.innerHTML = "";
+  const { data, error } = await sb.from("post_comments")
+    .select("id, author_id, text, created_at")
+    .eq("post_id", post.id).order("created_at").limit(200);
+  if (error) { box.append(el("div", "list-note", "Комментарии не загрузились")); return; }
+  const ids = [...new Set((data || []).map((c) => c.author_id))];
+  if (ids.length) await loadProfiles(ids);
+  (data || []).forEach((c) => {
+    const row = el("div", "comment");
+    row.append(el("b", "", authorOf(c.author_id).display_name || "Пользователь"));
+    row.append(document.createTextNode(": " + c.text));
+    if (c.author_id === me.id || window.appStatus.is_admin) {
+      const del = el("button", "comment-del", "удалить");
+      del.addEventListener("click", async () => {
+        const { error: err } = await sb.from("post_comments").delete().eq("id", c.id);
+        if (err) { toast("Не удалось: " + err.message); return; }
+        await loadFeed();
+      });
+      row.append(del);
+    }
+    box.append(row);
+  });
+  if (!data || !data.length) box.append(el("div", "list-note", "Комментариев пока нет"));
+
+  const inputRow = el("div", "comment-row");
+  const field = el("input");
+  field.placeholder = "Комментарий…";
+  field.maxLength = 2000;
+  const send = el("button", "link-btn", "Отправить");
+  const submit = async () => {
+    const text = field.value.trim();
+    if (!text) return;
+    send.disabled = true;
+    const { error: err } = await sb.from("post_comments").insert({ post_id: post.id, text: text });
+    send.disabled = false;
+    if (err) { toast("Не отправилось: " + err.message); return; }
+    field.value = "";
+    await loadFeed();
+  };
+  send.addEventListener("click", submit);
+  field.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+  inputRow.append(field, send);
+  box.append(inputRow);
+}
+
+async function publishPost() {
+  const field = $("postText");
+  const text = field.value.trim();
+  if (!text) { toast("Напишите что-нибудь"); return; }
+  $("postSend").disabled = true;
+  const { error } = await sb.from("posts").insert({ text: text });
+  $("postSend").disabled = false;
+  if (error) { toast("Не опубликовалось: " + error.message); return; }
+  field.value = "";
+  updatePostCount();
+  await loadFeed();
+}
+
+function updatePostCount() {
+  const n = $("postText").value.length;
+  $("postCount").textContent = n ? n + " / 4000" : "";
+}
+
+$("railFeed").addEventListener("click", (e) => { e.stopPropagation(); enterFeed(); });
+$("feedBack").addEventListener("click", exitFeed);
+$("feedRefresh").addEventListener("click", () => loadFeed());
+$("postText").addEventListener("input", updatePostCount);
+$("postSend").addEventListener("click", publishPost);
