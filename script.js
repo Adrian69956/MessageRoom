@@ -81,6 +81,16 @@ function chatTitle(c) { return c.type === "private" ? nameOf(otherUserId(c)) : (
 function isBlockedChat(c) { return c.type === "private" && blocked.has(otherUserId(c)); }
 function canWrite(c) { return (c.type !== "system" || window.appStatus.is_admin) && !isBlockedChat(c); }
 function lastMessage(c) { return c.messages[c.messages.length - 1]; }
+function fmtMs(ms) {
+  const total = Math.max(0, Math.round((ms || 0) / 1000));
+  return Math.floor(total / 60) + ":" + String(total % 60).padStart(2, "0");
+}
+function previewOf(m) {
+  if (!m) return "";
+  if (m.text) return m.text.replace(/\s+/g, " ");
+  if (m.voice_path) return "🎤 Голосовое сообщение" + (m.voice_ms ? " · " + fmtMs(m.voice_ms) : "");
+  return "";
+}
 function lastTime(c) { const m = lastMessage(c); return m ? new Date(m.created_at).getTime() : c.createdAt; }
 function unreadCount(c) { return c.unread || 0; }
 function sortChats() { chats.sort((a, b) => (a.pinned !== b.pinned ? (a.pinned ? -1 : 1) : lastTime(b) - lastTime(a))); }
@@ -154,7 +164,7 @@ function copyText(text, note) { navigator.clipboard.writeText(text).then(() => t
 
 // ---------- Загрузка данных ----------
 const MSG_PAGE = 30;        // сколько сообщений одного чата грузим за раз
-const MSG_COLUMNS = "id, chat_id, sender_id, text, created_at, edited_at, reply_to";
+const MSG_COLUMNS = "id, chat_id, sender_id, text, created_at, edited_at, reply_to, voice_path, voice_ms";
 
 // Последние MSG_PAGE сообщений чата. before — подгрузить те, что старше указанной даты.
 async function fetchMessages(chatId, before, clearedAt) {
@@ -261,7 +271,7 @@ function chatItem(c) {
   if (isTyping(c)) lastBox.append(el("span", "typing", "печатает..."));
   else if (last) {
     if (last.sender_id === me.id) lastBox.append(el("span", "you", "Вы: "));
-    lastBox.append(document.createTextNode(last.text.replace(/\s+/g, " ")));
+    lastBox.append(document.createTextNode(previewOf(last)));
   } else lastBox.textContent = c.clearedAt ? "История очищена" : "Нет сообщений";
   bottom.append(lastBox);
   if (unread > 0) bottom.append(el("div", "badge" + (c.muted ? " muted" : ""), unread > 999 ? "999+" : String(unread)));
@@ -409,12 +419,13 @@ function renderMessages(opts) {
       const orig = c.messages.find((x) => x.id === m.reply_to);
       const q = el("div", "quote");
       q.append(el("div", "q-name", orig ? (orig.sender_id === me.id ? "Вы" : nameOf(orig.sender_id)) : "Сообщение"),
-        el("div", "q-text", orig ? orig.text : "Сообщение удалено или недоступно"));
+        el("div", "q-text", orig ? (orig.text || "🎤 Голосовое сообщение") : "Сообщение удалено или недоступно"));
       if (orig) q.addEventListener("click", (e) => { e.stopPropagation(); jumpTo(orig.id); });
       div.append(q);
     }
     const body = el("div", "text");
-    appendText(body, m.text);
+    if (m.voice_path) body.append(voicePlayer(m.voice_path, m.voice_ms));
+    if (m.text) appendText(body, m.text);
     const meta = el("span", "meta");
     if (m.edited_at) meta.append(el("span", "edited", "изм."));
     meta.append(document.createTextNode(fmtTime(m.created_at)));
@@ -474,6 +485,7 @@ async function loadOlder(c) {
 toBottom.addEventListener("click", () => { messagesBox.scrollTo({ top: messagesBox.scrollHeight, behavior: "smooth" }); });
 
 function openChat(id) {
+  if (recording) stopRecording(false);
   if (app.classList.contains("feed-mode")) {
     app.classList.remove("feed-mode");
     $("railFeed").classList.remove("active");
@@ -515,7 +527,7 @@ function autoGrow() { input.style.height = "auto"; input.style.height = Math.min
 function showComposeBar(kind, m) {
   $("cbIcon").innerHTML = kind === "edit" ? ICONS.edit : ICONS.reply;
   $("cbTitle").textContent = kind === "edit" ? "Редактирование" : "В ответ " + (m.sender_id === me.id ? "себе" : nameOf(m.sender_id));
-  $("cbText").textContent = m.text;
+  $("cbText").textContent = m.text || "🎤 Голосовое сообщение";
   composeBar.classList.add("show");
 }
 function startReply(m) { editing = null; replyTo = m; showComposeBar("reply", m); input.focus(); }
@@ -563,7 +575,7 @@ input.addEventListener("keydown", (e) => {
   } else if (e.key === "Escape") cancelCompose();
   else if (e.key === "ArrowUp" && !input.value) {
     const c = currentChat();
-    const mine = c && [...c.messages].reverse().find((m) => m.sender_id === me.id);
+    const mine = c && [...c.messages].reverse().find((m) => m.sender_id === me.id && m.text);
     if (mine) { e.preventDefault(); startEdit(mine); }
   }
 });
@@ -588,6 +600,151 @@ async function deleteMessage(m) {
   if (error) { toast("Не удалось удалить: " + error.message); return; }
   removeMessage(m.id);
 }
+
+// ---------- Голосовые сообщения ----------
+const VOICE_MIMES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+let recording = null;
+let recordingStopTimer = null;
+let activeAudio = null;
+
+function pickVoiceMime() {
+  if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== "function") return "";
+  return VOICE_MIMES.find((mime) => MediaRecorder.isTypeSupported(mime)) || "";
+}
+
+// Плеер одного голосового: ссылка на файл запрашивается при первом нажатии
+function voicePlayer(path, ms) {
+  const wrap = el("div", "voice");
+  const btn = el("button", "voice-play", "▶");
+  btn.title = "Прослушать";
+  const bar = el("div", "voice-bar");
+  const fill = el("div", "voice-fill");
+  bar.append(fill);
+  const time = el("span", "voice-time", fmtMs(ms || 0));
+  wrap.append(btn, bar, time);
+
+  let audio = null;
+  btn.addEventListener("click", async () => {
+    if (!audio) {
+      btn.disabled = true;
+      const { data, error } = await sb.storage.from("voice").createSignedUrl(path, 3600);
+      btn.disabled = false;
+      if (error || !data) { toast("Не удалось открыть голосовое: " + (error ? error.message : "нет ссылки")); return; }
+      audio = new Audio(data.signedUrl);
+      audio.addEventListener("timeupdate", () => {
+        const total = audio.duration && isFinite(audio.duration) ? audio.duration : Math.max(1, (ms || 0) / 1000);
+        fill.style.width = Math.min(100, (audio.currentTime / total) * 100) + "%";
+      });
+      audio.addEventListener("ended", () => { btn.textContent = "▶"; fill.style.width = "0%"; activeAudio = null; });
+      audio.addEventListener("error", () => { toast("Не получилось проиграть запись"); btn.textContent = "▶"; });
+    }
+    if (audio.paused) {
+      if (activeAudio && activeAudio !== audio) { activeAudio.pause(); activeAudio = null; }
+      try { await audio.play(); } catch (err) { toast("Браузер не дал включить звук"); return; }
+      activeAudio = audio;
+      btn.textContent = "⏸";
+    } else {
+      audio.pause();
+      btn.textContent = "▶";
+    }
+  });
+  return wrap;
+}
+
+function updateRecTime() {
+  if (!recording) return;
+  $("recTime").textContent = fmtMs(Date.now() - recording.startedAt);
+}
+
+async function startRecording(context) {
+  if (recording) return;
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function" || !window.MediaRecorder) {
+    toast("Этот браузер не умеет записывать звук");
+    return;
+  }
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    toast("Браузер не дал доступ к микрофону: " + (err.message || err));
+    return;
+  }
+  const mime = pickVoiceMime();
+  let recorder;
+  try {
+    recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+  } catch (err) {
+    stream.getTracks().forEach((track) => track.stop());
+    toast("Не удалось начать запись");
+    return;
+  }
+  recording = {
+    recorder: recorder, stream: stream, chunks: [], startedAt: Date.now(),
+    context: context, mime: recorder.mimeType || mime || "audio/webm", timer: null,
+  };
+  recorder.addEventListener("dataavailable", (event) => {
+    if (event.data && event.data.size > 0 && recording) recording.chunks.push(event.data);
+  });
+  recorder.start(250);
+  $("recBar").classList.add("show");
+  $("micBtn").classList.add("recording");
+  $("postMic").classList.add("recording");
+  $("recTime").textContent = "0:00";
+  recording.timer = setInterval(updateRecTime, 250);
+  recordingStopTimer = setTimeout(() => { if (recording) stopRecording(true); }, 180000);
+}
+
+async function stopRecording(send) {
+  if (!recording) return;
+  const current = recording;
+  recording = null;
+  clearInterval(current.timer);
+  clearTimeout(recordingStopTimer);
+  $("recBar").classList.remove("show");
+  $("micBtn").classList.remove("recording");
+  $("postMic").classList.remove("recording");
+  const ms = Date.now() - current.startedAt;
+  const stopped = new Promise((resolve) => current.recorder.addEventListener("stop", resolve, { once: true }));
+  try { current.recorder.stop(); } catch (err) { /* уже остановлен */ }
+  await Promise.race([stopped, new Promise((resolve) => setTimeout(resolve, 2000))]);
+  current.stream.getTracks().forEach((track) => track.stop());
+  if (!send) return;
+  if (ms < 500) { toast("Слишком короткая запись"); return; }
+  const blob = new Blob(current.chunks, { type: current.mime });
+  await sendVoiceBlob(blob, ms, current.context);
+}
+
+async function sendVoiceBlob(blob, ms, context) {
+  const type = blob.type || "audio/webm";
+  const ext = type.indexOf("mp4") !== -1 ? "m4a" : type.indexOf("ogg") !== -1 ? "ogg" : "webm";
+  const name = typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : String(Date.now()) + Math.random().toString(16).slice(2);
+  const path = me.id + "/" + name + "." + ext;
+  const upload = await sb.storage.from("voice").upload(path, blob, { contentType: type, upsert: false });
+  if (upload.error) { toast("Не удалось загрузить запись: " + upload.error.message); return; }
+
+  if (context === "post") {
+    const { error } = await sb.from("posts").insert({ voice_path: path, voice_ms: ms });
+    if (error) { toast("Не опубликовалось: " + error.message); return; }
+    await loadFeed();
+    return;
+  }
+
+  const c = currentChat();
+  if (!c) return;
+  const row = { chat_id: c.id, voice_path: path, voice_ms: ms };
+  if (replyTo) row.reply_to = replyTo.id;
+  cancelCompose();
+  const { data, error } = await sb.from("messages").insert(row).select().single();
+  if (error) { toast("Не отправилось: " + error.message); return; }
+  addMessage(data, true);
+}
+
+$("micBtn").addEventListener("click", () => { if (recording) stopRecording(true); else startRecording("chat"); });
+$("postMic").addEventListener("click", () => { if (recording) stopRecording(true); else startRecording("post"); });
+$("recCancel").addEventListener("click", () => stopRecording(false));
+$("recSend").addEventListener("click", () => stopRecording(true));
 
 // ---------- Новые сообщения ----------
 function addMessage(m, own) {
@@ -723,7 +880,7 @@ function messageMenu(x, y, id) {
   showCtx(x, y, [
     canWrite(c) && { label: "Ответить", icon: ICONS.reply, action: () => startReply(m) },
     { label: "Копировать текст", icon: ICONS.copy, action: () => copyText(m.text, "Текст скопирован") },
-    mine && canWrite(c) && { label: "Изменить", icon: ICONS.edit, action: () => startEdit(m) },
+    mine && canWrite(c) && m.text && { label: "Изменить", icon: ICONS.edit, action: () => startEdit(m) },
     mine && { label: "Удалить", icon: ICONS.trash, danger: true, action: () => deleteMessage(m) }
   ]);
 }
@@ -831,6 +988,7 @@ async function startApp(user) {
   presenceTimer = setInterval(() => { touchPresence(); refreshPresence(); renderChatList(); }, 60000);
 }
 function stopApp() {
+  if (recording) stopRecording(false);
   unsubscribeRealtime();
   unsubscribeTyping();
   clearInterval(presenceTimer);
@@ -1151,7 +1309,7 @@ async function loadFeed() {
   try {
     await loadStatus();
     const { data, error } = await sb.from("posts")
-      .select("id, author_id, text, created_at, edited_at, post_reactions(user_id, emoji), post_comments(count)")
+      .select("id, author_id, text, created_at, edited_at, voice_path, voice_ms, post_reactions(user_id, emoji), post_comments(count)")
       .order("created_at", { ascending: false })
       .limit(40);
     if (error) { toast("Лента не загрузилась: " + error.message); return; }
@@ -1218,9 +1376,12 @@ function postCard(post) {
   }
   card.append(head);
 
-  const text = el("div", "post-text");
-  appendText(text, post.text);
-  card.append(text);
+  if (post.text) {
+    const text = el("div", "post-text");
+    appendText(text, post.text);
+    card.append(text);
+  }
+  if (post.voice_path) card.append(voicePlayer(post.voice_path, post.voice_ms));
 
   const actions = el("div", "post-actions");
   const reaction = reactionList(post);
