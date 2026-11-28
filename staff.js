@@ -103,31 +103,6 @@
   staffOverlay.addEventListener("click",e=>{if(e.target===staffOverlay)staffOverlay.classList.remove("open");});
   $id("railStaff").addEventListener("click",()=>openStaffAction());
 
-  async function loadMyModerationStatus() {
-    if (!me) return;
-    const {data,error}=await sb.rpc("get_my_moderation_status");
-    const list=$id("myModerationList");
-    if(!list)return;
-    list.innerHTML="";
-    if(error){list.textContent="Не удалось загрузить данные.";return;}
-    const warnings=data?.warnings||[], restrictions=data?.restrictions||[];
-    if(!warnings.length&&!restrictions.length){list.textContent="Активных ограничений и предупреждений нет.";return;}
-    warnings.forEach(w=>{
-      const item=document.createElement("div");item.className="moderation-status-item";
-      item.textContent="Предупреждение: "+w.reason;
-      const small=document.createElement("small");small.textContent=new Date(w.created_at).toLocaleString("ru-RU");item.append(small);list.append(item);
-    });
-    restrictions.forEach(r=>{
-      const labels={posts:"Запрет публикаций",comments:"Запрет комментариев",media:"Запрет загрузки фото, видео и аудио"};
-      const item=document.createElement("div");item.className="moderation-status-item";
-      item.textContent=(labels[r.type]||r.type)+": "+r.reason;
-      const small=document.createElement("small");small.textContent="Действует до "+new Date(r.expires_at).toLocaleString("ru-RU");item.append(small);list.append(item);
-    });
-  }
-  window.refreshMyModerationStatus=loadMyModerationStatus;
-  $id("railMe").addEventListener("click",()=>setTimeout(loadMyModerationStatus,100));
-  document.querySelectorAll('[data-go="scrAccount"]').forEach(b=>b.addEventListener("click",()=>setTimeout(loadMyModerationStatus,100)));
-
   function categoryLabel(cat) {
     return ({complaint:"Жалоба",appeal:"Апелляция",question:"Вопрос",bug:"Ошибка",other:"Другое"})[cat]||cat;
   }
