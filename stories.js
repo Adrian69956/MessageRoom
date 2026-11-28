@@ -9,6 +9,8 @@
   let activeStoryIndex = 0;
   let viewerStories = [];
   let storyTouchX = 0;
+  let viewerTimer = null;
+  let viewerStartedAt = 0;
   let trimDuration = 0;
   let trimObjectUrl = null;
   let editedMediaFile = null;
@@ -32,7 +34,7 @@
   async function loadStories() {
     if (!me) return;
     const { data, error } = await sb.from("stories")
-      .select("id,user_id,story_type,text,media_path,overlay_path,background,audience,duration_hours,created_at,expires_at,trim_start_seconds,trim_end_seconds,preview_seconds")
+      .select("id,user_id,story_type,text,media_path,overlay_path,background,audience,audience_mode,selected_user_ids,excluded_user_ids,duration_hours,created_at,expires_at,trim_start_seconds,trim_end_seconds,preview_seconds")
       .gt("expires_at", new Date().toISOString()).order("created_at", {ascending:true}).limit(300);
     if (error) { console.warn("Stories unavailable:", error); return; }
     storyRows = data || [];
@@ -435,6 +437,8 @@
     await renderViewerStory();
   }
   async function renderViewerStory() {
+    if(viewerTimer){clearTimeout(viewerTimer);viewerTimer=null;}
+    viewerStartedAt=Date.now();
     const s=viewerStories[activeStoryIndex];
     if(!s)return closeOverlay("storyViewerOverlay");
     const profile=profiles[s.user_id]||{id:s.user_id,display_name:"Пользователь"};
@@ -516,6 +520,13 @@
     }
     $s("storyPrev").disabled=activeStoryIndex===0;
     $s("storyNext").disabled=activeStoryIndex===viewerStories.length-1;
+    const duration=s.story_type==="video"?Math.max(5000,((Number(s.trim_end_seconds)||0)-(Number(s.trim_start_seconds)||0))*1000):5000;
+    const activeFill=bars.children[activeStoryIndex]?.querySelector("i");
+    if(activeFill){activeFill.style.width="0%";activeFill.style.transition="none";requestAnimationFrame(()=>{activeFill.style.transition="width "+duration+"ms linear";activeFill.style.width="100%";});}
+    viewerTimer=setTimeout(async()=>{
+      if(activeStoryIndex<viewerStories.length-1){activeStoryIndex++;await renderViewerStory();}
+      else closeOverlay("storyViewerOverlay");
+    },duration);
   }
 
   async function showStoryViewers(story) {
@@ -595,10 +606,11 @@
     if(!viewerStories.length)closeOverlay("storyViewerOverlay");
     else{activeStoryIndex=Math.min(activeStoryIndex,viewerStories.length-1);await renderViewerStory();}
   }
-  $s("storyViewerClose").addEventListener("click",()=>closeOverlay("storyViewerOverlay"));
-  $s("storyViewerOverlay").addEventListener("click",e=>{if(e.target.id==="storyViewerOverlay")closeOverlay("storyViewerOverlay");});
-  $s("storyPrev").addEventListener("click",async()=>{if(activeStoryIndex>0){activeStoryIndex--;await renderViewerStory();}});
-  $s("storyNext").addEventListener("click",async()=>{if(activeStoryIndex<viewerStories.length-1){activeStoryIndex++;await renderViewerStory();}});
+  $s("storyViewerClose").addEventListener("click",()=>{if(viewerTimer)clearTimeout(viewerTimer);closeOverlay("storyViewerOverlay");});
+  $s("storyViewerOverlay").addEventListener("click",e=>{if(e.target.id==="storyViewerOverlay"){if(viewerTimer)clearTimeout(viewerTimer);closeOverlay("storyViewerOverlay");}});
+  $s("storyPrev").addEventListener("click",async()=>{if(viewerTimer)clearTimeout(viewerTimer);if(activeStoryIndex>0){activeStoryIndex--;await renderViewerStory();}});
+  $s("storyNext").addEventListener("click",async()=>{if(viewerTimer)clearTimeout(viewerTimer);if(activeStoryIndex<viewerStories.length-1){activeStoryIndex++;await renderViewerStory();}else closeOverlay("storyViewerOverlay");});
+  $s("storyViewerContent").addEventListener("click",async e=>{if(e.target.closest("button"))return;const r=$s("storyViewerContent").getBoundingClientRect();if(e.clientX<r.left+r.width*.35){if(activeStoryIndex>0){if(viewerTimer)clearTimeout(viewerTimer);activeStoryIndex--;await renderViewerStory();}}else if(e.clientX>r.left+r.width*.65){if(viewerTimer)clearTimeout(viewerTimer);if(activeStoryIndex<viewerStories.length-1){activeStoryIndex++;await renderViewerStory();}else closeOverlay("storyViewerOverlay");}});
   $s("storyViewer").addEventListener("touchstart",e=>{storyTouchX=e.changedTouches[0].clientX;},{passive:true});
   $s("storyViewer").addEventListener("touchend",async e=>{
     const dx=e.changedTouches[0].clientX-storyTouchX;
