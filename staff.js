@@ -360,17 +360,8 @@
     $id("supportStaffSend").disabled=ticket.status==="closed"&&!isOwner();
     $id("supportStaffTicketTitle").textContent=categoryLabel(ticket.category)+" · "+ticket.subject+" · "+ticketStatus(ticket.status);
     await loadTicketMessages(ticket.id,"supportStaffMessages",true);
-    await loadInternalNotes(ticket.id);
     renderSupportOwnerActions(ticket);
     loadStaffTickets();
-  }
-  async function loadInternalNotes(ticketId){
-    const box=$id("supportInternalNotes");box.innerHTML="";
-    if(!(isOwner()||isAdmin()))return;
-    const {data,error}=await sb.from("support_internal_notes").select("body,created_at,author_id").eq("ticket_id",ticketId).order("created_at");
-    if(error)return;
-    if(data?.length){const title=document.createElement("strong");title.textContent="Внутренние заметки";box.append(title);
-      data.forEach(n=>{const p=document.createElement("div");p.textContent=n.body+" · "+new Date(n.created_at).toLocaleString("ru-RU");box.append(p);});}
   }
   function renderSupportOwnerActions(ticket){
     const box=$id("supportOwnerActions");box.innerHTML="";
