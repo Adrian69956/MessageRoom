@@ -447,15 +447,15 @@
       </div>
       <div class="create-pane" id="createGroupDetails" hidden>
         <header class="create-header"><button type="button" class="create-back" data-create-back="people" aria-label="Назад">‹</button><h2>Создать группу</h2><button type="button" class="create-close" data-create-close aria-label="Закрыть">×</button></header>
-        <div class="create-avatar-row"><label class="create-avatar-pick" for="chatCreateAvatar"><span id="chatCreateAvatarPreview">＋</span><small>Фото</small></label><input id="chatCreateAvatar" type="file" accept="image/*" hidden><label class="create-name-field"><span>Название группы</span><input id="chatCreateName" maxlength="80" placeholder="Название группы" autocomplete="off"></label></div>
+        <div class="create-avatar-row"><label class="create-avatar-pick" for="chatCreateAvatar"><span id="chatCreateGroupAvatarPreview">＋</span><small>Фото</small></label><input id="chatCreateGroupAvatar" type="file" accept="image/*" hidden><label class="create-name-field"><span>Название группы</span><input id="chatCreateGroupName" maxlength="80" placeholder="Название группы" autocomplete="off"></label></div>
         <div class="settings-msg" id="chatCreateMessage"></div>
         <footer class="create-footer"><button type="button" class="create-cancel" data-create-close>Отменить</button><button type="button" class="create-primary" id="groupCreateSubmit" disabled>Далее</button></footer>
       </div>
       <div class="create-pane" id="createChannelDetails" hidden>
         <header class="create-header"><button type="button" class="create-back" data-create-back="chooser" aria-label="Назад">‹</button><h2>Создать канал</h2><button type="button" class="create-close" data-create-close aria-label="Закрыть">×</button></header>
-        <label class="create-avatar-pick create-avatar-large" for="chatCreateAvatar"><span id="chatCreateAvatarPreview">＋</span><small>Добавить фото</small></label>
-        <input id="chatCreateAvatar" type="file" accept="image/*" hidden>
-        <label class="create-field"><span>Название канала</span><input id="chatCreateName" maxlength="80" placeholder="Название канала" autocomplete="off"></label>
+        <label class="create-avatar-pick create-avatar-large" for="chatCreateAvatar"><span id="chatCreateChannelAvatarPreview">＋</span><small>Добавить фото</small></label>
+        <input id="chatCreateGroupAvatar" type="file" accept="image/*" hidden>
+        <label class="create-field"><span>Название канала</span><input id="chatCreateChannelName" maxlength="80" placeholder="Название канала" autocomplete="off"></label>
         <label class="create-field"><span>Описание</span><textarea id="chatCreateDescription" maxlength="1000" rows="3" placeholder="Расскажите о канале (до 1000 символов)"></textarea><small id="channelDescriptionCount">0 / 1000</small></label>
         <label class="create-field"><span>Юзернейм канала</span><input id="chatCreateUsername" maxlength="32" placeholder="например, my_channel" autocomplete="off"><small>Для публичного канала: 5–32 символа, латиница, цифры и _</small></label>
         <div class="settings-msg" id="channelCreateMessage"></div>
