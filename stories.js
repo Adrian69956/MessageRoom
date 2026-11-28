@@ -50,7 +50,10 @@
     own.append(typeof makeAvatar==="function" ? makeAvatar(ownProfile,"") : node("span","","+"));
     own.append(node("i","story-add-plus","+"));
     add.append(own,node("span","story-label","Моя история"));
-    add.addEventListener("click",openCreate);
+    const ownGroup=storyGroups.find(g=>g.userId===me.id);
+    add.addEventListener("click",()=>ownGroup?openViewer(ownGroup.stories):openCreate());
+    const plus=own.querySelector(".story-add-plus");
+    if(plus)plus.addEventListener("click",e=>{e.stopPropagation();openCreate();});
     rail.append(add);
     storyGroups.filter(g=>g.userId!==me.id).forEach(group=>{
       const b=node("button","story-person");
