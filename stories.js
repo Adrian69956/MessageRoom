@@ -189,7 +189,7 @@
       state.history=[canvas.toDataURL("image/png")];state.redo=[];modal.classList.add("open");
     };
     video.load();
-    modal.querySelector("[data-overlay-cancel]").onclick=()=>modal.classList.remove("open");
+    modal.querySelector("[data-overlay-cancel]").onclick=()=>{modal.classList.remove("open");if(!onSave){$s("storyMediaFile").click();}};
     modal.querySelector("[data-overlay-clear]").onclick=()=>{snapshot();ctx.clearRect(0,0,canvas.width,canvas.height);};
     modal.querySelector("[data-overlay-undo]").onclick=()=>{if(state.history.length>1){state.redo.push(state.history.pop());restore(state.history[state.history.length-1]);}};
     modal.querySelector("[data-overlay-redo]").onclick=()=>{if(state.redo.length){const value=state.redo.pop();state.history.push(value);restore(value);}};
@@ -217,7 +217,7 @@
     const state={color:"#fff",tool:"draw",history:[],redo:[]};
     const restore=data=>{const im=new Image();im.onload=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(im,0,0,canvas.width,canvas.height);};im.src=data;};
     const snapshot=()=>{state.history.push(canvas.toDataURL());if(state.history.length>30)state.history.shift();state.redo=[];};
-    modal.querySelector("[data-photo-cancel]").onclick=()=>modal.classList.remove("open");
+    modal.querySelector("[data-photo-cancel]").onclick=()=>{modal.classList.remove("open");if(!onSave){$s("storyMediaFile").value="";$s("storyMediaFile").click();}};
     modal.querySelector("[data-photo-clear]").onclick=()=>{snapshot();ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);};
     modal.querySelector("[data-photo-undo]").onclick=()=>{if(state.history.length>1){state.redo.push(state.history.pop());restore(state.history[state.history.length-1]);}};
     modal.querySelector("[data-photo-redo]").onclick=()=>{if(state.redo.length){const value=state.redo.pop();state.history.push(value);restore(value);}};
