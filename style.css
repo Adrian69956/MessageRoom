@@ -1025,3 +1025,17 @@ input:checked + .switch { background: var(--grad); }
 .support-quick-categories button{border:1px solid var(--border);background:var(--bg-2);color:var(--text);border-radius:12px;padding:11px 12px;text-align:left;font:inherit;font-size:14px;cursor:pointer;transition:border-color .15s,background .15s}
 .support-quick-categories button:hover,.support-quick-categories button.active{border-color:var(--accent);background:var(--grad-soft);color:var(--accent)}
 .support-quick-categories button:last-child{grid-column:1/-1}
+
+
+/* Compact staff shortcuts without affecting the rest of the rail. */
+#railAdmin .ic,#railSupport .ic,#railJournal .ic{width:19px;height:19px}
+#railAdmin,#railSupport,#railJournal{padding:8px 0}
+.rail-me{display:flex;align-items:center;justify-content:center}
+.report-user-link{border:0;padding:0;background:none;color:var(--accent);font:inherit;cursor:pointer}
+.report-user-link:hover,.support-complaint-user:hover{text-decoration:underline}
+.support-complaint-user{cursor:pointer}
+@media(max-width:768px){
+  .rail-logo,.rail-spacer,.rail-extra:not(.rail-me){display:none!important}
+  .rail-me{display:flex!important;flex:1;width:auto;margin:0;padding:4px}
+  .rail-me .avatar{width:30px;height:30px;font-size:13px}
+}
