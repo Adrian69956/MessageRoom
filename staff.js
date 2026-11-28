@@ -384,7 +384,16 @@
           if(username) openSupportReportedUser(username);
         });
       }
-      const small=document.createElement("small");small.textContent=(who?"@"+who.username:"Пользователь")+" · "+ticketStatus(t.status)+" · "+new Date(t.updated_at).toLocaleString("ru-RU");
+      const small=document.createElement("small");
+      if(who){
+        small.append(document.createTextNode("Отправитель: "));
+        const sender=document.createElement("span");
+        sender.className="support-sender-link";sender.textContent="@"+who.username;
+        sender.title="Открыть профиль отправителя";
+        sender.addEventListener("click",e=>{e.stopPropagation();openSupportReportedUser(who.username);});
+        small.append(sender);
+      }else small.textContent="Отправитель: Пользователь";
+      small.append(document.createTextNode(" · "+ticketStatus(t.status)+" · "+new Date(t.updated_at).toLocaleString("ru-RU")));
       b.append(strong,small);b.addEventListener("click",()=>openStaffTicket(t));list.append(b);
     });
   }
