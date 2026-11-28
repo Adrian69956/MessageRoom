@@ -127,6 +127,7 @@
     $id("supportHome").style.display="block";
     $id("supportUserChat").style.display="none";
     $id("supportCategory").value="";updateSupportCategoryFields();
+    document.querySelectorAll("[data-support-category]").forEach(b=>b.classList.remove("active"));
     loadMyTickets();
   }
   function supportStaffView(){
