@@ -67,8 +67,6 @@ function userRow(u) {
     const deleteBtn = el("button", "admin-ban danger", "Удалить аккаунт");
     deleteBtn.addEventListener("click", async () => {
       if (!confirm("Полностью удалить аккаунт @" + u.username + "? Все данные пользователя будут удалены. Это нельзя отменить.")) return;
-      const phrase = prompt('Для подтверждения введи: УДАЛИТЬ');
-      if (phrase !== "УДАЛИТЬ") return;
       deleteBtn.disabled = true;
       const { data, error } = await sb.functions.invoke("delete-account", { body: { targetUserId: u.id } });
       if (error || !data?.success) {
