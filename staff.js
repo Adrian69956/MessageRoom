@@ -174,6 +174,7 @@
     if(typeof closeMenus==="function")closeMenus();
     supportOverlay.classList.add("open");
     supportStaffView();
+    $id("supportFeedReportsBtn").style.display = (window.appStatus.is_owner || window.appStatus.is_moderator) ? "block" : "none";
     subscribeSupport();
   }
   window.openSupportUser = openSupportUser;
