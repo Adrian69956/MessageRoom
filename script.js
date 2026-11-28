@@ -568,7 +568,7 @@ function readVideoDuration(file) {
     video.src = url;
   });
 }
-async function appendMediaPreview(container, path, type, bucket) {
+async async function appendMediaPreview(container, path, type, bucket) {
   const wrap = el("div", "media-preview");
   wrap.append(el("div", "media-loading", "Загрузка медиа…"));
   container.append(wrap);
@@ -583,37 +583,54 @@ async function appendMediaPreview(container, path, type, bucket) {
     node = document.createElement("img");
     node.alt = "Изображение";
     node.loading = "lazy";
+    node.classList.add("media-openable");
+    node.title = "Нажмите, чтобы открыть фото";
+    node.addEventListener("click", () => openPhotoViewer(data.signedUrl, path.split("/").pop() || "messageroom-photo.jpg"));
   }
   node.src = data.signedUrl;
   wrap.append(node);
-  if (type !== "video") {
-    const save = el("button", "media-save-btn", "Сохранить фото");
-    save.type = "button";
-    save.addEventListener("click", async () => {
-      save.disabled = true;
-      save.textContent = "Скачивание…";
+}
+
+function openPhotoViewer(url, filename) {
+  let viewer = $("photoViewer");
+  if (!viewer) {
+    viewer = document.createElement("div");
+    viewer.id = "photoViewer";
+    viewer.className = "photo-viewer";
+    viewer.innerHTML = '<div class="photo-viewer-top"><button type="button" class="photo-viewer-close" aria-label="Закрыть">×</button></div><img class="photo-viewer-image" alt="Фото"><div class="photo-viewer-bottom"><button type="button" class="photo-viewer-save">↓ Сохранить фото</button></div>';
+    document.body.append(viewer);
+    viewer.addEventListener("click", e => {
+      if (e.target === viewer || e.target.closest(".photo-viewer-close")) viewer.classList.remove("show");
+    });
+    viewer.querySelector(".photo-viewer-save").addEventListener("click", async () => {
+      const btn = viewer.querySelector(".photo-viewer-save");
+      const image = viewer.querySelector(".photo-viewer-image");
+      btn.disabled = true;
+      btn.textContent = "Скачивание…";
       try {
-        const response = await fetch(data.signedUrl);
+        const response = await fetch(image.src);
         if (!response.ok) throw new Error("download failed");
         const blob = await response.blob();
         const objectUrl = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = objectUrl;
-        link.download = (path.split("/").pop() || "messageroom-photo").replace(/[^a-z0-9._-]/gi, "_");
+        link.download = viewer.dataset.filename || "messageroom-photo.jpg";
         document.body.append(link);
         link.click();
         link.remove();
         setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
-      } catch (e) {
-        window.open(data.signedUrl, "_blank", "noopener");
-        toast("Открываю фото для сохранения");
+      } catch (err) {
+        window.open(image.src, "_blank", "noopener");
+        toast("Не удалось скачать напрямую — фото открыто отдельно");
       } finally {
-        save.disabled = false;
-        save.textContent = "Сохранить фото";
+        btn.disabled = false;
+        btn.textContent = "↓ Сохранить фото";
       }
     });
-    wrap.append(save);
   }
+  viewer.querySelector(".photo-viewer-image").src = url;
+  viewer.dataset.filename = (filename || "messageroom-photo.jpg").replace(/[^a-z0-9._-]/gi, "_");
+  viewer.classList.add("show");
 }
 let pendingChatFile = null;
 let pendingChatPreviewUrl = null;
