@@ -60,7 +60,7 @@
     loading = true;
     queueList.innerHTML = '<div class="list-note">Загружаем жалобы…</div>';
     let query = sb.from("post_reports")
-      .select("id,post_id,reporter_id,reason,details,priority,status,created_at,posts(id,author_id,text,created_at)")
+      .select("id,post_id,post_author_id,post_text_snapshot,reporter_id,reason,details,priority,status,created_at,posts(id,author_id,text,created_at)")
       .order("priority", { ascending: false })
       .order("created_at", { ascending: true });
     if (filter === "new") query = query.eq("status", "new");
@@ -75,7 +75,7 @@
       queueList.innerHTML = '<div class="list-note">Жалоб пока нет</div>';
       return;
     }
-    const ids = [...new Set(data.map((r) => r.reporter_id).concat(data.map((r) => r.posts && r.posts.author_id).filter(Boolean)))];
+    const ids = [...new Set(data.map((r) => r.reporter_id).concat(data.map((r) => (r.posts && r.posts.author_id) || r.post_author_id).filter(Boolean)))];
     let profiles = {};
     if (ids.length) {
       const { data: people } = await sb.from("profiles").select("id,display_name,username").in("id", ids);
@@ -85,7 +85,7 @@
     data.forEach((report) => {
       const post = report.posts;
       const reporter = profiles[report.reporter_id];
-      const author = post && profiles[post.author_id];
+      const author = profiles[(post && post.author_id) || report.post_author_id];
       const card = document.createElement("article");
       card.className = "report-card";
       const head = document.createElement("div");
@@ -112,7 +112,7 @@
       card.append(reason);
       const body = document.createElement("div");
       body.className = "report-card-content";
-      body.textContent = post && post.text ? post.text : "Публикация содержит медиа или голосовое сообщение.";
+      body.textContent = (post && post.text) || report.post_text_snapshot || "Публикация содержит медиа или голосовое сообщение.";
       card.append(body);
       if (report.details) {
         const details = document.createElement("div");
@@ -179,6 +179,14 @@
   const actionNames = {
     report_submitted: "Отправлена жалоба на публикацию",
     report_status_changed: "Изменён статус жалобы",
+    warning_issued: "Выдано предупреждение",
+    restriction_issued: "Выдано временное ограничение",
+    restriction_revoked: "Отменено временное ограничение",
+    support_ticket_created: "Создано обращение в поддержку",
+    support_message_sent: "Отправлен ответ в поддержку",
+    support_internal_note: "Добавлена внутренняя заметка",
+    support_status_changed: "Изменён статус обращения",
+    support_ticket_assigned: "Назначен ответственный",
     report_deleted: "Удалена жалоба",
     posts_deleted: "Удалена публикация",
     post_comments_deleted: "Удалён комментарий",
@@ -192,13 +200,20 @@
     journalList.innerHTML = "";
     if (error) { journalList.textContent = "Не удалось загрузить журнал: " + error.message; return; }
     if (!data || !data.length) { journalList.innerHTML = '<div class="list-note">Записей пока нет</div>'; return; }
+    const actorIds = [...new Set(data.map((entry) => entry.actor_id).filter(Boolean))];
+    let actorProfiles = {};
+    if (actorIds.length) {
+      const { data: people } = await sb.from("profiles").select("id,display_name,username").in("id", actorIds);
+      (people || []).forEach((person) => { actorProfiles[person.id] = person; });
+    }
     data.forEach((entry) => {
       const card = document.createElement("article");
       card.className = "journal-entry";
       const title = document.createElement("strong");
       title.textContent = actionNames[entry.action] || entry.action.replace(/_/g, " ");
       const date = document.createElement("small");
-      date.textContent = new Date(entry.created_at).toLocaleString("ru-RU");
+      const actor = actorProfiles[entry.actor_id];
+      date.textContent = (actor ? "@" + actor.username + " · " : "") + new Date(entry.created_at).toLocaleString("ru-RU");
       card.append(title, date);
       const details = document.createElement("p");
       details.textContent = JSON.stringify(entry.details || {}, null, 2);
