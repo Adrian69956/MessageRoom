@@ -166,9 +166,9 @@
     };
   }
 
-  function openStoryVideoOverlayEditor() {
+  function openStoryVideoOverlayEditor(sourceUrl, onSave) {
     const source=$s("storyTrimPreview");
-    if(!source||!source.videoWidth){if(typeof toast==="function")toast("Сначала выберите видео");return;}
+    if(!sourceUrl&&(!source||!source.videoWidth)){if(typeof toast==="function")toast("Сначала выберите видео");return;}
     let modal=$s("storyVideoOverlayEditor");
     if(!modal){
       modal=node("div","story-photo-editor");modal.id="storyVideoOverlayEditor";
@@ -179,7 +179,7 @@
     const state={color:"#fff",tool:"draw",history:[],redo:[]};
     const snapshot=()=>{state.history.push(canvas.toDataURL("image/png"));if(state.history.length>25)state.history.shift();state.redo=[];};
     const restore=data=>{const im=new Image();im.onload=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(im,0,0,canvas.width,canvas.height);};im.src=data;};
-    video.src=source.src;
+    video.src=sourceUrl||source.src;
     video.onloadedmetadata=()=>{
       const scale=Math.min(1,1600/Math.max(video.videoWidth,video.videoHeight));
       canvas.width=Math.round(video.videoWidth*scale);canvas.height=Math.round(video.videoHeight*scale);
@@ -196,7 +196,7 @@
       if(state.tool==="text")openCanvasTextEditor(canvas,ctx,state,snapshot);
     });
     modal.querySelectorAll("[data-overlay-color]").forEach(b=>b.onclick=()=>{state.color=b.dataset.overlayColor;});
-    modal.querySelector("[data-overlay-save]").onclick=()=>canvas.toBlob(blob=>{if(blob){editedOverlayFile=new File([blob],"story-overlay.png",{type:"image/png"});modal.classList.remove("open");if(typeof toast==="function")toast("Рисунок добавлен к видео");}},"image/png");
+    modal.querySelector("[data-overlay-save]").onclick=()=>canvas.toBlob(async blob=>{if(blob){const edited=new File([blob],"story-overlay.png",{type:"image/png"});if(onSave){try{await onSave(edited);modal.classList.remove("open");}catch(error){if(typeof toast==="function")toast(error.message||"Не удалось сохранить рисунок");}}else{editedOverlayFile=edited;modal.classList.remove("open");if(typeof toast==="function")toast("Рисунок добавлен к видео");}}},"image/png");
     let drawing=false;
     const point=e=>{const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height};};
     canvas.onpointerdown=e=>{if(state.tool!=="draw")return;drawing=true;canvas.setPointerCapture(e.pointerId);const p=point(e);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.strokeStyle=state.color;ctx.lineWidth=Number(modal.querySelector('input[type="range"]').value)*canvas.width/canvas.clientWidth;ctx.lineCap="round";ctx.lineJoin="round";};
@@ -535,29 +535,41 @@
     const old=$s("storyOwnerMenuPopup");if(old){old.remove();return;}
     const popup=node("div","story-owner-menu-popup");popup.id="storyOwnerMenuPopup";
     const edit=node("button","","Изменить подпись");edit.type="button";
-    const editMedia=node("button","","Редактировать фото");editMedia.type="button";
+    const editMedia=node("button","",story.story_type==="video"?"Редактировать видео":"Редактировать фото");editMedia.type="button";
     const remove=node("button","danger","Удалить историю");remove.type="button";
     popup.append(edit,editMedia,remove);$s("storyViewer").append(popup);
     editMedia.onclick=async()=>{
       popup.remove();
-      if(story.story_type!=="photo"||!story.media_path){if(typeof toast==="function")toast("Редактирование медиа доступно для фото");return;}
+      if(!story.media_path||!["photo","video"].includes(story.story_type)){if(typeof toast==="function")toast("Для этой истории редактор медиа недоступен");return;}
       try{
         const {data,error}=await sb.storage.from("story-media").createSignedUrl(story.media_path,300);
-        if(error||!data?.signedUrl)throw error||new Error("Фото недоступно");
-        const response=await fetch(data.signedUrl);if(!response.ok)throw new Error("Не удалось загрузить фото");
-        const blob=await response.blob();
-        const file=new File([blob],"story-original."+((blob.type.split("/")[1]||"jpg").replace("jpeg","jpg")),{type:blob.type||"image/jpeg"});
-        openStoryPhotoEditor(file,async edited=>{
-          const newPath=me.id+"/"+story.id+"__edited_"+Date.now()+".jpg";
-          const upload=await sb.storage.from("story-media").upload(newPath,edited,{contentType:"image/jpeg",upsert:false});
-          if(upload.error)throw upload.error;
-          const update=await sb.from("stories").update({media_path:newPath}).eq("id",story.id).eq("user_id",me.id);
-          if(update.error){await sb.storage.from("story-media").remove([newPath]);throw update.error;}
-          await sb.storage.from("story-media").remove([story.media_path]);
-          story.media_path=newPath;
-          await loadStories();await renderViewerStory();
-          if(typeof toast==="function")toast("Фото обновлено");
-        });
+        if(error||!data?.signedUrl)throw error||new Error("Медиа недоступно");
+        if(story.story_type==="video"){
+          openStoryVideoOverlayEditor(data.signedUrl,async edited=>{
+            const newPath=me.id+"/"+story.id+"__overlay_"+Date.now()+".png";
+            const upload=await sb.storage.from("story-media").upload(newPath,edited,{contentType:"image/png",upsert:false});
+            if(upload.error)throw upload.error;
+            const update=await sb.from("stories").update({overlay_path:newPath}).eq("id",story.id).eq("user_id",me.id);
+            if(update.error){await sb.storage.from("story-media").remove([newPath]);throw update.error;}
+            if(story.overlay_path)await sb.storage.from("story-media").remove([story.overlay_path]);
+            story.overlay_path=newPath;await loadStories();await renderViewerStory();
+            if(typeof toast==="function")toast("Рисунок на видео обновлён");
+          });
+        }else{
+          const response=await fetch(data.signedUrl);if(!response.ok)throw new Error("Не удалось загрузить фото");
+          const blob=await response.blob();
+          const file=new File([blob],"story-original."+((blob.type.split("/")[1]||"jpg").replace("jpeg","jpg")),{type:blob.type||"image/jpeg"});
+          openStoryPhotoEditor(file,async edited=>{
+            const newPath=me.id+"/"+story.id+"__edited_"+Date.now()+".jpg";
+            const upload=await sb.storage.from("story-media").upload(newPath,edited,{contentType:"image/jpeg",upsert:false});
+            if(upload.error)throw upload.error;
+            const update=await sb.from("stories").update({media_path:newPath}).eq("id",story.id).eq("user_id",me.id);
+            if(update.error){await sb.storage.from("story-media").remove([newPath]);throw update.error;}
+            await sb.storage.from("story-media").remove([story.media_path]);
+            story.media_path=newPath;await loadStories();await renderViewerStory();
+            if(typeof toast==="function")toast("Фото обновлено");
+          });
+        }
       }catch(error){if(typeof toast==="function")toast(error.message||"Не удалось открыть редактор");}
     };
     edit.onclick=async()=>{
