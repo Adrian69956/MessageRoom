@@ -2023,10 +2023,18 @@ function refreshInfo() {
     rows.append(infoRow(ICONS.at, "@" + p.username, "Имя пользователя", () => copyText("@" + p.username, "Имя пользователя скопировано")));
     if (p.bio) rows.append(infoRow(ICONS.info, p.bio, "О себе"));
     fillInfoExtra(p, rows);
-  } else if (isSystemChat(c)) {
+  } else if (["group","channel"].includes(c.type)) {\n    if (c.description) rows.append(infoRow(ICONS.info,c.description,"Описание"));\n  } else if (isSystemChat(c)) {
     rows.append(infoRow(ICONS.info, c.type === "notice" ? "Персональные сообщения от администрации и модерации. Ответить или удалить этот чат нельзя." : "Официальные новости и уведомления MessageRoom. Писать в этот чат может только администратор.", "Описание"));
   }
-  const profileTabs = $("chatContentTabs");\n  if (profileTabs) {\n    profileTabs.style.display = ["group","channel"].includes(c.type) ? "flex" : "none";\n    const memberTab = $("profileMembersTab");\n    if (memberTab) { memberTab.textContent = c.type === "channel" ? "Подписчики" : "Участники"; memberTab.style.display = "inline-flex"; }\n    profileTabs.querySelectorAll("[data-content-tab]").forEach(b => b.classList.toggle("active", b.dataset.contentTab === currentContentTab));\n  }\n  if (["group","channel"].includes(c.type)) showProfileContentTab(c,currentContentTab);\n  const tg = el("label", "tg-item toggle");
+  const profileTabs = $("chatContentTabs");
+  if (profileTabs) {
+    profileTabs.style.display = ["group","channel"].includes(c.type) ? "flex" : "none";
+    const memberTab = $("profileMembersTab");
+    if (memberTab) { memberTab.textContent = c.type === "channel" ? "Подписчики" : "Участники"; memberTab.style.display = "inline-flex"; }
+    profileTabs.querySelectorAll("[data-content-tab]").forEach(b => b.classList.toggle("active", b.dataset.contentTab === currentContentTab));
+  }
+  if (["group","channel"].includes(c.type)) showProfileContentTab(c,currentContentTab);
+  const tg = el("label", "tg-item toggle");
   tg.append(svgEl(ICONS.bell, "ii plain"), document.createTextNode("Уведомления"));
   const cb = el("input"); cb.type = "checkbox"; cb.checked = !c.muted;
   cb.addEventListener("change", () => setChatFlag(c, "muted", !cb.checked));
