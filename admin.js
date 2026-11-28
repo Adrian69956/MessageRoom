@@ -4,9 +4,7 @@ const adminOverlay = document.getElementById("adminOverlay");
 const adminStats = document.getElementById("adminStats");
 const adminSearch = document.getElementById("adminSearch");
 const adminUsers = document.getElementById("adminUsers");
-const roleSearch = document.getElementById("roleSearch");
 const roleUsers = document.getElementById("roleUsers");
-let roleSearchTimer = null;
 const bcSubject = document.getElementById("bcSubject");
 const bcText = document.getElementById("bcText");
 const bcChat = document.getElementById("bcChat");
@@ -30,47 +28,20 @@ function adminNote(box, text, isError) {
 
 async function loadStaffRoles() {
   if (!window.appStatus.is_owner || !roleUsers) return;
-  const q = roleSearch.value.trim().replace(/^@/, "");
-  const { data, error } = await sb.rpc("owner_search_users", { q });
+  const { data, error } = await sb.rpc("owner_search_users", { q: "" });
   roleUsers.innerHTML = "";
   if (error) { roleUsers.append(el("div", "list-note", "Ошибка: " + error.message)); return; }
-  if (!data || !data.length) { roleUsers.append(el("div", "list-note", "Пользователи не найдены")); return; }
-  data.forEach((u) => {
+  const staff = (data || []).filter((u) => ["owner", "admin", "moderator"].includes(u.role));
+  if (!staff.length) { roleUsers.append(el("div", "list-note", "Сотрудников пока нет")); return; }
+  const roleLabels = { owner: "Владелец", admin: "Администратор", moderator: "Модератор" };
+  staff.sort((a, b) => ["owner", "admin", "moderator"].indexOf(a.role) - ["owner", "admin", "moderator"].indexOf(b.role));
+  staff.forEach((u) => {
     const row = el("div", "role-user-row");
     const info = el("div", "role-user-info");
     info.append(el("strong", "", u.display_name || "Пользователь"));
-    info.append(el("small", "", "@" + u.username + " · " + (u.email || "")));
-    row.append(info);
-    if (u.role === "owner") {
-      row.append(el("strong", "", "Владелец"));
-    } else {
-      const select = el("select");
-      [["user","Пользователь"],["admin","Администратор"],["moderator","Модератор"]].forEach(([value,label]) => {
-        const option = document.createElement("option");
-        option.value = value; option.textContent = label; select.append(option);
-      });
-      select.value = u.role || "user";
-      select.addEventListener("change", async () => {
-        select.disabled = true;
-        const { error: roleError } = await sb.rpc("owner_set_role", { target: u.id, new_role: select.value });
-        if (roleError) {
-          alert("Не удалось изменить роль: " + roleError.message);
-          select.value = u.role || "user";
-        } else {
-          u.role = select.value;
-          adminNote(mtMsg, "Роль пользователя " + u.username + " обновлена", false);
-        }
-        select.disabled = false;
-      });
-      row.append(select);
-    }
+    info.append(el("small", "", "@" + u.username));
+    row.append(info, el("strong", "", roleLabels[u.role]));
     roleUsers.append(row);
-  });
-}
-if (roleSearch) {
-  roleSearch.addEventListener("input", () => {
-    clearTimeout(roleSearchTimer);
-    roleSearchTimer = setTimeout(loadStaffRoles, 250);
   });
 }
 
