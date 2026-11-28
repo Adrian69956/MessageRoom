@@ -1908,9 +1908,10 @@ if ("serviceWorker" in navigator) {
 }
 
 // ===================== Лента постов =====================
-const REACTIONS = ["❤️", "🔥", "😂", "👍", "😮", "😢"];
+const REACTIONS = ["❤️"];
 let feedPosts = [];
 let feedViewedByMe = new Set();
+let feedHiddenAuthors = new Set();
 let feedViewObserver = null;
 let feedSortMode = "newest";
 let feedReloadTimer = null;
@@ -1949,10 +1950,15 @@ async function loadFeed() {
   try{
     // Статус публикаций влияет только на форму создания поста, не на чтение ленты.
     loadStatus().then(()=>updateFeedComposer()).catch(error=>console.warn("Feed status unavailable:",error));
-    const {data,error}=await sb.from("posts")
-      .select("id, author_id, text, created_at, edited_at, voice_path, voice_ms, media_path, media_type, media_mime, media_size, media_duration_ms")
-      .order("created_at",{ascending:false}).limit(100);
+    const [{data,error},{data:hiddenRows,error:hiddenError}]=await Promise.all([
+      sb.from("posts")
+        .select("id, author_id, text, created_at, edited_at, voice_path, voice_ms, media_path, media_type, media_mime, media_size, media_duration_ms")
+        .order("created_at",{ascending:false}).limit(100),
+      sb.from("post_hidden_authors").select("author_id").eq("user_id",me.id)
+    ]);
     if(error)throw error;
+    if(hiddenError)throw hiddenError;
+    feedHiddenAuthors=new Set((hiddenRows||[]).map(row=>row.author_id));
     const posts=data||[],ids=posts.map(p=>p.id);let reactions=[],comments=[],views=[];
     if(ids.length){
       const [rr,cr,vr]=await Promise.all([sb.from("post_reactions").select("post_id,user_id,emoji,created_at").in("post_id",ids),sb.from("post_comments").select("post_id").in("post_id",ids),sb.from("post_views").select("post_id,user_id,viewed_at").in("post_id",ids)]);
@@ -1966,7 +1972,7 @@ async function loadFeed() {
     comments.forEach(c=>commentMap.set(c.post_id,(commentMap.get(c.post_id)||0)+1));
     views.forEach(v=>{viewMap.set(v.post_id,(viewMap.get(v.post_id)||0)+1);if(new Date(v.viewed_at).getTime()>=cutoff)dailyViewMap.set(v.post_id,(dailyViewMap.get(v.post_id)||0)+1);});
     feedViewedByMe=new Set(views.filter(v=>v.user_id===me.id).map(v=>v.post_id));
-    feedPosts=posts.map(p=>{const rs=reactionMap.get(p.id)||[];return {...p,post_reactions:rs,post_comments:[{count:commentMap.get(p.id)||0}],view_count:viewMap.get(p.id)||0,daily_view_count:dailyViewMap.get(p.id)||0,daily_like_count:rs.filter(r=>new Date(r.created_at).getTime()>=cutoff).length};});
+    feedPosts=posts.map(p=>{const rs=reactionMap.get(p.id)||[];return {...p,post_reactions:rs,post_comments:[{count:commentMap.get(p.id)||0}],view_count:viewMap.get(p.id)||0,daily_view_count:dailyViewMap.get(p.id)||0,daily_like_count:rs.filter(r=>r.emoji==="❤️"&&new Date(r.created_at).getTime()>=cutoff).length};});
     const authors=[...new Set(feedPosts.map(p=>p.author_id))];if(authors.length)await loadProfiles(authors);
     updateFeedComposer();renderFeed();
   }catch(error){
@@ -2015,14 +2021,50 @@ function renderFeed() {
     list.append(el("div", "no-posts", feedSortMode === "popular" ? "За последние сутки публикаций пока нет." : "Пока постов нет. Напишите первый!"));
     return;
   }
-  posts.forEach(post => { const card=postCard(post); card.dataset.postId=post.id; list.append(card); });
+  const shownHiddenAuthors = new Set();
+  posts.forEach(post => {
+    if (feedHiddenAuthors.has(post.author_id)) {
+      if (shownHiddenAuthors.has(post.author_id)) return;
+      shownHiddenAuthors.add(post.author_id);
+      list.append(hiddenAuthorNotice(post.author_id));
+      return;
+    }
+    const card=postCard(post); card.dataset.postId=post.id; list.append(card);
+  });
   if ("IntersectionObserver" in window) {
     feedViewObserver = new IntersectionObserver(entries => entries.forEach(entry => { if(entry.isIntersecting){ const post=feedPosts.find(p=>p.id===entry.target.dataset.postId); if(post) markPostViewed(post,entry.target); feedViewObserver.unobserve(entry.target); } }), {root:$("feedBody"),threshold:0.35});
-    list.querySelectorAll(".post").forEach(card=>feedViewObserver.observe(card));
+    list.querySelectorAll(".post[data-post-id]").forEach(card=>feedViewObserver.observe(card));
   } else {
-    list.querySelectorAll(".post").forEach(card=>{const post=feedPosts.find(p=>p.id===card.dataset.postId);if(post)markPostViewed(post,card);});
+    list.querySelectorAll(".post[data-post-id]").forEach(card=>{const post=feedPosts.find(p=>p.id===card.dataset.postId);if(post)markPostViewed(post,card);});
   }
   updateFeedSortButtons();
+}
+
+function hiddenAuthorNotice(authorId) {
+  const notice = el("article", "post post-hidden-notice");
+  const message = el("div", "post-hidden-message");
+  message.append(el("strong", "", "Публикации скрыты"));
+  message.append(el("span", "", "Публикации пользователя «" + (authorOf(authorId).display_name || "Пользователь") + "» больше не будут показываться."));
+  const undo = el("button", "link-btn", "Отменить");
+  undo.addEventListener("click", () => unhideAuthorPosts(authorId));
+  notice.append(message, undo);
+  return notice;
+}
+
+async function hideAuthorPosts(authorId) {
+  if (!authorId || authorId === me.id || feedHiddenAuthors.has(authorId)) return;
+  const { error } = await sb.from("post_hidden_authors").insert({ user_id: me.id, author_id: authorId });
+  if (error && error.code !== "23505") { toast("Не удалось скрыть публикации: " + error.message); return; }
+  feedHiddenAuthors.add(authorId);
+  renderFeed();
+}
+
+async function unhideAuthorPosts(authorId) {
+  const { error } = await sb.from("post_hidden_authors").delete()
+    .eq("user_id", me.id).eq("author_id", authorId);
+  if (error) { toast("Не удалось отменить скрытие: " + error.message); return; }
+  feedHiddenAuthors.delete(authorId);
+  renderFeed();
 }
 
 function updateFeedSortButtons(){
@@ -2075,6 +2117,14 @@ function postCard(post) {
     btn.addEventListener("click", () => toggleReaction(post, emoji));
     actions.append(btn);
   });
+  if (post.author_id !== me.id) {
+    const hide = el("button", "react hide-author-btn", "👎");
+    hide.type = "button";
+    hide.title = "Не показывать публикации этого пользователя";
+    hide.setAttribute("aria-label", hide.title);
+    hide.addEventListener("click", () => hideAuthorPosts(post.author_id));
+    actions.append(hide);
+  }
   const comments = post.post_comments && post.post_comments[0] ? post.post_comments[0].count : 0;
   const cbtn = el("button", "react comments-btn", "💬" + (comments ? " " + comments : ""));
   cbtn.addEventListener("click", () => toggleComments(post, card));
