@@ -748,7 +748,7 @@ $("photoEditorSave").addEventListener("click",()=>{
     const preview=$("chatMediaPending"),img=preview.querySelector("img");if(img)img.src=pendingChatPreviewUrl;
     const size=preview.querySelector(".chat-media-pending-size");if(size)size.textContent=Math.max(1,Math.round(out.size/1024))+" КБ"+(compressed?" · сжато":"");
     preview.classList.toggle("is-compressed",compressed);$("photoEditorClose").click();toast("Фото обработано");
-  },"image/jpeg",compressed?.72:.94);
+  },"image/jpeg",compressed ? 0.72 : 0.94);
 });
 
 async function uploadChatMedia(file, messageText) {
