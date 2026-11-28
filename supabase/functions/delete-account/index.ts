@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
   if (!url || !key) return reply({ error: "server configuration error" }, 500);
   const db = createClient(url, key, { auth: { persistSession: false } });
 
-  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\\s+/i, "");
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   const { data: auth, error: authError } = await db.auth.getUser(token);
   const actorId = auth?.user?.id;
   if (authError || !actorId) return reply({ error: "not authenticated" }, 401);
