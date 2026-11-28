@@ -689,18 +689,16 @@ function openPhotoViewer(url, filename) {
 }
 function isQueuedVideo(file){
  if(!file)return false;
- if(file.type&&file.type.startsWith("video/"))return true;
+ const mime=String(file.type||"").toLowerCase();
+ if(mime.startsWith("video/"))return true;
  return /\.(mp4|m4v|mov|webm|ogv|ogg|3gp|mkv)$/i.test(file.name||"");
 }
 function openQueuedMediaEditor(index){
  const item=pendingChatFiles[index];if(!item)return;
  if(isQueuedVideo(item.file)){
    const open=()=>{$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");photoEditorDrawing=false;openVideoEditor(index);};
-   if($("photoEditor").classList.contains("show")&&photoEditorImage)saveCurrentPhotoEdit(open);else open();
- }else{
-   if(ve("Editor")?.classList.contains("show"))closeVideoEditor();
-   openPhotoEditor(index);
- }
+   if($("photoEditor").classList.contains("show")&&photoEditorImage&&photoEditorIndex!==index)saveCurrentPhotoEdit(open,true);else open();
+ }else{if(ve("Editor")?.classList.contains("show"))closeVideoEditor();openPhotoEditor(index);}
 }
 
 let pendingChatFiles=[];
@@ -832,7 +830,7 @@ photoCanvas.addEventListener("pointermove",e=>{
   if(!photoEditorDown)return;photoEditorStrokes[photoEditorStrokes.length-1].points.push(photoCanvasPoint(e));drawPhotoEditor();
 });
 ["pointerup","pointercancel"].forEach(ev=>photoCanvas.addEventListener(ev,()=>{photoEditorDown=false;photoCropDrag=null;photoTextDrag=null;}));
-function saveCurrentPhotoEdit(onDone){
+function saveCurrentPhotoEdit(onDone,silent=false){
   if(!photoEditorImage)return;
   const rect=photoCropRect(),canvas=document.createElement("canvas"),compressed=$("photoCompress").checked;
   const maxSide=compressed?1800:Math.max(rect.w,rect.h),scale=Math.min(1,maxSide/Math.max(rect.w,rect.h));
@@ -846,16 +844,22 @@ function saveCurrentPhotoEdit(onDone){
     const name=(compressed?"compressed__":"")+photoEditorSourceName.replace(/^compressed__/,"");
     const out=new File([blob],name,{type:"image/jpeg",lastModified:Date.now()});
     URL.revokeObjectURL(item.previewUrl);item.file=out;item.previewUrl=URL.createObjectURL(out);pendingChatFile=out;
-    renderPendingChatFiles();toast("Фото обработано");if(onDone)onDone();
+    renderPendingChatFiles();if(!silent)toast("Фото обработано");if(onDone)onDone();
   },"image/jpeg",compressed?0.72:0.94);
 }
 $("photoEditorSave").addEventListener("click",()=>saveCurrentPhotoEdit(()=>$("photoEditorClose").click()));
 function renderPhotoEditorThumbnails(){
-  const strip=$("photoEditorThumbnails");if(!strip)return;strip.innerHTML="";
-  pendingChatFiles.forEach((item,index)=>{const b=el("button","photo-editor-thumb"+(index===photoEditorIndex?" active":""));b.type="button";const media=isQueuedVideo(item.file)?el("video"):el("img");media.src=item.previewUrl;media.alt=item.file.name;if(media.tagName==="VIDEO"){media.muted=true;media.playsInline=true;media.preload="metadata";}b.append(media,el("span","",isQueuedVideo(item.file)?"▶ "+(index+1):String(index+1)));b.addEventListener("click",()=>{if(index===photoEditorIndex)return;const open=()=>{if(isQueuedVideo(item.file)){$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");openVideoEditor(index);}else openPhotoEditor(index);};if($("photoEditor").classList.contains("show")&&photoEditorImage)saveCurrentPhotoEdit(open);else open();});strip.append(b);});
-  const add=el("button","chat-media-add-more","+ Добавить фото/видео");add.type="button";add.addEventListener("click",()=>$("chatMediaFile").click());strip.append(add);
+ const strip=$("photoEditorThumbnails");if(!strip)return;strip.innerHTML="";
+ pendingChatFiles.forEach((item,index)=>{
+   const video=isQueuedVideo(item.file),b=el("button","photo-editor-thumb"+(index===photoEditorIndex?" active":""));
+   b.type="button";const media=video?el("video"):el("img");media.src=item.previewUrl;media.alt=item.file.name;
+   if(video){media.muted=true;media.playsInline=true;media.preload="metadata";}
+   b.append(media,el("span","",video?"▶ "+(index+1):String(index+1)));
+   b.addEventListener("click",()=>{if(video){openQueuedMediaEditor(index);return;}if(index===photoEditorIndex)return;const open=()=>openPhotoEditor(index);if($("photoEditor").classList.contains("show")&&photoEditorImage)saveCurrentPhotoEdit(open);else open();});
+   strip.append(b);
+ });
+ const add=el("button","chat-media-add-more","+ Добавить фото/видео");add.type="button";add.addEventListener("click",()=>$("chatMediaFile").click());strip.append(add);
 }
-
 
 
 /* Видео редактор: обрезка, таймлайн и временные слои */
@@ -869,12 +873,22 @@ function renderVideoEditorThumbnails(){const strip=$("videoEditorThumbnails");if
 function openVideoEditor(index){
  const item=pendingChatFiles[index];if(!item||!isQueuedVideo(item.file))return;
  if(videoEditUrl){URL.revokeObjectURL(videoEditUrl);videoEditUrl=null;}
- videoEditIndex=index;renderVideoEditorThumbnails();videoEditFile=item.file;videoEditUrl=URL.createObjectURL(item.file);$("videoModeFormat").textContent=veFormatName(item.file);$("videoModeFormatActive").textContent=veFormatName(item.file);videoFreeCrop={x:.1,y:.1,w:.8,h:.8};videoCropDrag=null;videoStrokes=[];videoTexts=[];videoOverlayImage=null;videoDuration=0;videoTrimA=0;videoTrimB=0;
- const v=ve("EditorPlayer");v.pause();v.src=videoEditUrl;v.load();ve("Editor").classList.add("show");ve("Editor").setAttribute("aria-hidden","false");ve("EditorMeta").textContent=item.file.name;ve("EditorStatus").textContent="Загружаю видео…";
- v.onloadedmetadata=()=>{videoDuration=v.duration||0;videoTrimB=videoDuration;ve("Duration").textContent=veTime(videoDuration);ve("CurrentTime").textContent="0:00";ve("TrimStart").value=0;ve("TrimEnd").value=1000;updateVideoTimeline();resizeVideoOverlay();ve("EditorStatus").textContent="Готово к редактированию";drawVideoOverlay();};
+ videoEditIndex=index;renderVideoEditorThumbnails();videoEditFile=item.file;videoEditUrl=URL.createObjectURL(item.file);
+ $("videoModeFormat").textContent=veFormatName(item.file);$("videoModeFormatActive").textContent=veFormatName(item.file);
+ videoFreeCrop={x:.1,y:.1,w:.8,h:.8};videoCropDrag=null;videoStrokes=[];videoTexts=[];videoOverlayImage=null;videoDuration=0;videoTrimA=0;videoTrimB=0;
+ const v=ve("EditorPlayer");v.pause();v.onloadedmetadata=null;v.onerror=null;
+ v.onloadedmetadata=()=>{
+   videoDuration=Number.isFinite(v.duration)?v.duration:0;
+   if(!videoDuration){ve("EditorStatus").textContent="Не удалось определить длительность видео";return;}
+   videoTrimA=0;videoTrimB=videoDuration;ve("Duration").textContent=veTime(videoDuration);ve("CurrentTime").textContent="0:00";
+   ve("TrimStart").value=0;ve("TrimEnd").value=1000;updateVideoTimeline();resizeVideoOverlay();
+   ve("EditorStatus").textContent="Готово к редактированию";drawVideoOverlay();
+ };
  v.onerror=()=>ve("EditorStatus").textContent="Не удалось открыть этот формат видео";
- setVideoTab("crop");
+ v.src=videoEditUrl;$("videoEditor").classList.add("show");$("videoEditor").setAttribute("aria-hidden","false");
+ ve("EditorMeta").textContent=item.file.name;ve("EditorStatus").textContent="Загружаю видео…";v.load();setVideoTab("crop");
 }
+
 function closeVideoEditor(){if(videoRecorder&&videoRecorder.state!=="inactive"){toast("Дождись завершения экспорта видео");return;}const v=ve("EditorPlayer");v.pause();v.removeAttribute("src");v.load();if(videoEditUrl)URL.revokeObjectURL(videoEditUrl);if(videoOverlayUrl)URL.revokeObjectURL(videoOverlayUrl);videoEditUrl=null;videoOverlayUrl=null;ve("Editor").classList.remove("show");ve("Editor").setAttribute("aria-hidden","true");}
 function updateVideoTimeline(){const v=ve("EditorPlayer"),d=videoDuration||1;ve("TrimStart").style.setProperty("--range-start",(videoTrimA/d*100)+"%");ve("TrimEnd").style.setProperty("--range-end",(videoTrimB/d*100)+"%");ve("TrimRange").style.left=(videoTrimA/d*100)+"%";ve("TrimRange").style.width=((videoTrimB-videoTrimA)/d*100)+"%";ve("Playhead").style.left=(v.currentTime/d*100)+"%";ve("CurrentTime").textContent=veTime(v.currentTime);}
 function resizeVideoOverlay(){const v=ve("EditorPlayer"),c=ve("OverlayCanvas"),stage=ve("EditorStage"),r=v.getBoundingClientRect(),sr=stage.getBoundingClientRect();if(!r.width||!r.height)return;c.style.left=(r.left-sr.left)+"px";c.style.top=(r.top-sr.top)+"px";c.style.width=r.width+"px";c.style.height=r.height+"px";c.width=Math.round(r.width*devicePixelRatio);c.height=Math.round(r.height*devicePixelRatio);drawVideoOverlay();}
@@ -1855,6 +1869,7 @@ const REACTIONS = ["❤️", "🔥", "😂", "👍", "😮", "😢"];
 let feedPosts = [];
 let feedReloadTimer = null;
 let feedBusy = false;
+let feedReloadRequested = false;
 
 function isFeedOpen() { return app.classList.contains("feed-mode"); }
 
@@ -1880,23 +1895,30 @@ function exitFeed() {
 }
 
 async function loadFeed() {
-  if (feedBusy) return;
-  feedBusy = true;
-  try {
+  if(feedBusy){feedReloadRequested=true;return;}
+  feedBusy=true;const list=$("feedList");
+  if(!feedPosts.length)list.innerHTML='<div class="no-posts">Загружаем ленту…</div>';
+  try{
     await loadStatus();
-    const { data, error } = await sb.from("posts")
-      .select("id, author_id, text, created_at, edited_at, voice_path, voice_ms, media_path, media_type, media_mime, media_size, media_duration_ms, post_reactions(user_id, emoji), post_comments(count)")
-      .order("created_at", { ascending: false })
-      .limit(40);
-    if (error) { toast("Лента не загрузилась: " + error.message); return; }
-    feedPosts = data || [];
-    const authors = [...new Set(feedPosts.map((p) => p.author_id))];
-    if (authors.length) await loadProfiles(authors);
-    updateFeedComposer();
-    renderFeed();
-  } finally {
-    feedBusy = false;
-  }
+    const {data,error}=await sb.from("posts").select("id, author_id, text, created_at, edited_at, voice_path, voice_ms, media_path, media_type, media_mime, media_size, media_duration_ms").order("created_at",{ascending:false}).limit(40);
+    if(error)throw error;
+    const posts=data||[],ids=posts.map(p=>p.id);let reactions=[],comments=[];
+    if(ids.length){
+      const [rr,cr]=await Promise.all([sb.from("post_reactions").select("post_id,user_id,emoji").in("post_id",ids),sb.from("post_comments").select("post_id").in("post_id",ids)]);
+      if(rr.error)console.warn("Feed reactions unavailable:",rr.error);else reactions=rr.data||[];
+      if(cr.error)console.warn("Feed comment counts unavailable:",cr.error);else comments=cr.data||[];
+    }
+    const reactionMap=new Map(),commentMap=new Map();
+    reactions.forEach(r=>{if(!reactionMap.has(r.post_id))reactionMap.set(r.post_id,[]);reactionMap.get(r.post_id).push({user_id:r.user_id,emoji:r.emoji});});
+    comments.forEach(c=>commentMap.set(c.post_id,(commentMap.get(c.post_id)||0)+1));
+    feedPosts=posts.map(p=>({...p,post_reactions:reactionMap.get(p.id)||[],post_comments:[{count:commentMap.get(p.id)||0}]}));
+    const authors=[...new Set(feedPosts.map(p=>p.author_id))];if(authors.length)await loadProfiles(authors);
+    updateFeedComposer();renderFeed();
+  }catch(error){
+    console.error("Feed load failed:",error);list.innerHTML="";
+    list.append(el("div","no-posts","Не удалось загрузить ленту. Нажмите «Обновить» или попробуйте позже."));
+    toast("Лента не загрузилась: "+(error?.message||"ошибка запроса"));
+  }finally{feedBusy=false;if(feedReloadRequested){feedReloadRequested=false;if(isFeedOpen())setTimeout(loadFeed,0);}}
 }
 
 function updateFeedComposer() {
