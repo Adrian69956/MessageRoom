@@ -669,64 +669,84 @@ function showPendingChatFile(file) {
 }
 
 
-let photoEditorImage = null, photoEditorDrawing = false, photoEditorStrokes = [], photoEditorText = [], photoEditorPreviewScale = 1;
-let photoEditorDown = false;
-function openPhotoEditor() {
-  if (!pendingChatFile || !pendingChatFile.type.startsWith("image/")) return;
-  const url = URL.createObjectURL(pendingChatFile);
-  const img = new Image();
-  img.onload = () => {
-    photoEditorImage = img; photoEditorStrokes = []; photoEditorText = [];
-    $("photoCrop").value = "original"; $("photoCompress").checked = true;
-    $("photoText").value = ""; $("photoDrawToggle").textContent = "Рисовать: выкл.";
-    $("photoEditor").classList.add("show"); $("photoEditor").setAttribute("aria-hidden","false");
-    drawPhotoEditor(); URL.revokeObjectURL(url);
-  };
-  img.onerror = () => { URL.revokeObjectURL(url); toast("Не удалось открыть фото"); };
-  img.src = url;
+let photoEditorImage=null,photoEditorDrawing=false,photoEditorStrokes=[],photoEditorText=[],photoEditorPreviewScale=1,photoEditorDown=false;
+let photoCropSelection={x:.5,y:.5},photoCropDrag=null,photoBrushColor="#ff334f",photoBrushSize=5;
+let photoEditorTab="crop";
+function setPhotoEditorTab(tab){
+  photoEditorTab=tab;photoEditorDrawing=tab==="draw";
+  document.querySelectorAll("[data-photo-tab]").forEach(b=>b.classList.toggle("active",b.dataset.photoTab===tab));
+  document.querySelectorAll("[data-photo-panel]").forEach(p=>p.classList.toggle("active",p.dataset.photoPanel===tab));
+  $("photoEditorCanvas").classList.toggle("drawing",photoEditorDrawing);
+  drawPhotoEditor();
 }
-function photoCropRect() {
-  const w=photoEditorImage.naturalWidth,h=photoEditorImage.naturalHeight, ratio=$("photoCrop").value;
-  if(ratio==="original") return {x:0,y:0,w,h};
-  const [rw,rh]=ratio.split(":").map(Number), target=rw/rh, current=w/h;
-  if(current>target){const nw=h*target;return{x:(w-nw)/2,y:0,w:nw,h};}
-  const nh=w/target;return{x:0,y:(h-nh)/2,w,h:nh};
+function openPhotoEditor(){
+  if(!pendingChatFile||!pendingChatFile.type.startsWith("image/"))return;
+  const url=URL.createObjectURL(pendingChatFile),img=new Image();
+  img.onload=()=>{photoEditorImage=img;photoEditorStrokes=[];photoEditorText=[];photoCropSelection={x:.5,y:.5};
+    $("photoCrop").value="original";$("photoCompress").checked=true;$("photoText").value="";
+    $("photoBrushSize").value="5";$("photoBrushValue").textContent="5";$("photoBrushColor").value="#ff334f";
+    $("photoTextSize").value="42";$("photoTextColor").value="#ffffff";$("photoTextFont").value="Arial";$("photoTextFill").checked=false;
+    photoBrushColor="#ff334f";photoBrushSize=5;setPhotoEditorTab("crop");
+    $("photoEditor").classList.add("show");$("photoEditor").setAttribute("aria-hidden","false");drawPhotoEditor();URL.revokeObjectURL(url);};
+  img.onerror=()=>{URL.revokeObjectURL(url);toast("Не удалось открыть фото");};img.src=url;
 }
-function drawPhotoEditor() {
+function photoCropRect(){
+  const w=photoEditorImage.naturalWidth,h=photoEditorImage.naturalHeight,ratio=$("photoCrop").value;
+  if(ratio==="original")return{x:0,y:0,w,h};
+  const [rw,rh]=ratio.split(":").map(Number),target=rw/rh,current=w/h;
+  let cw=w,ch=h;if(current>target)cw=h*target;else ch=w/target;
+  return{x:Math.max(0,Math.min(w-cw,photoCropSelection.x*w-cw/2)),y:Math.max(0,Math.min(h-ch,photoCropSelection.y*h-ch/2)),w:cw,h:ch};
+}
+function drawPhotoEditor(){
   if(!photoEditorImage)return;
-  const canvas=$("photoEditorCanvas"), rect=photoCropRect(), scale=Math.min(900/rect.w,600/rect.h,1);
-  photoEditorPreviewScale=scale; canvas.width=Math.max(1,Math.round(rect.w*scale)); canvas.height=Math.max(1,Math.round(rect.h*scale));
-  const ctx=canvas.getContext("2d"); ctx.drawImage(photoEditorImage,rect.x,rect.y,rect.w,rect.h,0,0,canvas.width,canvas.height);
-  photoEditorStrokes.forEach(stroke=>{ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width*scale/photoEditorPreviewScale;ctx.lineCap="round";ctx.beginPath();stroke.points.forEach((p,i)=>{const k=scale/photoEditorPreviewScale;if(!i)ctx.moveTo(p.x*k,p.y*k);else ctx.lineTo(p.x*k,p.y*k);});ctx.stroke();});
-  photoEditorText.forEach(t=>{ctx.font="bold "+Math.max(18,Math.round(canvas.width*.055))+"px sans-serif";ctx.textAlign="center";ctx.lineWidth=4;ctx.strokeStyle="#000";ctx.fillStyle="#fff";ctx.strokeText(t,canvas.width/2,canvas.height*.85);ctx.fillText(t,canvas.width/2,canvas.height*.85);});
+  const canvas=$("photoEditorCanvas"),rect=photoCropRect(),scale=Math.min(1000/rect.w,650/rect.h,1);
+  photoEditorPreviewScale=scale;canvas.width=Math.max(1,Math.round(rect.w*scale));canvas.height=Math.max(1,Math.round(rect.h*scale));
+  const ctx=canvas.getContext("2d");ctx.drawImage(photoEditorImage,rect.x,rect.y,rect.w,rect.h,0,0,canvas.width,canvas.height);
+  photoEditorStrokes.forEach(stroke=>{ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width*scale;ctx.lineCap="round";ctx.lineJoin="round";ctx.beginPath();stroke.points.forEach((p,i)=>{if(!i)ctx.moveTo(p.x*scale,p.y*scale);else ctx.lineTo(p.x*scale,p.y*scale);});ctx.stroke();});
+  photoEditorText.forEach(t=>{ctx.save();ctx.font=t.size+"px "+t.font;ctx.textAlign="center";ctx.textBaseline="middle";const x=t.x*canvas.width,y=t.y*canvas.height;
+    if(t.fill){const m=ctx.measureText(t.text);ctx.fillStyle="rgba(0,0,0,.58)";ctx.fillRect(x-m.width/2-12,y-t.size*.68,m.width+24,t.size*1.35);}
+    ctx.fillStyle=t.color;ctx.fillText(t.text,x,y);ctx.restore();});
+  if(photoEditorTab==="crop"&&$("photoCrop").value!=="original"){
+    const ratio=rect.w/rect.h,canvasRatio=canvas.width/canvas.height;ctx.save();ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.strokeRect(2,2,canvas.width-4,canvas.height-4);
+    ctx.setLineDash([]);ctx.strokeStyle="rgba(255,255,255,.55)";ctx.lineWidth=1;
+    for(let i=1;i<3;i++){ctx.beginPath();ctx.moveTo(canvas.width*i/3,0);ctx.lineTo(canvas.width*i/3,canvas.height);ctx.stroke();ctx.beginPath();ctx.moveTo(0,canvas.height*i/3);ctx.lineTo(canvas.width,canvas.height*i/3);ctx.stroke();}
+    ctx.restore();
+  }
 }
-$("photoCrop").addEventListener("change",drawPhotoEditor);
-$("photoEditorClose").addEventListener("click",()=>{$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");});
+$("photoCrop").addEventListener("change",()=>{photoCropSelection={x:.5,y:.5};drawPhotoEditor();});
+document.querySelectorAll("[data-photo-tab]").forEach(b=>b.addEventListener("click",()=>setPhotoEditorTab(b.dataset.photoTab)));
+$("photoEditorClose").addEventListener("click",()=>{$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");photoEditorDrawing=false;});
 $("photoEditorCancel").addEventListener("click",()=>$("photoEditorClose").click());
-$("photoAddText").addEventListener("click",()=>{const t=$("photoText").value.trim();if(t){photoEditorText.push(t);$("photoText").value="";drawPhotoEditor();}});
-$("photoDrawToggle").addEventListener("click",()=>{photoEditorDrawing=!photoEditorDrawing;$("photoDrawToggle").textContent="Рисовать: "+(photoEditorDrawing?"вкл.":"выкл.");});
+$("photoBrushSize").addEventListener("input",e=>{photoBrushSize=Number(e.target.value);$("photoBrushValue").textContent=String(photoBrushSize);});
+$("photoBrushColor").addEventListener("input",e=>{photoBrushColor=e.target.value;});
+$("photoColorPresets").addEventListener("click",e=>{const b=e.target.closest("[data-color]");if(!b)return;photoBrushColor=b.dataset.color;$("photoBrushColor").value=photoBrushColor;});
+$("photoAddText").addEventListener("click",()=>{const text=$("photoText").value.trim();if(!text)return;photoEditorText.push({text,size:Number($("photoTextSize").value),color:$("photoTextColor").value,font:$("photoTextFont").value,fill:$("photoTextFill").checked,x:.5,y:.82});$("photoText").value="";drawPhotoEditor();});
 const photoCanvas=$("photoEditorCanvas");
-photoCanvas.addEventListener("pointerdown",e=>{if(!photoEditorDrawing)return;photoEditorDown=true;photoCanvas.setPointerCapture(e.pointerId);const r=photoCanvas.getBoundingClientRect();photoEditorStrokes.push({color:"#ff334f",width:4,points:[{x:(e.clientX-r.left)*photoCanvas.width/r.width,y:(e.clientY-r.top)*photoCanvas.height/r.height}]});});
-photoCanvas.addEventListener("pointermove",e=>{if(!photoEditorDown)return;const r=photoCanvas.getBoundingClientRect(),p=photoEditorStrokes[photoEditorStrokes.length-1];p.points.push({x:(e.clientX-r.left)*photoCanvas.width/r.width,y:(e.clientY-r.top)*photoCanvas.height/r.height});drawPhotoEditor();});
-["pointerup","pointercancel"].forEach(ev=>photoCanvas.addEventListener(ev,()=>photoEditorDown=false));
+function photoCanvasPoint(e){const r=photoCanvas.getBoundingClientRect();return{x:(e.clientX-r.left)*photoCanvas.width/r.width,y:(e.clientY-r.top)*photoCanvas.height/r.height};}
+photoCanvas.addEventListener("pointerdown",e=>{
+  if(!photoEditorImage)return;const p=photoCanvasPoint(e);
+  if(photoEditorTab==="crop"&&$("photoCrop").value!=="original"){photoCropDrag={x:e.clientX,y:e.clientY,center:{...photoCropSelection}};photoCanvas.setPointerCapture(e.pointerId);return;}
+  if(photoEditorTab!=="draw")return;photoEditorDown=true;photoCanvas.setPointerCapture(e.pointerId);photoEditorStrokes.push({color:photoBrushColor,width:photoBrushSize,points:[p]});drawPhotoEditor();
+});
+photoCanvas.addEventListener("pointermove",e=>{
+  if(photoCropDrag){const r=photoCanvas.getBoundingClientRect(),ratio=photoCropRect(),dx=(e.clientX-photoCropDrag.x)/r.width,dy=(e.clientY-photoCropDrag.y)/r.height;const cropW=ratio.w/photoEditorImage.naturalWidth,cropH=ratio.h/photoEditorImage.naturalHeight;
+    photoCropSelection={x:Math.max(cropW/2,Math.min(1-cropW/2,photoCropDrag.center.x+dx)),y:Math.max(cropH/2,Math.min(1-cropH/2,photoCropDrag.center.y+dy))};drawPhotoEditor();return;}
+  if(!photoEditorDown)return;photoEditorStrokes[photoEditorStrokes.length-1].points.push(photoCanvasPoint(e));drawPhotoEditor();
+});
+["pointerup","pointercancel"].forEach(ev=>photoCanvas.addEventListener(ev,()=>{photoEditorDown=false;photoCropDrag=null;}));
 $("photoEditorSave").addEventListener("click",()=>{
-  if(!photoEditorImage)return;
-  const rect=photoCropRect(), canvas=document.createElement("canvas"), maxSide=$("photoCompress").checked?1800:Math.max(rect.w,rect.h), scale=Math.min(1,maxSide/Math.max(rect.w,rect.h));
+  if(!photoEditorImage)return;const rect=photoCropRect(),canvas=document.createElement("canvas"),compressed=$("photoCompress").checked;
+  const maxSide=compressed?1800:Math.max(rect.w,rect.h),scale=Math.min(1,maxSide/Math.max(rect.w,rect.h));
   canvas.width=Math.max(1,Math.round(rect.w*scale));canvas.height=Math.max(1,Math.round(rect.h*scale));
   const ctx=canvas.getContext("2d");ctx.drawImage(photoEditorImage,rect.x,rect.y,rect.w,rect.h,0,0,canvas.width,canvas.height);
-  photoEditorStrokes.forEach(stroke=>{const k=scale/photoEditorPreviewScale;ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width*k;ctx.lineCap="round";ctx.beginPath();stroke.points.forEach((p,i)=>{if(!i)ctx.moveTo(p.x*k,p.y*k);else ctx.lineTo(p.x*k,p.y*k);});ctx.stroke();});
-  photoEditorText.forEach(t=>{ctx.font="bold "+Math.max(18,Math.round(canvas.width*.055))+"px sans-serif";ctx.textAlign="center";ctx.lineWidth=4;ctx.strokeStyle="#000";ctx.fillStyle="#fff";ctx.strokeText(t,canvas.width/2,canvas.height*.85);ctx.fillText(t,canvas.width/2,canvas.height*.85);});
-  const compressed=$("photoCompress").checked;
-  canvas.toBlob(blob=>{
-    if(!blob){toast("Не удалось обработать фото");return;}
-    const out=new File([blob],"messageroom-photo.jpg",{type:"image/jpeg",lastModified:Date.now()});
-    pendingChatFile=out;
-    if(pendingChatPreviewUrl)URL.revokeObjectURL(pendingChatPreviewUrl);
-    pendingChatPreviewUrl=URL.createObjectURL(out);
-    const img=$("chatMediaPending").querySelector("img");if(img)img.src=pendingChatPreviewUrl;
-    const size=$("chatMediaPending").querySelector(".chat-media-pending-size");if(size)size.textContent=Math.max(1,Math.round(out.size/1024))+" КБ"+(compressed?" · сжато":"");
-    $("photoEditorClose").click();toast("Фото обработано");
-  },"image/jpeg",compressed ? 0.72 : 0.94);
+  photoEditorStrokes.forEach(stroke=>{ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width*scale;ctx.lineCap="round";ctx.lineJoin="round";ctx.beginPath();stroke.points.forEach((p,i)=>{if(!i)ctx.moveTo(p.x*scale,p.y*scale);else ctx.lineTo(p.x*scale,p.y*scale);});ctx.stroke();});
+  photoEditorText.forEach(t=>{ctx.save();ctx.font=t.size*scale+"px "+t.font;ctx.textAlign="center";ctx.textBaseline="middle";const x=t.x*canvas.width,y=t.y*canvas.height;if(t.fill){const m=ctx.measureText(t.text);ctx.fillStyle="rgba(0,0,0,.58)";ctx.fillRect(x-m.width/2-12*scale,y-t.size*scale*.68,m.width+24*scale,t.size*scale*1.35);}ctx.fillStyle=t.color;ctx.fillText(t.text,x,y);ctx.restore();});
+  canvas.toBlob(blob=>{if(!blob){toast("Не удалось обработать фото");return;}const out=new File([blob],"messageroom-photo.jpg",{type:"image/jpeg",lastModified:Date.now()});pendingChatFile=out;
+    if(pendingChatPreviewUrl)URL.revokeObjectURL(pendingChatPreviewUrl);pendingChatPreviewUrl=URL.createObjectURL(out);
+    const preview=$("chatMediaPending"),img=preview.querySelector("img");if(img)img.src=pendingChatPreviewUrl;
+    const size=preview.querySelector(".chat-media-pending-size");if(size)size.textContent=Math.max(1,Math.round(out.size/1024))+" КБ"+(compressed?" · сжато":"");
+    preview.classList.toggle("is-compressed",compressed);$("photoEditorClose").click();toast("Фото обработано");
+  },"image/jpeg",compressed?.72:.94);
 });
 
 async function uploadChatMedia(file, messageText) {
