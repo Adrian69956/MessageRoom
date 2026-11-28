@@ -36,6 +36,9 @@
   };
   rail.addEventListener("click", openComposer);
   settingsButton?.addEventListener("click", openComposer);
+  document.getElementById("chatList")?.addEventListener("click", event => {
+    if (event.target.closest(".service-notice-shortcut")) openComposer();
+  });
   close.addEventListener("click", () => overlay.classList.remove("open"));
   overlay.addEventListener("click", e => {
     if (e.target === overlay) overlay.classList.remove("open");
