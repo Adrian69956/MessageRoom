@@ -150,12 +150,14 @@
   }
   function openSupportUser(){
     if(!me)return;
+    if(typeof closeMenus==="function")closeMenus();
     supportOverlay.classList.add("open");
     supportHomeView();
     subscribeSupport();
   }
   function openSupportStaff(){
     if(!isSupportStaff())return;
+    if(typeof closeMenus==="function")closeMenus();
     supportOverlay.classList.add("open");
     supportStaffView();
     subscribeSupport();
@@ -342,6 +344,7 @@
   }
   async function openStaffTicket(ticket){
     staffTicketId=ticket.id;
+    $id("supportStaffSend").disabled=ticket.status==="closed"&&!isOwner();
     $id("supportStaffTicketTitle").textContent=categoryLabel(ticket.category)+" · "+ticket.subject+" · "+ticketStatus(ticket.status);
     await loadTicketMessages(ticket.id,"supportStaffMessages",true);
     await loadInternalNotes(ticket.id);
