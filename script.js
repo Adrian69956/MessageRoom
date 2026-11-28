@@ -608,17 +608,81 @@ function showPendingChatFile(file) {
   const thumb = file.type.startsWith("video/") ? document.createElement("video") : document.createElement("img");
   thumb.src = pendingChatPreviewUrl;
   if (thumb.tagName === "VIDEO") { thumb.muted = true; thumb.playsInline = true; thumb.preload = "metadata"; }
-  else thumb.alt = "Предпросмотр фото";
+  else { thumb.alt = "Предпросмотр фото"; thumb.addEventListener("click", openPhotoEditor); }
   preview.append(thumb);
   const info = el("div", "chat-media-pending-info");
   info.append(el("div", "chat-media-pending-name", file.name));
   info.append(el("div", "chat-media-pending-size", Math.max(1, Math.round(file.size / 1024)) + " КБ"));
+  const edit = el("button", "link-btn", file.type.startsWith("image/") ? "Настроить фото" : "Видео выбрано");
+  edit.type = "button"; edit.disabled = !file.type.startsWith("image/"); edit.addEventListener("click", openPhotoEditor);
   const remove = el("button", "icon-btn chat-media-pending-remove", "×");
   remove.type = "button"; remove.title = "Убрать вложение";
   remove.addEventListener("click", clearPendingChatFile);
+  info.append(edit);
   preview.append(info, remove);
   preview.classList.add("show");
 }
+
+
+let photoEditorImage = null, photoEditorDrawing = false, photoEditorStrokes = [], photoEditorText = [];
+let photoEditorDown = false;
+function openPhotoEditor() {
+  if (!pendingChatFile || !pendingChatFile.type.startsWith("image/")) return;
+  const url = URL.createObjectURL(pendingChatFile);
+  const img = new Image();
+  img.onload = () => {
+    photoEditorImage = img; photoEditorStrokes = []; photoEditorText = [];
+    $("photoCrop").value = "original"; $("photoCompress").checked = true;
+    $("photoText").value = ""; $("photoDrawToggle").textContent = "Рисовать: выкл.";
+    $("photoEditor").classList.add("show"); $("photoEditor").setAttribute("aria-hidden","false");
+    drawPhotoEditor(); URL.revokeObjectURL(url);
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); toast("Не удалось открыть фото"); };
+  img.src = url;
+}
+function photoCropRect() {
+  const w=photoEditorImage.naturalWidth,h=photoEditorImage.naturalHeight, ratio=$("photoCrop").value;
+  if(ratio==="original") return {x:0,y:0,w,h};
+  const [rw,rh]=ratio.split(":").map(Number), target=rw/rh, current=w/h;
+  if(current>target){const nw=h*target;return{x:(w-nw)/2,y:0,w:nw,h};}
+  const nh=w/target;return{x:0,y:(h-nh)/2,w,h:nh};
+}
+function drawPhotoEditor() {
+  if(!photoEditorImage)return;
+  const canvas=$("photoEditorCanvas"), rect=photoCropRect(), scale=Math.min(900/rect.w,600/rect.h,1);
+  canvas.width=Math.max(1,Math.round(rect.w*scale)); canvas.height=Math.max(1,Math.round(rect.h*scale));
+  const ctx=canvas.getContext("2d"); ctx.drawImage(photoEditorImage,rect.x,rect.y,rect.w,rect.h,0,0,canvas.width,canvas.height);
+  photoEditorStrokes.forEach(stroke=>{ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width*scale;ctx.lineCap="round";ctx.beginPath();stroke.points.forEach((p,i)=>{if(!i)ctx.moveTo(p.x*scale,p.y*scale);else ctx.lineTo(p.x*scale,p.y*scale);});ctx.stroke();});
+  photoEditorText.forEach(t=>{ctx.font="bold "+Math.max(18,Math.round(canvas.width*.055))+"px sans-serif";ctx.textAlign="center";ctx.lineWidth=4;ctx.strokeStyle="#000";ctx.fillStyle="#fff";ctx.strokeText(t,canvas.width/2,canvas.height*.85);ctx.fillText(t,canvas.width/2,canvas.height*.85);});
+}
+$("photoCrop").addEventListener("change",drawPhotoEditor);
+$("photoEditorClose").addEventListener("click",()=>{$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");});
+$("photoEditorCancel").addEventListener("click",()=>$("photoEditorClose").click());
+$("photoAddText").addEventListener("click",()=>{const t=$("photoText").value.trim();if(t){photoEditorText.push(t);$("photoText").value="";drawPhotoEditor();}});
+$("photoDrawToggle").addEventListener("click",()=>{photoEditorDrawing=!photoEditorDrawing;$("photoDrawToggle").textContent="Рисовать: "+(photoEditorDrawing?"вкл.":"выкл.");});
+const photoCanvas=$("photoEditorCanvas");
+photoCanvas.addEventListener("pointerdown",e=>{if(!photoEditorDrawing)return;photoEditorDown=true;photoCanvas.setPointerCapture(e.pointerId);const r=photoCanvas.getBoundingClientRect();photoEditorStrokes.push({color="#ff334f",width:4,points:[{x:(e.clientX-r.left)*photoCanvas.width/r.width,y:(e.clientY-r.top)*photoCanvas.height/r.height}]});});
+photoCanvas.addEventListener("pointermove",e=>{if(!photoEditorDown)return;const r=photoCanvas.getBoundingClientRect(),p=photoEditorStrokes[photoEditorStrokes.length-1];p.points.push({x:(e.clientX-r.left)*photoCanvas.width/r.width,y:(e.clientY-r.top)*photoCanvas.height/r.height});drawPhotoEditor();});
+["pointerup","pointercancel"].forEach(ev=>photoCanvas.addEventListener(ev,()=>photoEditorDown=false));
+$("photoEditorSave").addEventListener("click",()=>{
+  if(!photoEditorImage)return;
+  const rect=photoCropRect(), canvas=document.createElement("canvas"), maxSide=$("photoCompress").checked?1800:Math.max(rect.w,rect.h), scale=Math.min(1,maxSide/Math.max(rect.w,rect.h));
+  canvas.width=Math.max(1,Math.round(rect.w*scale));canvas.height=Math.max(1,Math.round(rect.h*scale));
+  const ctx=canvas.getContext("2d");ctx.drawImage(photoEditorImage,rect.x,rect.y,rect.w,rect.h,0,0,canvas.width,canvas.height);
+  photoEditorStrokes.forEach(stroke=>{ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width*scale;ctx.lineCap="round";ctx.beginPath();stroke.points.forEach((p,i)=>{if(!i)ctx.moveTo(p.x*scale,p.y*scale);else ctx.lineTo(p.x*scale,p.y*scale);});ctx.stroke();});
+  photoEditorText.forEach(t=>{ctx.font="bold "+Math.max(18,Math.round(canvas.width*.055))+"px sans-serif";ctx.textAlign="center";ctx.lineWidth=4;ctx.strokeStyle="#000";ctx.fillStyle="#fff";ctx.strokeText(t,canvas.width/2,canvas.height*.85);ctx.fillText(t,canvas.width/2,canvas.height*.85);});
+  const compressed=$("photoCompress").checked;
+  canvas.toBlob(blob=>{
+    if(!blob){toast("Не удалось обработать фото");return;}
+    const out=new File([blob],"messageroom-photo.jpg",{type:"image/jpeg",lastModified:Date.now()});
+    pendingChatFile=out;
+    if(pendingChatPreviewUrl)URL.revokeObjectURL(pendingChatPreviewUrl);
+    pendingChatPreviewUrl=URL.createObjectURL(out);
+    const img=$("chatMediaPending").querySelector("img");if(img)img.src=pendingChatPreviewUrl;
+    const size=$("chatMediaPending").querySelector(".chat-media-pending-size");if(size)size.textContent=Math.max(1,Math.round(out.size/1024))+" КБ"+(compressed?" · сжато":"");
+    $("photoEditorClose").click();toast("Фото обработано");
+  },"image/jpeg",compressed?.72:.94);
+});
 
 async function uploadChatMedia(file, messageText) {
   const c = currentChat();
@@ -647,13 +711,16 @@ async function sendMessage() {
   if (!c || (!text && !file) || !canWrite(c)) return;
   if (file && !editing) {
     $("sendBtn").disabled = true;
-    const sent = await uploadChatMedia(file, text);
-    $("sendBtn").disabled = false;
-    if (!sent) return;
-    clearPendingChatFile();
-    input.value = ""; autoGrow(); cancelCompose();
-    $("emojiPanel").classList.remove("show");
-    input.focus(); unreadFrom = 0;
+    try {
+      const sent = await uploadChatMedia(file, text);
+      if (!sent) return;
+      clearPendingChatFile();
+      input.value = ""; autoGrow(); cancelCompose();
+      $("emojiPanel").classList.remove("show");
+      input.focus(); unreadFrom = 0;
+    } finally {
+      $("sendBtn").disabled = false;
+    }
     return;
   }
   if (editing) {
@@ -683,10 +750,11 @@ async function sendMessage() {
 }
 $("sendBtn").addEventListener("click", sendMessage);
 $("chatMediaFile").addEventListener("change", async () => {
-  const file = $("chatMediaFile").files[0];
+  const file = $("chatMediaFile").files && $("chatMediaFile").files[0];
   if (!file) return;
   const check = await validateMediaFile(file, false);
-  if (check) { toast(check); clearPendingChatFile(); return; }
+  if (check) { toast(check); $("chatMediaFile").value = ""; return; }
+  // Selecting a file only stages it. It must never upload or send here.
   showPendingChatFile(file);
 });
 input.addEventListener("keydown", (e) => {
