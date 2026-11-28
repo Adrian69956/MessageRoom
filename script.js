@@ -1616,6 +1616,7 @@ async function startApp(user) {
   $("railAdmin").style.display = admin ? "flex" : "none";
   const canSeeReports = !!(window.appStatus.is_owner || window.appStatus.is_moderator);
   $("railReports").style.display = canSeeReports ? "flex" : "none";
+  $("railJournal").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator) ? "flex" : "none";
   updateTitle();
   relinkPushSub();
   touchPresence(); refreshPresence();
