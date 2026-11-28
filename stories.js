@@ -9,6 +9,8 @@
   let activeStoryIndex = 0;
   let viewerStories = [];
   let storyTouchX = 0;
+  let trimDuration = 0;
+  let trimObjectUrl = null;
   let storyChannel = null;
 
   const node = (tag, cls, text) => {
@@ -23,7 +25,7 @@
   async function loadStories() {
     if (!me) return;
     const { data, error } = await sb.from("stories")
-      .select("id,user_id,story_type,text,media_path,background,audience,duration_hours,created_at,expires_at")
+      .select("id,user_id,story_type,text,media_path,background,audience,duration_hours,created_at,expires_at,trim_start_seconds,trim_end_seconds,preview_seconds")
       .gt("expires_at", new Date().toISOString()).order("created_at", {ascending:true}).limit(300);
     if (error) { console.warn("Stories unavailable:", error); return; }
     storyRows = data || [];
@@ -79,6 +81,10 @@
     $s("storyTextFields").hidden=true;
     $s("storyMediaFile").value="";
     $s("storyFileName").textContent="Файл не выбран";
+    $s("storyVideoTrim").hidden=true;
+    $s("storyTrimPreview").removeAttribute("src");
+    if(trimObjectUrl){URL.revokeObjectURL(trimObjectUrl);trimObjectUrl=null;}
+    trimDuration=0;
     $s("storyCaption").value="";
     $s("storyText").value="";
     $s("storyCreateError").textContent="";
@@ -93,10 +99,47 @@
   }));
   $s("storyCreateClose").addEventListener("click",()=>closeOverlay("storyCreateOverlay"));
   $s("storyCreateOverlay").addEventListener("click",e=>{if(e.target.id==="storyCreateOverlay")closeOverlay("storyCreateOverlay");});
+  function formatStoryTime(seconds) {
+    const n=Math.max(0,Math.floor(Number(seconds)||0));
+    return Math.floor(n/60)+":"+String(n%60).padStart(2,"0");
+  }
+  function updateTrimLabels() {
+    const start=Number($s("storyTrimStart").value)||0;
+    const end=Number($s("storyTrimEnd").value)||trimDuration;
+    $s("storyTrimStartLabel").textContent=formatStoryTime(start);
+    $s("storyTrimEndLabel").textContent=formatStoryTime(end);
+  }
+  function seekTrimPreview(value) {
+    const v=$s("storyTrimPreview");
+    if(v.readyState>=1)try{v.currentTime=Math.max(Number($s("storyTrimStart").value)||0,Math.min(Number(value)||0,Number($s("storyTrimEnd").value)||trimDuration));}catch(_){}
+  }
   $s("storyMediaFile").addEventListener("change",()=>{
     const f=$s("storyMediaFile").files[0];
     $s("storyFileName").textContent=f?f.name:"Файл не выбран";
+    const panel=$s("storyVideoTrim"), preview=$s("storyTrimPreview");
+    if(trimObjectUrl){URL.revokeObjectURL(trimObjectUrl);trimObjectUrl=null;}
+    panel.hidden=!(f&&f.type.startsWith("video/"));
+    if(!panel.hidden){
+      trimObjectUrl=URL.createObjectURL(f);preview.src=trimObjectUrl;preview.load();
+      preview.onloadedmetadata=()=>{
+        trimDuration=preview.duration||0;
+        ["storyTrimStart","storyTrimEnd","storyFrameScrub"].forEach(id=>{$s(id).max=String(trimDuration);});
+        $s("storyTrimStart").value="0";$s("storyTrimEnd").value=String(trimDuration);
+        $s("storyFrameScrub").value="0";updateTrimLabels();seekTrimPreview(0);
+      };
+    }else{trimDuration=0;}
   });
+  $s("storyTrimStart").addEventListener("input",()=>{
+    let start=Number($s("storyTrimStart").value),end=Number($s("storyTrimEnd").value);
+    if(start>=end-1){start=Math.max(0,end-1);$s("storyTrimStart").value=String(start);}
+    updateTrimLabels();seekTrimPreview(start);
+  });
+  $s("storyTrimEnd").addEventListener("input",()=>{
+    let start=Number($s("storyTrimStart").value),end=Number($s("storyTrimEnd").value);
+    if(end<=start+1){end=Math.min(trimDuration,start+1);$s("storyTrimEnd").value=String(end);}
+    updateTrimLabels();seekTrimPreview(end);
+  });
+  $s("storyFrameScrub").addEventListener("input",e=>seekTrimPreview(e.target.value));
 
   async function publishStory() {
     const button=$s("storyPublish"), errorBox=$s("storyCreateError");
@@ -104,7 +147,7 @@
     const duration=Number($s("storyDuration").value);
     const audience=$s("storyAudience").value;
     const text=storyType==="text"?safeText($s("storyText").value).trim():safeText($s("storyCaption").value).trim();
-    if (![4,6,8,12].includes(duration)) {errorBox.textContent="Выбери срок от 4 до 12 часов";return;}
+    if (![4,6,12].includes(duration)) {errorBox.textContent="Выбери срок от 4 до 12 часов";return;}
     if (storyType==="text" && !text) {errorBox.textContent="Напиши текст истории";return;}
     let file=null, mediaPath=null;
     if(storyType!=="text"){
@@ -115,9 +158,9 @@
       if(!image&&!video){errorBox.textContent="Формат файла не поддерживается";return;}
       if(file.size>50*1024*1024){errorBox.textContent="Максимальный размер — 50 МБ";return;}
       if(video){
-        const url=URL.createObjectURL(file), v=document.createElement("video");
-        const valid=await new Promise(resolve=>{v.preload="metadata";v.onloadedmetadata=()=>{const ok=v.duration<=60;URL.revokeObjectURL(url);resolve(ok);};v.onerror=()=>{URL.revokeObjectURL(url);resolve(false);};v.src=url;});
-        if(!valid){errorBox.textContent="Видео должно быть не длиннее 60 секунд";return;}
+        const clipStart=Number($s("storyTrimStart").value)||0;
+        const clipEnd=Number($s("storyTrimEnd").value)||trimDuration;
+        if(!trimDuration||clipEnd<=clipStart||clipEnd-clipStart>60){errorBox.textContent="Выберите фрагмент видео длительностью от 1 до 60 секунд";return;}
       }
     }
     button.disabled=true;button.textContent="Публикуем…";
@@ -133,6 +176,9 @@
         id:storyId,user_id:me.id,story_type:storyType==="text"?"text":(file.type.startsWith("video/")?"video":"photo"),
         text,media_path:mediaPath,background:storyType==="text"?$s("storyBackground").value:null,
         audience,duration_hours:duration,
+        trim_start_seconds:file&&file.type.startsWith("video/")?(Number($s("storyTrimStart").value)||0):0,
+        trim_end_seconds:file&&file.type.startsWith("video/")?Number($s("storyTrimEnd").value):null,
+        preview_seconds:file&&file.type.startsWith("video/")?(Number($s("storyFrameScrub").value)||0):0,
         expires_at:new Date(Date.now()+duration*3600000).toISOString()
       });
       if(error)throw error;
@@ -174,7 +220,7 @@
       try{
         const {data,error}=await sb.storage.from("story-media").createSignedUrl(s.media_path,3600);
         if(error||!data?.signedUrl)throw error||new Error("Медиа недоступно");
-        if(s.story_type==="video"){const video=node("video","");video.src=data.signedUrl;video.controls=true;video.autoplay=true;video.playsInline=true;content.append(video);}
+        if(s.story_type==="video"){const video=node("video","");video.src=data.signedUrl;video.controls=true;video.autoplay=true;video.playsInline=true;video.addEventListener("loadedmetadata",()=>{const start=Math.max(0,Number(s.trim_start_seconds)||0);const end=Number(s.trim_end_seconds)||video.duration;try{video.currentTime=start;}catch(_){}video.addEventListener("timeupdate",()=>{if(video.currentTime>=end){video.pause();try{video.currentTime=start;}catch(_){}}});});content.append(video);}
         else{const img=node("img","");img.src=data.signedUrl;img.alt="История";content.append(img);}
       }catch(e){content.append(node("div","story-media-error","Медиа недоступно"));}
       if(s.text)content.append(node("div","story-caption",s.text));
