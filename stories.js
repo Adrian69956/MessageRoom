@@ -14,6 +14,7 @@
   let storyChannel = null;
   let audienceMode = "everyone";
   let selectedAudienceIds = [];
+  let closeFriendIds = [];
   let excludedAudienceIds = [];
   let privacyPeople = [];
 
@@ -94,7 +95,7 @@
     $s("storyCaption").value="";
     $s("storyText").value="";
     $s("storyCreateError").textContent="";
-    audienceMode="everyone";selectedAudienceIds=[];excludedAudienceIds=[];
+    audienceMode="everyone";selectedAudienceIds=[];excludedAudienceIds=[];closeFriendIds=[];
     renderPrivacyControls();
     $s("storyCreateOverlay").classList.add("open");
     $s("storyCreateOverlay").setAttribute("aria-hidden","false");
@@ -167,20 +168,22 @@
   }
   async function showPrivacyList(mode) {
     const list=$s("storyPrivacyList");if(!list)return;
+    audienceMode=mode==="exclude"?"everyone":mode==="close"?"close_friends":"selected";
+    const radio=$s("storyPrivacyControls").querySelector('input[value="'+audienceMode+'"]');if(radio)radio.checked=true;
     if(!privacyPeople.length)await loadPrivacyPeople();
     list.hidden=false;list.innerHTML="";
     list.append(node("strong","",mode==="exclude"?"Кому запретить просмотр":mode==="close"?"Близкие друзья":"Кто увидит эту историю"));
     if(!privacyPeople.length){list.append(node("p","","Список пока пуст: сначала посетите профили пользователей."));return;}
     if(mode==="close"){
       const {data:friends}=await sb.from("close_friends").select("friend_id").eq("owner_id",me.id);
-      selectedAudienceIds=(friends||[]).map(x=>x.friend_id);
+      closeFriendIds=(friends||[]).map(x=>x.friend_id);
     }
-    const chosen=mode==="exclude"?excludedAudienceIds:selectedAudienceIds;
+    const chosen=mode==="exclude"?excludedAudienceIds:(mode==="close"?closeFriendIds:selectedAudienceIds);
     privacyPeople.forEach(p=>{
       const row=node("label","story-privacy-person");
       const check=node("input","");check.type="checkbox";check.checked=chosen.includes(p.id);
       check.addEventListener("change",async()=>{
-        const arr=mode==="exclude"?excludedAudienceIds:selectedAudienceIds;
+        const arr=mode==="exclude"?excludedAudienceIds:(mode==="close"?closeFriendIds:selectedAudienceIds);
         if(check.checked){if(!arr.includes(p.id))arr.push(p.id);}else{const i=arr.indexOf(p.id);if(i>=0)arr.splice(i,1);}
         if(mode==="close"){
           if(check.checked)await sb.from("close_friends").upsert({owner_id:me.id,friend_id:p.id},{onConflict:"owner_id,friend_id"});
