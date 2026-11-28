@@ -535,7 +535,7 @@ function openChat(id) {
   renderMessages({ scroll: unreadFrom ? "unread" : "bottom" });
   renderChatList();
   refreshInfo();
-  markRead();
+  markRead(true);
   if (window.innerWidth > 768) input.focus();
 }
 function closeChat() {
@@ -545,14 +545,21 @@ function closeChat() {
   renderHeader(); renderMessages(); renderChatList();
 }
 
-async function markRead() {
+async function markRead(force = false) {
   const c = currentChat();
-  if (!c || document.hidden || unreadCount(c) === 0 || !isAtBottom()) return;
+  if (!c || !me || document.hidden || unreadCount(c) === 0 || (!force && !isAtBottom())) return;
   const last = lastMessage(c);
+  if (!last) return;
+  const { error } = await sb.from("chat_members")
+    .update({ last_read_at: last.created_at })
+    .eq("chat_id", c.id).eq("user_id", me.id);
+  if (error) {
+    console.error("Could not save read state:", error);
+    return;
+  }
   c.lastRead = new Date(last.created_at).getTime();
   c.unread = 0;
   renderChatList(); updateTitle(); updateToBottom();
-  await sb.from("chat_members").update({ last_read_at: last.created_at }).eq("chat_id", c.id).eq("user_id", me.id);
 }
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { markRead(); touchPresence(); } });
 
