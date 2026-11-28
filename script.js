@@ -127,7 +127,8 @@ function nameOf(id) { const p = profiles[id]; return p ? p.display_name : "По�
 function otherUserId(c) { return c.members.find((id) => id !== me.id); }
 function chatTitle(c) { return c.type === "private" ? nameOf(otherUserId(c)) : (c.title || "Чат"); }
 function isBlockedChat(c) { return c.type === "private" && blocked.has(otherUserId(c)); }
-function canWrite(c) { return (c.type !== "system" || window.appStatus.is_admin) && !isBlockedChat(c); }
+function isSystemChat(c) { return c.type === "system" || c.type === "notice"; }
+function canWrite(c) { return (c.type === "notice" ? false : (!isSystemChat(c) || window.appStatus.is_admin)) && !isBlockedChat(c); }
 function lastMessage(c) { return c.messages[c.messages.length - 1]; }
 function fmtMs(ms) {
   const total = Math.max(0, Math.round((ms || 0) / 1000));
@@ -149,7 +150,7 @@ function makeAvatar(c_or_p, size) {
   let name, id, url;
   if (c_or_p.kind === "archive") { a.classList.add("av-archive"); a.innerHTML = ICONS.archive; return a; }
   if (c_or_p.members) {     // чат
-    if (c_or_p.type === "system") { a.classList.add("av-system"); a.innerHTML = ICONS.logo; return a; }
+    if (isSystemChat(c_or_p)) { a.classList.add("av-system"); a.innerHTML = ICONS.logo; return a; }
     const p = c_or_p.type === "private" ? profiles[otherUserId(c_or_p)] : null;
     name = chatTitle(c_or_p); id = p ? p.id : c_or_p.id; url = p && p.avatar_url;
   } else { name = c_or_p.display_name; id = c_or_p.id; url = c_or_p.avatar_url; }
@@ -190,7 +191,8 @@ function lastSeenText(uid) {
 }
 function isOnline(uid) { const p = presence[uid]; return !!(p && p.last_seen && Date.now() - new Date(p.last_seen).getTime() < 120000); }
 function chatStatus(c) {
-  if (c.type === "system") return { text: "служебные уведомления", online: false };
+  if (c.type === "notice") return { text: "личные уведомления", online: false };
+  if (isSystemChat(c)) return { text: "служебные уведомления", online: false };
   if (c.type !== "private") return { text: c.members.length + " участн.", online: false };
   if (isTyping(c)) return { text: "печатает...", online: true };
   const uid = otherUserId(c);
@@ -312,11 +314,11 @@ function chatItem(c) {
   const top = el("div", "chat-top");
   const nm = el("div", "chat-name");
   nm.append(el("span", "nm", title));
-  if (c.type === "system") nm.append(svgEl(ICONS.verified, "vbadge"));
+  if (isSystemChat(c)) nm.append(svgEl(ICONS.verified, "vbadge"));
   if (c.muted) nm.append(svgEl(ICONS.mute, "mute-ic"));
   top.append(nm);
   const date = el("div", "chat-date");
-  if (last && last.sender_id === me.id && c.type !== "system") {
+  if (last && last.sender_id === me.id && !isSystemChat(c)) {
     date.append(svgEl(c.otherRead >= new Date(last.created_at).getTime() ? ICONS.tick2 : ICONS.tick1, "ticks"));
   }
   date.append(document.createTextNode(last ? fmtListTime(last.created_at) : ""));
@@ -435,7 +437,7 @@ function renderHeader() {
   if (!c) return;
   headName.innerHTML = "";
   headName.append(el("span", "nm", chatTitle(c)));
-  if (c.type === "system") headName.append(svgEl(ICONS.verified, "vbadge"));
+  if (isSystemChat(c)) headName.append(svgEl(ICONS.verified, "vbadge"));
   setAvatar(headAvatar, c);
   const st = chatStatus(c);
   headStatus.textContent = st.text;
@@ -468,7 +470,7 @@ function renderMessages(opts) {
     more.append(btn);
     messagesBox.append(more);
   }
-  const group = c.type !== "private" && c.type !== "system";
+  const group = c.type !== "private" && !isSystemChat(c);
   let prevDay = null, unreadPlaced = false;
   c.messages.forEach((m, i) => {
     const d = new Date(m.created_at), mine = m.sender_id === me.id;
@@ -500,7 +502,7 @@ function renderMessages(opts) {
     const meta = el("span", "meta");
     if (m.edited_at) meta.append(el("span", "edited", "изм."));
     meta.append(document.createTextNode(fmtTime(m.created_at)));
-    if (mine && c.type !== "system") meta.append(svgEl(c.otherRead >= d.getTime() ? ICONS.tick2 : ICONS.tick1, "ticks"));
+    if (mine && !isSystemChat(c)) meta.append(svgEl(c.otherRead >= d.getTime() ? ICONS.tick2 : ICONS.tick1, "ticks"));
     body.append(meta);
     div.append(body);
     messagesBox.append(div);
@@ -1432,6 +1434,7 @@ async function setChatFlag(c, field, value) {
   if (field === "muted") toast(value ? "Уведомления выключены" : "Уведомления включены");
 }
 async function clearChat(c, removeFromList) {
+  if (isSystemChat(c)) { toast("Этот чат нельзя удалить или очистить"); return; }
   const text = removeFromList ? "Удалить чат «" + chatTitle(c) + "»? Он исчезнет только у вас и вернётся, если придёт новое сообщение."
     : "Очистить историю чата у себя?";
   if (!confirm(text)) return;
@@ -1523,7 +1526,7 @@ function chatMenuFor(x, y, c) {
     { label: c.archived ? "Вернуть из архива" : "В архив", icon: ICONS.archI, action: () => setChatFlag(c, "archived", !c.archived) },
     { label: c.muted ? "Включить уведомления" : "Выключить уведомления", icon: c.muted ? ICONS.bell : ICONS.bellOff, action: () => setChatFlag(c, "muted", !c.muted) },
     unreadCount(c) > 0 && { label: "Отметить как прочитанное", icon: ICONS.read, action: () => markChatRead(c) },
-    c.type !== "system" && { label: "Удалить чат", icon: ICONS.trash, danger: true, action: () => clearChat(c, true) }
+    !isSystemChat(c) && { label: "Удалить чат", icon: ICONS.trash, danger: true, action: () => clearChat(c, true) }
   ]);
 }
 function onLongPress(container, selector, callback) {
@@ -1949,7 +1952,7 @@ function refreshInfo() {
   setAvatar(av, c);
   av.onclick = () => { if (p && p.avatar_url) { $("photoViewerImg").src = p.avatar_url; $("photoViewer").classList.add("open"); } };
   $("infoName").innerHTML = ""; $("infoName").append(el("span", "", chatTitle(c)));
-  if (c.type === "system") $("infoName").append(svgEl(ICONS.verified, "vbadge"));
+  if (isSystemChat(c)) $("infoName").append(svgEl(ICONS.verified, "vbadge"));
   const st = chatStatus(c);
   $("infoStatus").textContent = st.text; $("infoStatus").className = "pc-status" + (st.online ? " online" : "");
 
@@ -1959,7 +1962,7 @@ function refreshInfo() {
     rows.append(infoRow(ICONS.at, "@" + p.username, "Имя пользователя", () => copyText("@" + p.username, "Имя пользователя скопировано")));
     if (p.bio) rows.append(infoRow(ICONS.info, p.bio, "О себе"));
     fillInfoExtra(p, rows);
-  } else if (c.type === "system") {
+  } else if (isSystemChat(c)) {
     rows.append(infoRow(ICONS.info, "Официальные новости и уведомления MessageRoom. Писать в этот чат может только администратор.", "Описание"));
   }
   const tg = el("label", "tg-item toggle");
@@ -1972,7 +1975,7 @@ function refreshInfo() {
   const acts = $("infoActions"); acts.innerHTML = "";
   acts.append(infoAction(ICONS.pinI, c.pinned ? "Открепить чат" : "Закрепить чат", () => setChatFlag(c, "pinned", !c.pinned)));
   acts.append(infoAction(ICONS.archI, c.archived ? "Вернуть из архива" : "В архив", () => setChatFlag(c, "archived", !c.archived)));
-  if (c.type !== "system") {
+  if (!isSystemChat(c)) {
     acts.append(infoAction(ICONS.broom, "Очистить историю", () => clearChat(c, false)));
     acts.append(infoAction(ICONS.trash, "Удалить чат", () => clearChat(c, true), true));
   }
