@@ -182,15 +182,6 @@ async function fetchMessages(chatId, before, clearedAt) {
 
 async function loadAll() {
   const previousChats = new Map(chats.map(c => [c.id, c]));
-  const activeScroll = currentId && messagesBox ? {
-    top: messagesBox.scrollTop,
-    height: messagesBox.scrollHeight,
-    anchor: (() => {
-      const box = messagesBox.getBoundingClientRect();
-      const node = [...messagesBox.querySelectorAll(".message[data-id]")].find(n => n.getBoundingClientRect().bottom > box.top);
-      return node ? { id: node.dataset.id, offset: node.getBoundingClientRect().top - box.top } : null;
-    })()
-  } : null;
   const { data: rows, error } = await sb.from("chat_members")
     .select("chat_id, user_id, pinned, archived, muted, cleared_at, last_read_at, chats(id, type, title, created_at)");
   if (error) { console.error(error); return; }
@@ -236,14 +227,6 @@ async function loadAll() {
   if (currentId && !currentChat()) closeChat();
   syncTypingChannels();
   renderAll();
-  if (activeScroll && currentId) {
-    requestAnimationFrame(() => {
-      const anchor = activeScroll.anchor && messagesBox.querySelector('[data-id="' + activeScroll.anchor.id + '"]');
-      if (anchor) messagesBox.scrollTop += anchor.getBoundingClientRect().top - messagesBox.getBoundingClientRect().top - activeScroll.anchor.offset;
-      else messagesBox.scrollTop = Math.min(activeScroll.top, Math.max(0, messagesBox.scrollHeight - messagesBox.clientHeight));
-      updateToBottom();
-    });
-  }
 }
 async function loadProfiles(ids) {
   if (!ids.length) return;
@@ -409,7 +392,6 @@ function isAtBottom() { return messagesBox.scrollHeight - messagesBox.scrollTop 
 function renderMessages(opts) {
   opts = opts || {};
   const c = currentChat();
-  const keepBottom = isAtBottom();
   const prevTop = messagesBox.scrollTop;
   const boxRect = messagesBox.getBoundingClientRect();
   const anchorNode = [...messagesBox.querySelectorAll(".message[data-id]")].find(n => n.getBoundingClientRect().bottom > boxRect.top);
@@ -469,7 +451,7 @@ function renderMessages(opts) {
     messagesBox.append(empty);
   }
   if (opts.scroll === "unread" && $("unreadSep")) $("unreadSep").scrollIntoView({ block: "center" });
-  else if (opts.scroll === "bottom" || opts.scroll === "unread" || keepBottom) messagesBox.scrollTop = messagesBox.scrollHeight;
+  else if (opts.scroll === "bottom" || opts.scroll === "unread") messagesBox.scrollTop = messagesBox.scrollHeight;
   else {
     const anchor = scrollAnchor && messagesBox.querySelector('[data-id="' + scrollAnchor.id + '"]');
     if (anchor) messagesBox.scrollTop += anchor.getBoundingClientRect().top - messagesBox.getBoundingClientRect().top - scrollAnchor.offset;
