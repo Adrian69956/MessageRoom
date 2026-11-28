@@ -5,6 +5,7 @@ let me = null;              // { id, email }
 let profiles = {};          // id -> профиль
 let chats = [];
 let currentId = null;
+let currentContentTab = "all";
 let searchResults = [];
 let channel = null;
 let typingChannels = {};    // chatId -> канал «печатает...»
@@ -233,7 +234,7 @@ async function fetchMessages(chatId, before, clearedAt) {
 async function loadAll() {
   const previousChats = new Map(chats.map(c => [c.id, c]));
   const { data: rows, error } = await sb.from("chat_members")
-    .select("chat_id, user_id, pinned, archived, muted, cleared_at, last_read_at, role, can_send_messages, can_send_media, can_add_members, can_pin_messages, can_change_info, chats(id, type, title, description, photo_path, visibility, username, join_approval, history_visible, slow_mode_seconds, reactions_enabled, can_send_media, created_at)");
+    .select("chat_id, user_id, pinned, archived, muted, cleared_at, last_read_at, role, can_send_messages, can_send_media, can_add_members, can_pin_messages, can_change_info, chats(id, type, title, description, photo_path, visibility, username, join_approval, history_visible, slow_mode_seconds, reactions_enabled, can_send_media, allowed_reactions, username_changed_at, created_at)");
   if (error) { console.error(error); return; }
   const ids = [...new Set(rows.map((r) => r.chat_id))];
   const userIds = [...new Set(rows.map((r) => r.user_id).concat(me.id, [...blocked]))];
@@ -246,7 +247,7 @@ async function loadAll() {
     const others = group.filter((r) => r.user_id !== me.id);
     const clearedAt = mine.cleared_at ? new Date(mine.cleared_at).getTime() : 0;
     return {
-      id: id, type: mine.chats.type, title: mine.chats.title, description: mine.chats.description || "", visibility: mine.chats.visibility || "private", username: mine.chats.username || null, joinApproval: !!mine.chats.join_approval, historyVisible: mine.chats.history_visible !== false, slowModeSeconds: mine.chats.slow_mode_seconds || 0, reactionsEnabled: mine.chats.reactions_enabled !== false, role: mine.role || "member", memberSettings: mine,
+      id: id, type: mine.chats.type, title: mine.chats.title, description: mine.chats.description || "", visibility: mine.chats.visibility || "private", username: mine.chats.username || null, joinApproval: !!mine.chats.join_approval, historyVisible: mine.chats.history_visible !== false, slowModeSeconds: mine.chats.slow_mode_seconds || 0, reactionsEnabled: mine.chats.reactions_enabled !== false, allowedReactions: mine.chats.allowed_reactions || ["❤️","👍","👎","🔥","🎉","😁","😢","😡"], usernameChangedAt: mine.chats.username_changed_at || null, role: mine.role || "member", memberSettings: mine,
       createdAt: new Date(mine.chats.created_at).getTime(),
       pinned: mine.pinned, archived: mine.archived, muted: mine.muted, clearedAt: clearedAt,
       lastRead: new Date(mine.last_read_at).getTime(),
@@ -484,7 +485,14 @@ function renderMessages(opts) {
   }
   const group = c.type !== "private" && !isSystemChat(c);
   let prevDay = null, unreadPlaced = false;
-  c.messages.forEach((m, i) => {
+  const shownMessages = c.messages.filter(m => {
+    if (currentContentTab === "media") return !!m.media_path && ["image","video"].includes(m.media_type);
+    if (currentContentTab === "files") return !!m.media_path && !["image","video"].includes(m.media_type);
+    if (currentContentTab === "voice") return !!m.voice_path;
+    if (currentContentTab === "links") return /https?:\\/\\//i.test(m.text || "");
+    return true;
+  });
+  shownMessages.forEach((m, i) => {
     const d = new Date(m.created_at), mine = m.sender_id === me.id;
     if (!prevDay || !sameDay(prevDay, d)) { const s = el("div", "day-sep"); s.append(el("span", "", fmtDay(d))); messagesBox.append(s); }
     prevDay = d;
@@ -492,9 +500,9 @@ function renderMessages(opts) {
       unreadPlaced = true;
       const s = el("div", "unread-sep"); s.id = "unreadSep"; s.append(el("span", "", "Непрочитанные сообщения")); messagesBox.append(s);
     }
-    const next = c.messages[i + 1];
+    const next = shownMessages[i + 1];
     const tail = !next || next.sender_id !== m.sender_id || !sameDay(new Date(next.created_at), d) || new Date(next.created_at) - d > 300000;
-    const prev = c.messages[i - 1];
+    const prev = shownMessages[i - 1];
     const first = !prev || prev.sender_id !== m.sender_id || !sameDay(new Date(prev.created_at), d) || d - new Date(prev.created_at) > 300000;
     const div = el("div", "message " + (mine ? "mine" : "their") + (tail ? " tail" : "") + (first ? " first" : ""));
     div.dataset.id = m.id;
@@ -2032,6 +2040,12 @@ function refreshInfo() {
   rows.append(tg);
 
   const acts = $("infoActions"); acts.innerHTML = "";
+  if (["group","channel"].includes(c.type) && ["owner","admin"].includes(c.role)) {
+    acts.append(infoAction(ICONS.info, "Настройки " + (c.type === "channel" ? "канала" : "группы"), () => openChatSettings(c)));
+  }
+  if (["group","channel"].includes(c.type)) {
+    acts.append(infoAction(ICONS.info, c.type === "channel" ? "Подписчики" : "Участники", () => showChatMembers(c)));
+  }
   acts.append(infoAction(ICONS.pinI, c.pinned ? "Открепить чат" : "Закрепить чат", () => setChatFlag(c, "pinned", !c.pinned)));
   acts.append(infoAction(ICONS.archI, c.archived ? "Вернуть из архива" : "В архив", () => setChatFlag(c, "archived", !c.archived)));
   if (!isSystemChat(c)) {
@@ -2071,6 +2085,77 @@ function refreshInfo() {
     acts.append(infoAction(ICONS.block, isB ? "Разблокировать" : "Заблокировать", () => setBlocked(p.id, !isB), !isB));
   }
 }
+
+// ---------- Профиль группы/канала: настройки и участники ----------
+const CHAT_REACTION_CHOICES = ["❤️","👍","👎","🔥","🎉","😁","😢","😡","🥰","🤔","👏","💯","⚡","👀","🙏","💔"];
+function openChatSettings(c) {
+  const old = document.querySelector(".chat-settings-overlay"); if (old) old.remove();
+  const overlay = el("div","chat-settings-overlay");
+  const dialog = el("section","chat-settings-dialog");
+  dialog.innerHTML = '<h2>Настройки '+(c.type==="channel"?"канала":"группы")+'</h2>'+
+    '<label>Название</label><input id="csTitle" maxlength="80">'+
+    '<label>Фото чата</label><input id="csPhoto" type="file" accept="image/*">'+
+    '<label>Описание</label><textarea id="csDescription" maxlength="1000"></textarea>'+
+    '<label>Тип чата</label><select id="csVisibility"><option value="private">Приватный</option><option value="public">Публичный</option></select>'+
+    '<label>Юзернейм (смена раз в 14 дней)</label><input id="csUsername" maxlength="32" placeholder="username">'+
+    '<label class="setting-check"><input id="csApproval" type="checkbox"> Принимать участников только по заявке</label>'+
+    '<label class="setting-check"><input id="csHistory" type="checkbox"> Показывать новым участникам историю</label>'+
+    '<label>Медленный режим</label><select id="csSlow"><option value="0">Выключен</option><option value="5">5 секунд</option><option value="10">10 секунд</option><option value="15">15 секунд</option><option value="30">30 секунд</option><option value="60">1 минута</option><option value="300">5 минут</option></select>'+
+    '<label class="setting-check"><input id="csMedia" type="checkbox"> Разрешить отправку медиа</label>'+
+    '<label class="setting-check"><input id="csReactionsEnabled" type="checkbox"> Разрешить реакции</label>'+
+    '<label>Разрешённые эмодзи реакций</label><div class="reaction-grid" id="csReactions"></div>'+
+    '<div class="chat-settings-error" id="csError"></div><div class="chat-settings-actions"><button type="button" id="csCancel">Отмена</button><button type="button" class="primary" id="csSave">Сохранить</button></div>';
+  overlay.append(dialog); document.body.append(overlay);
+  const $c=id=>dialog.querySelector("#"+id);
+  $c("csTitle").value=c.title||""; $c("csDescription").value=c.description||"";
+  $c("csVisibility").value=c.visibility||"private"; $c("csUsername").value=c.username||"";
+  $c("csApproval").checked=!!c.joinApproval; $c("csHistory").checked=c.historyVisible!==false;
+  $c("csSlow").value=String(c.slowModeSeconds||0); $c("csMedia").checked=c.canSendMedia!==false;
+  $c("csReactionsEnabled").checked=c.reactionsEnabled!==false;
+  CHAT_REACTION_CHOICES.forEach(emoji=>{const label=el("label");const cb=el("input");cb.type="checkbox";cb.value=emoji;cb.checked=(c.allowedReactions||[]).includes(emoji);label.append(cb,document.createTextNode(emoji));$c("csReactions").append(label);});
+  $c("csVisibility").addEventListener("change",()=>{$c("csUsername").placeholder=$c("csVisibility").value==="public"?"Обязательно, 5–32 символа":"Необязательно";});
+  $c("csCancel").onclick=()=>overlay.remove();
+  overlay.addEventListener("click",e=>{if(e.target===overlay)overlay.remove();});
+  $c("csSave").onclick=async()=>{
+    const button=$c("csSave"),username=$c("csUsername").value.trim().toLowerCase();
+    button.disabled=true;button.textContent="Сохраняем…";$c("csError").textContent="";
+    try{
+      const {error}=await sb.rpc("update_chat_settings",{p_chat_id:c.id,p_title:$c("csTitle").value.trim(),p_description:$c("csDescription").value,p_username:username,p_visibility:$c("csVisibility").value,p_join_approval:$c("csApproval").checked,p_history_visible:$c("csHistory").checked,p_slow_mode_seconds:Number($c("csSlow").value),p_reactions_enabled:$c("csReactionsEnabled").checked,p_can_send_media:$c("csMedia").checked,p_allowed_reactions:[...$c("csReactions").querySelectorAll("input:checked")].map(x=>x.value)});
+      if(error)throw error;
+      const photo=$c("csPhoto").files[0];
+      if(photo){
+        if(!photo.type.startsWith("image/")||photo.size>5*1024*1024)throw new Error("Фото должно быть изображением до 5 МБ");
+        const path=c.id+"/profile-"+Date.now()+"."+((photo.name.match(/\.([a-z0-9]{2,5})$/i)||[])[1]||"jpg");
+        const up=await sb.storage.from("avatars").upload(path,photo,{contentType:photo.type,upsert:true});if(up.error)throw up.error;
+        const pub=sb.storage.from("avatars").getPublicUrl(path);
+        const upd=await sb.from("chats").update({photo_path:pub.data.publicUrl}).eq("id",c.id);if(upd.error)throw upd.error;
+      }
+      overlay.remove();await loadAll();if(currentId===c.id)refreshInfo();toast("Настройки сохранены");
+    }catch(error){const m={username_cooldown:"Юзернейм можно менять раз в 14 дней.",username_taken:"Этот юзернейм уже занят.",invalid_public_username:"Публичный юзернейм: 5–32 символа, латиница, цифры и _.",not_allowed:"Недостаточно прав для изменения настроек."};$c("csError").textContent=m[error.message]||error.message||"Не удалось сохранить";button.disabled=false;button.textContent="Сохранить";}
+  };
+}
+async function showChatMembers(c) {
+  const rows=$("infoRows");rows.innerHTML='<div class="info-row">Загружаем список…</div>';
+  const {data,error}=await sb.rpc("get_chat_member_profiles",{p_chat_id:c.id});
+  if(error){rows.innerHTML="";rows.append(el("div","info-row","Не удалось загрузить список участников"));toast(error.message||"Ошибка загрузки");return;}
+  rows.innerHTML="";
+  const heading=el("div","settings-title",(c.type==="channel"?"Подписчики":"Участники")+" · "+(data||[]).length);
+  rows.append(heading);
+  (data||[]).forEach(member=>{
+    const row=el("div","chat-member-row");const avatar=makeAvatar({id:member.user_id,display_name:member.display_name||"Пользователь",avatar_url:member.avatar_url});
+    const meta=el("div","chat-member-meta");meta.append(el("strong","",member.display_name||"Пользователь"));
+    if(member.username)meta.append(el("small","","@"+member.username));
+    const role=el("span","chat-member-role",({owner:"Владелец",admin:"Администратор",member:c.type==="channel"?"Подписчик":"Участник"})[member.role]||"Участник");
+    row.append(avatar,meta,role);rows.append(row);
+  });
+}
+document.addEventListener("click",e=>{
+  const tab=e.target.closest("[data-content-tab]");if(!tab)return;
+  currentContentTab=tab.dataset.contentTab||"all";
+  document.querySelectorAll("[data-content-tab]").forEach(b=>b.classList.toggle("active",b===tab));
+  renderMessages({scroll:"bottom"});
+});
+
 $("chatHeader").addEventListener("click", (e) => {
   if (e.target.closest("#backBtn")) return;
   if (e.target.closest("#headInfoBtn") && infoPanel.classList.contains("open")) { closeInfo(); return; }
