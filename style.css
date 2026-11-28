@@ -1174,3 +1174,11 @@ input:checked + .switch { background: var(--grad); }
 .story-viewers-modal header button{border:0;background:none;color:var(--text);font-size:23px}
 .story-viewers-list{display:flex;flex-direction:column;gap:9px}
 .story-viewer-person{padding:9px 10px;border-radius:9px;background:var(--bg-2);font-size:13px}
+
+
+/* Video story annotation stage and saved transparent overlay */
+.story-video-overlay{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}
+.story-video-overlay-stage{position:relative;display:grid;place-items:center;flex:1;min-height:0;max-height:calc(100dvh - 170px);overflow:hidden}
+.story-video-overlay-stage video,.story-video-overlay-stage canvas{grid-area:1/1;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
+.story-video-overlay-stage canvas{touch-action:none;z-index:2}
+.story-video-edit-btn{width:100%;border:1px solid var(--accent);border-radius:9px;background:var(--bg);color:var(--accent);padding:9px 12px;margin:8px 0;cursor:pointer}
