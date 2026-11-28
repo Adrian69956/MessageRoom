@@ -131,8 +131,8 @@
       const {error}=await sb.from("stories").insert({
         id:storyId,user_id:me.id,story_type:storyType==="text"?"text":(file.type.startsWith("video/")?"video":"photo"),
         text,media_path:mediaPath,background:storyType==="text"?$s("storyBackground").value:null,
-        audience,duration_hours:duration,created_at:created.toISOString(),
-        expires_at:new Date(created.getTime()+duration*3600000).toISOString()
+        audience,duration_hours:duration,
+        expires_at:new Date(Date.now()+duration*3600000).toISOString()
       });
       if(error)throw error;
       closeOverlay("storyCreateOverlay");
@@ -147,8 +147,9 @@
   $s("storyPublish").addEventListener("click",publishStory);
 
   async function openViewer(stories) {
-    viewerStories=stories.slice();
-    activeStoryIndex=0;
+    const selectedId=stories[0]&&stories[0].id;
+    viewerStories=storyGroups.flatMap(group=>group.stories);
+    activeStoryIndex=Math.max(0,viewerStories.findIndex(item=>item.id===selectedId));
     $s("storyViewerOverlay").classList.add("open");
     $s("storyViewerOverlay").setAttribute("aria-hidden","false");
     await renderViewerStory();
