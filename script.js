@@ -5,7 +5,7 @@ let me = null;              // { id, email }
 let profiles = {};          // id -> профиль
 let chats = [];
 let currentId = null;
-let currentContentTab = "all";
+let currentContentTab = "media";
 let searchResults = [];
 let channel = null;
 let typingChannels = {};    // chatId -> канал «печатает...»
@@ -485,13 +485,7 @@ function renderMessages(opts) {
   }
   const group = c.type !== "private" && !isSystemChat(c);
   let prevDay = null, unreadPlaced = false;
-  const shownMessages = c.messages.filter(m => {
-    if (currentContentTab === "media") return !!m.media_path && ["image","video"].includes(m.media_type);
-    if (currentContentTab === "files") return !!m.media_path && !["image","video"].includes(m.media_type);
-    if (currentContentTab === "voice") return !!m.voice_path;
-    if (currentContentTab === "links") return /https?:/.test(m.text || "") && ((m.text || "").includes("http://") || (m.text || "").includes("https://"));
-    return true;
-  });
+  const shownMessages = c.messages;
   shownMessages.forEach((m, i) => {
     const d = new Date(m.created_at), mine = m.sender_id === me.id;
     if (!prevDay || !sameDay(prevDay, d)) { const s = el("div", "day-sep"); s.append(el("span", "", fmtDay(d))); messagesBox.append(s); }
@@ -2032,7 +2026,7 @@ function refreshInfo() {
   } else if (isSystemChat(c)) {
     rows.append(infoRow(ICONS.info, c.type === "notice" ? "Персональные сообщения от администрации и модерации. Ответить или удалить этот чат нельзя." : "Официальные новости и уведомления MessageRoom. Писать в этот чат может только администратор.", "Описание"));
   }
-  const tg = el("label", "tg-item toggle");
+  const profileTabs = $("chatContentTabs");\n  if (profileTabs) {\n    profileTabs.style.display = ["group","channel"].includes(c.type) ? "flex" : "none";\n    const memberTab = $("profileMembersTab");\n    if (memberTab) { memberTab.textContent = c.type === "channel" ? "Подписчики" : "Участники"; memberTab.style.display = "inline-flex"; }\n    profileTabs.querySelectorAll("[data-content-tab]").forEach(b => b.classList.toggle("active", b.dataset.contentTab === currentContentTab));\n  }\n  if (["group","channel"].includes(c.type)) showProfileContentTab(c,currentContentTab);\n  const tg = el("label", "tg-item toggle");
   tg.append(svgEl(ICONS.bell, "ii plain"), document.createTextNode("Уведомления"));
   const cb = el("input"); cb.type = "checkbox"; cb.checked = !c.muted;
   cb.addEventListener("change", () => setChatFlag(c, "muted", !cb.checked));
@@ -2134,13 +2128,37 @@ function openChatSettings(c) {
     }catch(error){const m={username_cooldown:"Юзернейм можно менять раз в 14 дней.",username_taken:"Этот юзернейм уже занят.",invalid_public_username:"Публичный юзернейм: 5–32 символа, латиница, цифры и _.",not_allowed:"Недостаточно прав для изменения настроек."};$c("csError").textContent=m[error.message]||error.message||"Не удалось сохранить";button.disabled=false;button.textContent="Сохранить";}
   };
 }
+function showProfileContentTab(c, tab) {
+  const rows=$("infoRows"); if(!rows)return;
+  rows.innerHTML="";
+  const messages=(c.messages||[]).slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  if(tab==="members"){ showChatMembers(c); return; }
+  const filtered=messages.filter(m=>{
+    if(tab==="media")return !!m.media_path && ["image","video"].includes(m.media_type);
+    if(tab==="files")return !!m.media_path && !["image","video"].includes(m.media_type);
+    if(tab==="voice")return !!m.voice_path;
+    if(tab==="links")return /https?:\/\//i.test(m.text||"");
+    return false;
+  });
+  if(!filtered.length){rows.append(el("div","info-row",({media:"Медиа пока нет",files:"Файлов пока нет",voice:"Голосовых пока нет",links:"Ссылок пока нет"})[tab]||"Пусто"));return;}
+  filtered.forEach(m=>{
+    const row=el("div","chat-member-row profile-content-item");
+    const content=el("div","chat-member-meta");
+    const sender=el("small","",nameOf(m.sender_id));
+    const date=el("small","",fmtDateTime(m.created_at));
+    content.append(sender,date);
+    if(m.text)content.append(el("div","",m.text));
+    if(m.media_path)appendMediaPreview(content,m.media_path,m.media_type,"chat-media");
+    if(m.voice_path)content.append(voicePlayer(m.voice_path,m.voice_ms));
+    row.append(content);rows.append(row);
+  });
+}
 async function showChatMembers(c) {
   const rows=$("infoRows");rows.innerHTML='<div class="info-row">Загружаем список…</div>';
   const {data,error}=await sb.rpc("get_chat_member_profiles",{p_chat_id:c.id});
   if(error){rows.innerHTML="";rows.append(el("div","info-row","Не удалось загрузить список участников"));toast(error.message||"Ошибка загрузки");return;}
   rows.innerHTML="";
-  const heading=el("div","settings-title",(c.type==="channel"?"Подписчики":"Участники")+" · "+(data||[]).length);
-  rows.append(heading);
+  rows.append(el("div","settings-title",(c.type==="channel"?"Подписчики":"Участники")+" · "+(data||[]).length));
   (data||[]).forEach(member=>{
     const row=el("div","chat-member-row");const avatar=makeAvatar({id:member.user_id,display_name:member.display_name||"Пользователь",avatar_url:member.avatar_url});
     const meta=el("div","chat-member-meta");meta.append(el("strong","",member.display_name||"Пользователь"));
@@ -2150,420 +2168,9 @@ async function showChatMembers(c) {
   });
 }
 document.addEventListener("click",e=>{
-  const tab=e.target.closest("[data-content-tab]");if(!tab)return;
-  currentContentTab=tab.dataset.contentTab||"all";
-  document.querySelectorAll("[data-content-tab]").forEach(b=>b.classList.toggle("active",b===tab));
-  renderMessages({scroll:"bottom"});
+  const tab=e.target.closest("#chatContentTabs [data-content-tab]");if(!tab)return;
+  const c=currentChat();if(!c||!["group","channel"].includes(c.type))return;
+  currentContentTab=tab.dataset.contentTab||"media";
+  document.querySelectorAll("#chatContentTabs [data-content-tab]").forEach(b=>b.classList.toggle("active",b===tab));
+  showProfileContentTab(c,currentContentTab);
 });
-
-$("chatHeader").addEventListener("click", (e) => {
-  if (e.target.closest("#backBtn")) return;
-  if (e.target.closest("#headInfoBtn") && infoPanel.classList.contains("open")) { closeInfo(); return; }
-  if (currentChat()) openInfo();
-});
-$("infoClose").addEventListener("click", closeInfo);
-const photoViewer = $("photoViewer");
-if (photoViewer) photoViewer.addEventListener("click", () => photoViewer.classList.remove("open"));
-
-// Нажатие на уведомление: открыть нужный чат
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.addEventListener("message", (e) => {
-    if (e.data && e.data.openChat && chats.some((c) => c.id === e.data.openChat)) openChat(e.data.openChat);
-  });
-}
-
-// ===================== Лента постов =====================
-
-function isFeedOpen() { return app.classList.contains("feed-mode"); }
-
-function scheduleFeedReload() {
-  clearTimeout(feedReloadTimer);
-  feedReloadTimer = setTimeout(() => { if (isFeedOpen()) loadFeed(); }, 400);
-}
-
-function enterFeed() {
-  app.classList.add("feed-mode");
-  $("feedScreen").style.display = "flex";
-  app.classList.remove("in-chat");
-  document.querySelectorAll(".rail-btn[data-rail]").forEach((b) => b.classList.remove("active"));
-  $("railFeed").classList.add("active");
-  loadFeed();
-}
-
-function exitFeed() {
-  app.classList.remove("feed-mode");
-  $("feedScreen").style.removeProperty("display");
-  $("railFeed").classList.remove("active");
-  screenStack = ["scrChats"];
-  showScreen("scrChats");
-  document.querySelector('.rail-btn[data-rail="scrChats"]').classList.add("active");
-}
-
-async function loadFeed() {
-  if(feedBusy){feedReloadRequested=true;return;}
-  feedBusy=true;const list=$("feedList");
-  if(!feedPosts.length)list.innerHTML='<div class="no-posts">Загружаем публикации всех пользователей…</div>';
-  try{
-    // Сначала обновляем статус, но ошибка таблицы скрытых авторов не должна
-    // ломать саму ленту и сортировку.
-    try { await loadStatus(); } catch (statusError) { console.warn("Feed status unavailable:", statusError); }
-    updateFeedComposer();
-    const {data,error}=await sb.from("posts")
-      .select("id, author_id, text, created_at, edited_at, voice_path, voice_ms, media_path, media_type, media_mime, media_size, media_duration_ms")
-      .order("created_at",{ascending:false}).limit(100);
-    if(error)throw error;
-    const {data:hiddenRows,error:hiddenError}=await sb.from("post_hidden_authors")
-      .select("author_id").eq("user_id",me.id);
-    if(hiddenError) {
-      console.warn("Hidden authors unavailable; showing full feed:", hiddenError);
-      feedHiddenAuthors = new Set();
-    } else {
-      feedHiddenAuthors=new Set((hiddenRows||[]).map(row=>row.author_id));
-    }
-    const posts=data||[],ids=posts.map(p=>p.id);let reactions=[],comments=[],views=[];
-    if(ids.length){
-      const [rr,cr,vr]=await Promise.all([sb.from("post_reactions").select("post_id,user_id,emoji,created_at").in("post_id",ids),sb.from("post_comments").select("post_id").in("post_id",ids),sb.from("post_views").select("post_id,user_id,viewed_at").in("post_id",ids)]);
-      if(rr.error)console.warn("Feed reactions unavailable:",rr.error);else reactions=rr.data||[];
-      if(cr.error)console.warn("Feed comment counts unavailable:",cr.error);else comments=cr.data||[];
-      if(vr.error)console.warn("Feed view counts unavailable:",vr.error);else views=vr.data||[];
-    }
-    const reactionMap=new Map(),commentMap=new Map(),viewMap=new Map(),dailyViewMap=new Map();
-    const cutoff=Date.now()-86400000;
-    reactions.forEach(r=>{if(!reactionMap.has(r.post_id))reactionMap.set(r.post_id,[]);reactionMap.get(r.post_id).push({user_id:r.user_id,emoji:r.emoji,created_at:r.created_at});});
-    comments.forEach(c=>commentMap.set(c.post_id,(commentMap.get(c.post_id)||0)+1));
-    views.forEach(v=>{viewMap.set(v.post_id,(viewMap.get(v.post_id)||0)+1);if(new Date(v.viewed_at).getTime()>=cutoff)dailyViewMap.set(v.post_id,(dailyViewMap.get(v.post_id)||0)+1);});
-    feedViewedByMe=new Set(views.filter(v=>v.user_id===me.id).map(v=>v.post_id));
-    feedPosts=posts.map(p=>{const rs=reactionMap.get(p.id)||[];return {...p,post_reactions:rs,post_comments:[{count:commentMap.get(p.id)||0}],view_count:viewMap.get(p.id)||0,daily_view_count:dailyViewMap.get(p.id)||0,daily_like_count:rs.filter(r=>r.emoji==="❤️"&&new Date(r.created_at).getTime()>=cutoff).length};});
-    const authors=[...new Set(feedPosts.map(p=>p.author_id))];if(authors.length)await loadProfiles(authors);
-    updateFeedComposer();renderFeed();
-  }catch(error){
-    console.error("Feed load failed:",error);list.innerHTML="";
-    list.append(el("div","no-posts","Не удалось загрузить ленту. Нажмите «Обновить» или попробуйте позже."));
-    toast("Лента не загрузилась: "+(error?.message||"ошибка запроса"));
-  }finally{feedBusy=false;if(feedReloadRequested){feedReloadRequested=false;if(isFeedOpen())setTimeout(loadFeed,0);}}
-}
-
-function updateFeedComposer() {
-  const can = !!(window.appStatus && window.appStatus.can_post);
-  $("feedCompose").style.display = can ? "block" : "none";
-  $("feedLocked").style.display = can ? "none" : "block";
-}
-
-function fmtPostTime(iso) {
-  const d = new Date(iso), now = new Date();
-  if (sameDay(d, now)) return "сегодня в " + fmtTime(iso);
-  if (sameDay(d, new Date(now.getTime() - 86400000))) return "вчера в " + fmtTime(iso);
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) + " в " + fmtTime(iso);
-}
-
-function authorOf(id) { return profiles[id] || { id: id, display_name: "Пользователь" }; }
-
-function reactionList(post) {
-  const counts = {};
-  let mine = null;
-  (post.post_reactions || []).forEach((r) => {
-    counts[r.emoji] = (counts[r.emoji] || 0) + 1;
-    if (r.user_id === me.id) mine = r.emoji;
-  });
-  return { counts: counts, mine: mine };
-}
-
-function renderFeed() {
-  const list = $("feedList");
-  list.innerHTML = "";
-  if (feedViewObserver) feedViewObserver.disconnect();
-  let posts = feedPosts.slice();
-  if (feedSortMode === "popular") {
-    const cutoff = Date.now() - 86400000;
-    posts = posts.filter(post => new Date(post.created_at).getTime() >= cutoff);
-    posts.sort((a,b) => ((b.daily_like_count||0)+(b.daily_view_count||0))-((a.daily_like_count||0)+(a.daily_view_count||0)) || new Date(b.created_at)-new Date(a.created_at));
-  }
-  if (!posts.length) {
-    list.append(el("div", "no-posts", feedSortMode === "popular" ? "За последние сутки публикаций пока нет." : "Пока постов нет. Напишите первый!"));
-    return;
-  }
-  const shownHiddenAuthors = new Set();
-  posts.forEach(post => {
-    if (feedHiddenAuthors.has(post.author_id)) {
-      if (shownHiddenAuthors.has(post.author_id)) return;
-      shownHiddenAuthors.add(post.author_id);
-      list.append(hiddenAuthorNotice(post.author_id));
-      return;
-    }
-    const card=postCard(post); card.dataset.postId=post.id; list.append(card);
-  });
-  if ("IntersectionObserver" in window) {
-    feedViewObserver = new IntersectionObserver(entries => entries.forEach(entry => { if(entry.isIntersecting){ const post=feedPosts.find(p=>p.id===entry.target.dataset.postId); if(post) markPostViewed(post,entry.target); feedViewObserver.unobserve(entry.target); } }), {root:$("feedBody"),threshold:0.35});
-    list.querySelectorAll(".post[data-post-id]").forEach(card=>feedViewObserver.observe(card));
-  } else {
-    list.querySelectorAll(".post[data-post-id]").forEach(card=>{const post=feedPosts.find(p=>p.id===card.dataset.postId);if(post)markPostViewed(post,card);});
-  }
-  updateFeedSortButtons();
-}
-
-function hiddenAuthorNotice(authorId) {
-  const notice = el("article", "post post-hidden-notice");
-  const message = el("div", "post-hidden-message");
-  message.append(el("strong", "", "Публикации скрыты"));
-  message.append(el("span", "", "Вы поставили дизлайк. Публикации пользователя «" + (authorOf(authorId).display_name || "Пользователь") + "» больше не будут вам видны."));
-  const undo = el("button", "link-btn", "Отменить");
-  undo.addEventListener("click", () => unhideAuthorPosts(authorId));
-  notice.append(message, undo);
-  return notice;
-}
-
-async function hideAuthorPosts(authorId) {
-  if (!authorId || authorId === me.id || feedHiddenAuthors.has(authorId)) return;
-  const { error } = await sb.from("post_hidden_authors").insert({ user_id: me.id, author_id: authorId });
-  if (error && error.code !== "23505") { toast("Не удалось скрыть публикации: " + error.message); return; }
-  feedHiddenAuthors.add(authorId);
-  renderFeed();
-}
-
-async function unhideAuthorPosts(authorId) {
-  const { error } = await sb.from("post_hidden_authors").delete()
-    .eq("user_id", me.id).eq("author_id", authorId);
-  if (error) { toast("Не удалось отменить скрытие: " + error.message); return; }
-  feedHiddenAuthors.delete(authorId);
-  renderFeed();
-}
-
-function updateFeedSortButtons(){
-  document.querySelectorAll("[data-feed-sort]").forEach(button=>{const active=button.dataset.feedSort===feedSortMode;button.classList.toggle("active",active);button.setAttribute("aria-pressed",String(active));});
-}
-
-async function markPostViewed(post,card){
-  if(feedViewedByMe.has(post.id))return;
-  feedViewedByMe.add(post.id);
-  const {error}=await sb.from("post_views").insert({post_id:post.id,user_id:me.id});
-  if(error){if(error.code!=="23505"){feedViewedByMe.delete(post.id);console.warn("Could not record post view:",error);}return;}
-  post.view_count=(post.view_count||0)+1;
-  post.daily_view_count=(post.daily_view_count||0)+1;
-  const counter=card.querySelector(".post-view-count");
-  if(counter)counter.textContent="👁 "+post.view_count;
-}
-
-function postCard(post) {
-  const card = el("article", "post");
-  const author = authorOf(post.author_id);
-  const head = el("div", "post-head");
-  head.append(makeAvatar(author, ""));
-  const info = el("div", "post-info");
-  info.append(el("div", "post-author", author.display_name || "Пользователь"));
-  info.append(el("div", "post-time", fmtPostTime(post.created_at) + (post.edited_at ? " · изменено" : "")));
-  head.append(info);
-  if (post.author_id === me.id || window.appStatus.is_admin || window.appStatus.is_admin_role) {
-    const del = el("button", "icon-btn post-del");
-    del.title = "Удалить пост";
-    del.innerHTML = ICONS.trash;
-    del.addEventListener("click", () => deletePost(post));
-    head.append(del);
-  }
-  card.append(head);
-
-  if (post.text) {
-    const text = el("div", "post-text");
-    appendText(text, post.text);
-    card.append(text);
-  }
-  if (post.voice_path) card.append(voicePlayer(post.voice_path, post.voice_ms));
-  if (post.media_path) appendMediaPreview(card, post.media_path, post.media_type, "post-media");
-
-  const actions = el("div", "post-actions");
-  actions.append(el("span", "post-view-count", "👁 " + (post.view_count || 0)));
-  const reaction = reactionList(post);
-  REACTIONS.forEach((emoji) => {
-    const count = reaction.counts[emoji] || 0;
-    const btn = el("button", "react" + (reaction.mine === emoji ? " on" : ""), emoji + (count ? " " + count : ""));
-    btn.addEventListener("click", () => toggleReaction(post, emoji));
-    actions.append(btn);
-  });
-  if (post.author_id !== me.id) {
-    const hide = el("button", "react hide-author-btn", "👎");
-    hide.type = "button";
-    hide.title = "Дизлайк — скрыть все публикации этого пользователя";
-    hide.setAttribute("aria-label", hide.title);
-    hide.addEventListener("click", () => hideAuthorPosts(post.author_id));
-    actions.append(hide);
-  }
-  const comments = post.post_comments && post.post_comments[0] ? post.post_comments[0].count : 0;
-  const cbtn = el("button", "react comments-btn", "💬" + (comments ? " " + comments : ""));
-  cbtn.addEventListener("click", () => toggleComments(post, card));
-  actions.append(cbtn);
-  if (post.author_id !== me.id && typeof window.openStaffAction === "function" && (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator)) {
-    const staffBtn = el("button", "react staff-action-btn", window.appStatus.is_moderator ? "⚑ Предупредить" : "⚑ Ограничить");
-    staffBtn.addEventListener("click", () => window.openStaffAction(post.author_id, author.username));
-    actions.append(staffBtn);
-  }
-  if (post.author_id !== me.id && typeof window.openPostReport === "function") {
-    const reportBtn = el("button", "react post-report-btn", "⚑ Пожаловаться");
-    reportBtn.type = "button";
-    reportBtn.addEventListener("click", () => window.openPostReport(post));
-    actions.append(reportBtn);
-  }
-  card.append(actions);
-
-  card.append(el("div", "post-comments"));
-  return card;
-}
-
-async function toggleReaction(post, emoji) {
-  const reaction = reactionList(post);
-  let error = null;
-  if (reaction.mine === emoji) {
-    ({ error } = await sb.from("post_reactions").delete().eq("post_id", post.id).eq("user_id", me.id));
-  } else if (reaction.mine) {
-    ({ error } = await sb.from("post_reactions").update({ emoji: emoji }).eq("post_id", post.id).eq("user_id", me.id));
-  } else {
-    const res = await sb.from("post_reactions").insert({ post_id: post.id, user_id: me.id, emoji: emoji });
-    if (res.error && res.error.code === "23505") {
-      ({ error } = await sb.from("post_reactions").update({ emoji: emoji }).eq("post_id", post.id).eq("user_id", me.id));
-    } else {
-      error = res.error;
-    }
-  }
-  if (error) { toast("Не получилось: " + error.message); return; }
-  await loadFeed();
-}
-
-async function deletePost(post) {
-  let result;
-  if (window.appStatus.is_admin_role && !window.appStatus.is_owner) {
-    const reason = prompt("Укажи, какое нарушение правил содержит публикация:");
-    if (!reason || !reason.trim()) return;
-    if (!confirm("Удалить публикацию за нарушение правил?")) return;
-    result = await sb.rpc("staff_delete_post", { target: post.id, reason: reason.trim() });
-  } else {
-    if (!confirm("Удалить пост?")) return;
-    result = await sb.from("posts").delete().eq("id", post.id);
-  }
-  if (result.error) { toast("Не удалось удалить: " + result.error.message); return; }
-  await loadFeed();
-}
-
-async function toggleComments(post, card) {
-  card.classList.toggle("comments-open");
-  if (!card.classList.contains("comments-open")) return;
-  const box = card.querySelector(".post-comments");
-  box.innerHTML = "";
-  const { data, error } = await sb.from("post_comments")
-    .select("id, author_id, text, created_at")
-    .eq("post_id", post.id).order("created_at").limit(200);
-  if (error) { box.append(el("div", "list-note", "Комментарии не загрузились")); return; }
-  const ids = [...new Set((data || []).map((c) => c.author_id))];
-  if (ids.length) await loadProfiles(ids);
-  (data || []).forEach((c) => {
-    const row = el("div", "comment");
-    row.append(el("b", "", authorOf(c.author_id).display_name || "Пользователь"));
-    row.append(document.createTextNode(": " + c.text));
-    if (c.author_id !== me.id && typeof window.openStaffAction === "function" && (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator)) {
-      const staffBtn = el("button", "comment-del", window.appStatus.is_moderator ? "предупредить" : "ограничить");
-      staffBtn.addEventListener("click", () => window.openStaffAction(c.author_id, authorOf(c.author_id).username));
-      row.append(staffBtn);
-    }
-    if (c.author_id === me.id || window.appStatus.is_admin || window.appStatus.is_admin_role) {
-      const del = el("button", "comment-del", "удалить");
-      del.addEventListener("click", async () => {
-        let result;
-        if (window.appStatus.is_admin_role && !window.appStatus.is_owner) {
-          const reason = prompt("Укажи, какое нарушение правил содержит комментарий:");
-          if (!reason || !reason.trim()) return;
-          result = await sb.rpc("staff_delete_comment", { target: c.id, reason: reason.trim() });
-        } else {
-          result = await sb.from("post_comments").delete().eq("id", c.id);
-        }
-        if (result.error) { toast("Не удалось: " + result.error.message); return; }
-        await loadFeed();
-      });
-      row.append(del);
-    }
-    box.append(row);
-  });
-  if (!data || !data.length) box.append(el("div", "list-note", "Комментариев пока нет"));
-
-  const inputRow = el("div", "comment-row");
-  const field = el("input");
-  field.placeholder = "Комментарий…";
-  field.maxLength = 2000;
-  const send = el("button", "link-btn", "Отправить");
-  const submit = async () => {
-    const text = field.value.trim();
-    if (!text) return;
-    send.disabled = true;
-    const { error: err } = await sb.from("post_comments").insert({ post_id: post.id, text: text });
-    send.disabled = false;
-    if (err) { toast("Не отправилось: " + err.message); return; }
-    field.value = "";
-    await loadFeed();
-  };
-  send.addEventListener("click", submit);
-  field.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
-  inputRow.append(field, send);
-  box.append(inputRow);
-}
-
-async function publishPost() {
-  const field = $("postText");
-  const text = field.value.trim();
-  const file = $("postMediaFile").files[0] || null;
-  const voice = pendingPostVoice;
-  if (!text && !file && !voice) { toast("Добавьте текст, фото/видео или голосовую запись"); return; }
-  const send = $("postSend");
-  send.disabled = true;
-  let media = null;
-  let voicePath = null;
-  try {
-    // Обновляем серверные права перед публикацией, чтобы не опираться на старый статус.
-    const { data: status, error: statusError } = await sb.rpc("get_app_status");
-    if (statusError) throw new Error("Не удалось проверить разрешение на публикацию: " + statusError.message);
-    window.appStatus = status || window.appStatus;
-    updateFeedComposer();
-    if (!window.appStatus.can_post) throw new Error("Публикация сейчас запрещена для этого аккаунта. Проверьте режим публикаций и статус аккаунта.");
-    if (file) {
-      const check = await validateMediaFile(file, true);
-      if (check) throw new Error(check);
-      const randomName = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
-      const path = me.id + "/" + randomName + safeMediaExtension(file.name);
-      const up = await sb.storage.from("post-media").upload(path, file, { contentType: file.type, upsert: false });
-      if (up.error) throw new Error("Не удалось загрузить файл: " + up.error.message);
-      media = { media_path: path, media_type: file.type.startsWith("video/") ? "video" : "image", media_mime: file.type, media_size: file.size, media_duration_ms: file._mediaDurationMs || null };
-    }
-    if (voice) {
-      const type = voice.blob.type || "audio/webm";
-      const ext = type.indexOf("mp4") !== -1 ? "m4a" : type.indexOf("ogg") !== -1 ? "ogg" : "webm";
-      const randomName = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
-      voicePath = me.id + "/" + randomName + "." + ext;
-      const voiceUpload = await sb.storage.from("voice").upload(voicePath, voice.blob, { contentType: type, upsert: false });
-      if (voiceUpload.error) throw new Error("Не удалось загрузить голосовую запись: " + voiceUpload.error.message);
-    }
-    const { error } = await sb.from("posts").insert({ text: text || null, ...(media || {}), ...(voicePath ? { voice_path: voicePath, voice_ms: voice.ms } : {}) });
-    if (error) throw new Error("Не опубликовалось: " + error.message);
-    field.value = ""; $("postMediaFile").value = ""; $("postMediaName").textContent = "";
-    pendingPostVoice = null;
-    updatePostCount();
-    await loadFeed();
-  } catch (error) {
-    if (media) { try { await sb.storage.from("post-media").remove([media.media_path]); } catch (cleanupError) { console.warn("Could not clean up uploaded media:", cleanupError); } }
-    if (voicePath) { try { await sb.storage.from("voice").remove([voicePath]); } catch (cleanupError) { console.warn("Could not clean up voice:", cleanupError); } }
-    console.error("Post publish failed:", error);
-    toast(error.message || "Не удалось опубликовать пост");
-  } finally {
-    send.disabled = false;
-  }
-}
-
-function updatePostCount() {
-  const n = $("postText").value.length;
-  $("postCount").textContent = n ? n + " / 4000" : "";
-}
-
-const feedBackButton = $("feedBack");
-if (feedBackButton) feedBackButton.addEventListener("click", exitFeed);
-const feedRefreshButton = $("feedRefresh");
-if (feedRefreshButton) feedRefreshButton.addEventListener("click", () => loadFeed());
-const postTextField = $("postText");
-if (postTextField) postTextField.addEventListener("input", updatePostCount);
-const postMediaInput = $("postMediaFile");
-if (postMediaInput) postMediaInput.addEventListener("change", async () => { const f = postMediaInput.files[0]; if (!f) return; const err = await validateMediaFile(f, true); if (err) { toast(err); postMediaInput.value = ""; return; } const name = $("postMediaName"); if (name) name.textContent = f.name; });
-const postSendButton = $("postSend");
-if (postSendButton) postSendButton.addEventListener("click", publishPost);
