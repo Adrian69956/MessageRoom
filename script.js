@@ -1619,6 +1619,7 @@ async function startApp(user) {
   $("mmAdmin").style.display = admin ? "flex" : "none";
   $("railAdmin").style.display = admin ? "flex" : "none";
   $("railServiceNotices").style.display = window.appStatus.is_owner ? "flex" : "none";
+  $("settingsServiceNoticesBtn").style.display = window.appStatus.is_owner ? "flex" : "none";
   $("railJournal").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator) ? "flex" : "none";
   $("railStaff").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator) ? "flex" : "none";
   $("railSupport").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator) ? "flex" : "none";
@@ -1635,6 +1636,8 @@ function stopApp() {
   unsubscribeTyping();
   clearInterval(presenceTimer);
   me = null; profiles = {}; chats = []; currentId = null; searchResults = []; presence = {}; blocked = new Set();
+  $("railServiceNotices").style.display = "none";
+  $("settingsServiceNoticesBtn").style.display = "none";
   search.value = ""; chatList.innerHTML = ""; archiveList.innerHTML = ""; messagesBox.innerHTML = "";
   app.classList.remove("in-chat", "has-chat", "feed-mode");
   $("railFeed").classList.remove("active");
