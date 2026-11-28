@@ -1,6 +1,8 @@
 // Publication reports: the queue is available only to the Owner and Moderators.
 (() => {
   const queue = document.getElementById("reportQueueOverlay");
+  const journal = document.getElementById("journalOverlay");
+  const journalList = document.getElementById("journalList");
   const queueList = document.getElementById("reportQueueList");
   const dialog = document.getElementById("postReportDialog");
   const reasonField = document.getElementById("postReportReason");
@@ -172,6 +174,45 @@
   function unsubscribe() {
     if (channel) { sb.removeChannel(channel); channel = null; }
   }
+
+
+  const actionNames = {
+    report_submitted: "Отправлена жалоба на публикацию",
+    report_status_changed: "Изменён статус жалобы",
+    report_deleted: "Удалена жалоба",
+    posts_deleted: "Удалена публикация",
+    post_comments_deleted: "Удалён комментарий",
+    role_changed: "Изменена роль пользователя"
+  };
+  async function loadJournal() {
+    journalList.innerHTML = '<div class="list-note">Загружаем журнал…</div>';
+    const { data, error } = await sb.from("staff_action_log")
+      .select("id,actor_id,action,target_type,target_id,details,created_at")
+      .order("created_at", { ascending: false }).limit(100);
+    journalList.innerHTML = "";
+    if (error) { journalList.textContent = "Не удалось загрузить журнал: " + error.message; return; }
+    if (!data || !data.length) { journalList.innerHTML = '<div class="list-note">Записей пока нет</div>'; return; }
+    data.forEach((entry) => {
+      const card = document.createElement("article");
+      card.className = "journal-entry";
+      const title = document.createElement("strong");
+      title.textContent = actionNames[entry.action] || entry.action.replace(/_/g, " ");
+      const date = document.createElement("small");
+      date.textContent = new Date(entry.created_at).toLocaleString("ru-RU");
+      card.append(title, date);
+      const details = document.createElement("p");
+      details.textContent = JSON.stringify(entry.details || {}, null, 2);
+      card.append(details);
+      journalList.append(card);
+    });
+  }
+  document.getElementById("railJournal").addEventListener("click", () => {
+    if (!(window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator)) return;
+    journal.classList.add("open");
+    loadJournal();
+  });
+  document.getElementById("journalClose").addEventListener("click", () => journal.classList.remove("open"));
+  journal.addEventListener("click", (event) => { if (event.target === journal) journal.classList.remove("open"); });
 
   document.getElementById("railReports").addEventListener("click", () => {
     if (!canSeeQueue()) return;
