@@ -687,10 +687,11 @@ function renderPendingChatFiles(){
   if(!pendingChatFiles.length){preview.classList.remove("show");return;}
   pendingChatFiles.forEach((item,index)=>{
     const card=el("div","chat-media-pending-item");
-    const thumb=el("img");thumb.src=item.previewUrl;thumb.alt=item.file.name;thumb.addEventListener("click",()=>openPhotoEditor(index));
+    const thumb=item.file.type.startsWith("video/")?el("video"):el("img");thumb.src=item.previewUrl;thumb.alt=item.file.name;
+    if(thumb.tagName==="VIDEO"){thumb.muted=true;thumb.playsInline=true;thumb.preload="metadata";}else thumb.addEventListener("click",()=>openPhotoEditor(index));
     const info=el("div","chat-media-pending-info");
     info.append(el("div","chat-media-pending-name",item.file.name),el("div","chat-media-pending-size",Math.max(1,Math.round(item.file.size/1024))+" КБ"));
-    const edit=el("button","link-btn","Настроить фото");edit.type="button";edit.addEventListener("click",()=>openPhotoEditor(index));info.append(edit);
+    if(item.file.type.startsWith("image/")){const edit=el("button","link-btn","Настроить фото");edit.type="button";edit.addEventListener("click",()=>openPhotoEditor(index));info.append(edit);}
     const remove=el("button","icon-btn chat-media-pending-remove","×");remove.type="button";remove.addEventListener("click",()=>{URL.revokeObjectURL(item.previewUrl);pendingChatFiles.splice(index,1);photoEditorIndex=Math.min(photoEditorIndex,Math.max(0,pendingChatFiles.length-1));pendingChatFile=pendingChatFiles[photoEditorIndex]?.file||null;renderPendingChatFiles();});
     card.append(thumb,info,remove);preview.append(card);
   });
