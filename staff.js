@@ -18,7 +18,7 @@
   const isOwner = () => !!window.appStatus?.is_owner;
   const isAdmin = () => !!window.appStatus?.is_admin_role;
   const isModerator = () => !!window.appStatus?.is_moderator;
-  const isSupportStaff = () => isOwner() || isAdmin();
+  const isSupportStaff = () => isOwner() || isAdmin() || isModerator();
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
   function showMsg(id, text, error=false) {
@@ -133,7 +133,7 @@
     $id("supportTitle").textContent="Поддержка — обращения";
     $id("supportUserView").style.display="none";
     $id("supportStaffView").style.display="block";
-    const cats=isOwner()?["complaint","appeal","question","bug","other"]:["question","bug","other"];
+    const cats=(isOwner()||isModerator())?["complaint","appeal","question","bug","other"]:["question","bug","other"];
     $id("supportCategoryTabs").innerHTML="";
     cats.forEach((cat,i)=>{
       const b=document.createElement("button");b.textContent=categoryLabel(cat);b.dataset.category=cat;
@@ -163,7 +163,9 @@
     supportStaffView();
     subscribeSupport();
   }
+  window.openSupportUser = openSupportUser;
   $id("mmSupport").addEventListener("click",openSupportUser);
+  $id("settingsSupportBtn")?.addEventListener("click",openSupportUser);
   $id("railSupport").addEventListener("click",openSupportStaff);
   $id("supportClose").addEventListener("click",closeSupport);
   supportOverlay.addEventListener("click",e=>{if(e.target===supportOverlay)closeSupport();});
@@ -205,7 +207,15 @@
     $id("supportSubject").placeholder=f.subjectHint;
     $id("supportDescriptionLabel").textContent=f.desc;
   }
-  $id("supportCategory").addEventListener("change",updateSupportCategoryFields);
+  $id("supportCategory").addEventListener("change",()=>{
+    updateSupportCategoryFields();
+    document.querySelectorAll("[data-support-category]").forEach(b=>b.classList.toggle("active",b.dataset.supportCategory===$id("supportCategory").value));
+  });
+  document.querySelectorAll("[data-support-category]").forEach(button=>button.addEventListener("click",()=>{
+    $id("supportCategory").value=button.dataset.supportCategory;
+    updateSupportCategoryFields();
+    document.querySelectorAll("[data-support-category]").forEach(b=>b.classList.toggle("active",b===button));
+  }));
   updateSupportCategoryFields();
 
   $id("supportCreate").addEventListener("click",async()=>{
