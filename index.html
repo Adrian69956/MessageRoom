@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MessageRoom</title>
-  <link rel="stylesheet" href="style.css?v=paperclip-only-2">
+  <link rel="stylesheet" href="style.css?v=chat-photo-editor-1">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#0077ff">
@@ -271,6 +271,21 @@
       </div>
       <footer class="composer" id="composer">
         <div class="chat-media-pending" id="chatMediaPending" aria-live="polite"></div>
+<div class="photo-editor-backdrop" id="photoEditor" aria-hidden="true">
+  <section class="photo-editor" role="dialog" aria-modal="true" aria-labelledby="photoEditorTitle">
+    <header class="photo-editor-head"><strong id="photoEditorTitle">Настроить фото</strong><button type="button" class="icon-btn" id="photoEditorClose" aria-label="Закрыть">×</button></header>
+    <div class="photo-editor-stage"><canvas id="photoEditorCanvas"></canvas></div>
+    <div class="photo-editor-tools">
+      <label>Обрезка <select id="photoCrop"><option value="original">Без обрезки</option><option value="1:1">Квадрат 1:1</option><option value="4:3">4:3</option><option value="16:9">16:9</option></select></label>
+      <label class="photo-compress"><input type="checkbox" id="photoCompress" checked> Сжать фото</label>
+      <label class="photo-text-tool">Текст <input id="photoText" type="text" maxlength="100" placeholder="Напишите на фото"></label>
+      <button type="button" class="link-btn" id="photoAddText">Добавить текст</button>
+      <button type="button" class="link-btn" id="photoDrawToggle">Рисовать: выкл.</button>
+    </div>
+    <footer class="photo-editor-actions"><button type="button" class="link-btn" id="photoEditorCancel">Отмена</button><button type="button" class="save-btn" id="photoEditorSave">Готово</button></footer>
+  </section>
+</div>
+
         <div class="compose-bar" id="composeBar">
           <span class="cb-icon" id="cbIcon"></span>
           <div class="cb-body"><div class="cb-title" id="cbTitle"></div><div class="cb-text" id="cbText"></div></div>
@@ -416,7 +431,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=1795780670"></script>
   <script src="auth.js?v=1795780670"></script>
-  <script src="script.js?v=1795780670"></script>
+  <script src="script.js?v=chat-photo-editor-1"></script>
   <script src="push.js?v=1795780670"></script>
   <script src="admin.js?v=1795780670"></script>
 </body>
