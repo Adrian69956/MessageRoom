@@ -2286,7 +2286,7 @@ async function publishPost() {
     updatePostCount();
     await loadFeed();
   } catch (error) {
-    if (media) await sb.storage.from("post-media").remove([media.media_path]).catch(() => {});
+    if (media) { try { await sb.storage.from("post-media").remove([media.media_path]); } catch (cleanupError) { console.warn("Could not clean up uploaded media:", cleanupError); } }
     console.error("Post publish failed:", error);
     toast(error.message || "Не удалось опубликовать пост");
   } finally {
