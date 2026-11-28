@@ -48,10 +48,13 @@
       if (b.userId === me.id) return 1;
       return new Date(b.stories[b.stories.length-1].created_at)-new Date(a.stories[a.stories.length-1].created_at);
     });
-    renderStories();
+    await renderStories();
   }
 
-  function renderStories() {
+  async function renderStories() {
+    const allIds=storyGroups.flatMap(group=>group.stories.map(story=>story.id));
+    const {data:seenRows}=allIds.length?await sb.from("story_views").select("story_id").eq("viewer_id",me.id).in("story_id",allIds):{data:[]};
+    const seenIds=new Set((seenRows||[]).map(row=>row.story_id));
     rail.innerHTML = "";
     const add = node("button","story-add");
     add.type="button";
@@ -72,7 +75,10 @@
       const av=node("span","story-avatar");
       av.append(typeof makeAvatar==="function" ? makeAvatar(group.profile,"") : node("span","","?"));
       const n=group.stories.length, seg=100/n;
-      ring.style.background="conic-gradient("+group.stories.map((_,i)=>"hsl("+(i*360/n)+" 85% 58%) "+(i*seg)+"% "+((i+1)*seg-1)+"%").join(",")+")";
+      ring.style.background="conic-gradient("+group.stories.map((story,i)=>{
+        const color=seenIds.has(story.id)?"#777":"hsl("+(i*360/n)+" 85% 58%)";
+        return color+" "+(i*seg)+"% "+((i+1)*seg-1)+"%";
+      }).join(",")+")";
       ring.append(av);
       b.append(ring,node("span","story-label",group.profile.display_name||"Пользователь"));
       b.addEventListener("click",()=>openViewer(group.stories));
