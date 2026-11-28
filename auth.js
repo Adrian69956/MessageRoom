@@ -287,8 +287,6 @@ const deleteAccountBtn = document.getElementById("deleteAccountBtn");
 if (deleteAccountBtn) {
   deleteAccountBtn.addEventListener("click", async () => {
     if (!confirm("Удалить аккаунт навсегда? Профиль, публикации, сообщения и связанные данные будут удалены. Это действие нельзя отменить.")) return;
-    const phrase = prompt('Для подтверждения введи: УДАЛИТЬ');
-    if (phrase !== "УДАЛИТЬ") return;
     deleteAccountBtn.disabled = true;
     const msg = document.getElementById("deleteAccountMsg");
     if (msg) msg.textContent = "Удаляем аккаунт…";
