@@ -11,6 +11,7 @@
   let storyTouchX = 0;
   let trimDuration = 0;
   let trimObjectUrl = null;
+  let editedMediaFile = null;
   let storyChannel = null;
   let audienceMode = "everyone";
   let selectedAudienceIds = [];
@@ -86,7 +87,7 @@
     document.querySelectorAll("[data-story-type]").forEach(b=>b.classList.toggle("active",b.dataset.storyType===storyType));
     $s("storyMediaFields").hidden=false;
     $s("storyTextFields").hidden=true;
-    $s("storyMediaFile").value="";
+    $s("storyMediaFile").value="";editedMediaFile=null;
     $s("storyFileName").textContent="Файл не выбран";
     $s("storyVideoTrim").hidden=true;
     $s("storyTrimPreview").removeAttribute("src");
@@ -122,8 +123,56 @@
     const v=$s("storyTrimPreview");
     if(v.readyState>=1)try{v.currentTime=Math.max(Number($s("storyTrimStart").value)||0,Math.min(Number(value)||0,Number($s("storyTrimEnd").value)||trimDuration));}catch(_){}
   }
+
+  function openStoryPhotoEditor(file) {
+    let modal=$s("storyPhotoEditor");
+    if(!modal){
+      modal=node("div","story-photo-editor");modal.id="storyPhotoEditor";
+      const head=node("div","story-photo-editor-head");
+      const cancel=node("button","","‹ Назад");cancel.type="button";
+      const title=node("strong","","Редактор истории");
+      const clear=node("button","","Очистить");clear.type="button";
+      head.append(cancel,title,clear);
+      const canvas=node("canvas","");canvas.id="storyPhotoCanvas";
+      const tools=node("div","story-photo-editor-tools");
+      const undo=node("button","","↶");undo.type="button";
+      const redo=node("button","","↷");redo.type="button";
+      const draw=node("button","","Кисть");draw.type="button";draw.classList.add("active");
+      const text=node("button","","Текст");text.type="button";
+      const size=node("input","");size.type="range";size.min="2";size.max="48";size.value="7";size.setAttribute("aria-label","Размер кисти");
+      const colors=node("div","story-photo-colors");
+      ["#ffffff","#ff3158","#ffcc00","#26d07c","#1687ff","#a855f7","#111111"].forEach(color=>{const b=node("button","");b.type="button";b.style.background=color;b.addEventListener("click",()=>{state.color=color;});colors.append(b);});
+      const save=node("button","story-photo-save","✓");save.type="button";
+      tools.append(undo,redo,draw,text,size,colors,save);
+      modal.append(head,canvas,tools);document.body.append(modal);
+      cancel.onclick=()=>modal.classList.remove("open");
+      clear.onclick=()=>{state.history.push(canvas.toDataURL());state.redo=[];ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);};
+      undo.onclick=()=>{if(state.history.length>1){state.redo.push(state.history.pop());restore(state.history[state.history.length-1]);}};
+      redo.onclick=()=>{if(state.redo.length){const value=state.redo.pop();state.history.push(value);restore(value);}};
+      draw.onclick=()=>{state.tool="draw";draw.classList.add("active");text.classList.remove("active");};
+      text.onclick=()=>{state.tool="text";text.classList.add("active");draw.classList.remove("active");const value=prompt("Текст на истории");if(value){state.history.push(canvas.toDataURL());ctx.font="bold "+Math.max(28,canvas.width*.06)+"px Arial";ctx.textAlign="center";ctx.lineWidth=4;ctx.strokeStyle="#0009";ctx.fillStyle=state.color;ctx.strokeText(value.slice(0,100),canvas.width/2,canvas.height/2,canvas.width*.88);ctx.fillText(value.slice(0,100),canvas.width/2,canvas.height/2,canvas.width*.88);}};
+      save.onclick=()=>canvas.toBlob(blob=>{if(blob){editedMediaFile=new File([blob],"story-edited.jpg",{type:"image/jpeg"});$s("storyFileName").textContent=editedMediaFile.name+" · изменено";modal.classList.remove("open");}},"image/jpeg",.92);
+    }
+    const canvas=$s("storyPhotoCanvas"),ctx=canvas.getContext("2d"),image=new Image();
+    const state=modal._storyState||{color:"#ffffff",tool:"draw",history:[],redo:[]};modal._storyState=state;
+    const restore=data=>{const im=new Image();im.onload=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(im,0,0,canvas.width,canvas.height);};im.src=data;};
+    const saveHistory=()=>{state.history.push(canvas.toDataURL());if(state.history.length>30)state.history.shift();state.redo=[];};
+    image.onload=()=>{
+      const scale=Math.min(1,1800/Math.max(image.naturalWidth,image.naturalHeight));
+      canvas.width=Math.round(image.naturalWidth*scale);canvas.height=Math.round(image.naturalHeight*scale);
+      ctx.drawImage(image,0,0,canvas.width,canvas.height);state.history=[canvas.toDataURL()];state.redo=[];modal.classList.add("open");
+    };
+    image.src=URL.createObjectURL(file);
+    let drawing=false;
+    const point=e=>{const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height};};
+    canvas.onpointerdown=e=>{if(state.tool!=="draw")return;drawing=true;canvas.setPointerCapture(e.pointerId);const p=point(e);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.strokeStyle=state.color;ctx.lineWidth=Number(modal.querySelector('input[type="range"]').value)*canvas.width/canvas.clientWidth;ctx.lineCap="round";ctx.lineJoin="round";};
+    canvas.onpointermove=e=>{if(!drawing)return;const p=point(e);ctx.lineTo(p.x,p.y);ctx.stroke();};
+    canvas.onpointerup=()=>{if(drawing){drawing=false;saveHistory();}};
+  }
+
   $s("storyMediaFile").addEventListener("change",()=>{
-    const f=$s("storyMediaFile").files[0];
+    const f=$s("storyMediaFile").files[0];editedMediaFile=null;
+    if(f&&f.type.startsWith("image/"))openStoryPhotoEditor(f);
     $s("storyFileName").textContent=f?f.name:"Файл не выбран";
     const panel=$s("storyVideoTrim"), preview=$s("storyTrimPreview");
     if(trimObjectUrl){URL.revokeObjectURL(trimObjectUrl);trimObjectUrl=null;}
@@ -205,7 +254,7 @@
     if (storyType==="text" && !text) {errorBox.textContent="Напиши текст истории";return;}
     let file=null, mediaPath=null;
     if(storyType!=="text"){
-      file=$s("storyMediaFile").files[0];
+      file=editedMediaFile||$s("storyMediaFile").files[0];
       if(!file){errorBox.textContent="Выбери фото или видео";return;}
       const image=/^image\/(jpeg|png|webp|gif)$/i.test(file.type);
       const video=/^video\/(mp4|webm|quicktime)$/i.test(file.type);
