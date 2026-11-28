@@ -9,6 +9,7 @@
   let activeStoryIndex = 0;
   let viewerStories = [];
   let storyTouchX = 0;
+  let storyChannel = null;
 
   const node = (tag, cls, text) => {
     const n = document.createElement(tag);
@@ -230,9 +231,19 @@
     window.startApp=async function(user){await originalStartApp(user);await loadStories();};
   }
   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&me)loadStories();});
-  const storyRealtime=()=>{if(!me)return;sb.channel("stories-live").on("postgres_changes",{event:"*",schema:"public",table:"stories"},loadStories).subscribe();};
+  const storyRealtime=()=>{
+    if(!me)return;
+    if(storyChannel)sb.removeChannel(storyChannel);
+    storyChannel=sb.channel("stories-live")
+      .on("postgres_changes",{event:"*",schema:"public",table:"stories"},loadStories)
+      .on("postgres_changes",{event:"*",schema:"public",table:"profile_visits"},loadStories)
+      .on("postgres_changes",{event:"*",schema:"public",table:"close_friends"},loadStories)
+      .subscribe();
+  };
   const oldSubscribe=window.subscribeRealtime;
   if(typeof oldSubscribe==="function"){window.subscribeRealtime=function(){oldSubscribe();storyRealtime();};}
+  const oldStopApp=window.stopApp;
+  if(typeof oldStopApp==="function"){window.stopApp=function(){if(storyChannel){sb.removeChannel(storyChannel);storyChannel=null;}oldStopApp();};}
   // Initial start may have happened before this module on unusual cached clients.
-  if(me)loadStories();
+  if(me){loadStories();storyRealtime();}
 })();
