@@ -568,31 +568,7 @@ function readVideoDuration(file) {
     video.src = url;
   });
 }
-async function openPhotoViewer(url, filename) {
-  let viewer = $("photoViewer");
-  if (!viewer) {
-    viewer = el("div", "photo-viewer");
-    viewer.id = "photoViewer";
-    viewer.innerHTML = '<div class="photo-viewer-top"><button type="button" class="photo-viewer-close" aria-label="Закрыть">×</button></div><img class="photo-viewer-image" alt="Фото"><div class="photo-viewer-bottom"><button type="button" class="photo-viewer-save">↓ Сохранить фото</button></div>';
-    document.body.append(viewer);
-    viewer.addEventListener("click", e => { if (e.target === viewer || e.target.closest(".photo-viewer-close")) viewer.classList.remove("show"); });
-    viewer.querySelector(".photo-viewer-save").addEventListener("click", async () => {
-      const btn=viewer.querySelector(".photo-viewer-save"), image=viewer.querySelector("img");
-      btn.disabled=true;btn.textContent="Скачивание…";
-      try {
-        const response=await fetch(image.src); if(!response.ok) throw new Error("download failed");
-        const blob=await response.blob(), objectUrl=URL.createObjectURL(blob), link=document.createElement("a");
-        link.href=objectUrl;link.download=viewer.dataset.filename || "messageroom-photo.jpg";
-        document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(objectUrl),30000);
-      } catch(e) { window.open(image.src,"_blank","noopener"); toast("Открываю фото для сохранения"); }
-      finally { btn.disabled=false;btn.textContent="↓ Сохранить фото"; }
-    });
-  }
-  viewer.dataset.filename=filename;
-  viewer.querySelector("img").src=url;
-  viewer.classList.add("show");
-}
-function appendMediaPreview(container, path, type, bucket) {
+async function appendMediaPreview(container, path, type, bucket) {
   const wrap = el("div", "media-preview");
   wrap.append(el("div", "media-loading", "Загрузка медиа…"));
   container.append(wrap);
@@ -611,9 +587,32 @@ function appendMediaPreview(container, path, type, bucket) {
   node.src = data.signedUrl;
   wrap.append(node);
   if (type !== "video") {
-    node.classList.add("media-openable");
-    node.title = "Нажмите, чтобы открыть фото";
-    node.addEventListener("click", () => openPhotoViewer(data.signedUrl, path.split("/").pop() || "messageroom-photo.jpg"));
+    const save = el("button", "media-save-btn", "Сохранить фото");
+    save.type = "button";
+    save.addEventListener("click", async () => {
+      save.disabled = true;
+      save.textContent = "Скачивание…";
+      try {
+        const response = await fetch(data.signedUrl);
+        if (!response.ok) throw new Error("download failed");
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = (path.split("/").pop() || "messageroom-photo").replace(/[^a-z0-9._-]/gi, "_");
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+      } catch (e) {
+        window.open(data.signedUrl, "_blank", "noopener");
+        toast("Открываю фото для сохранения");
+      } finally {
+        save.disabled = false;
+        save.textContent = "Сохранить фото";
+      }
+    });
+    wrap.append(save);
   }
 }
 let pendingChatFile = null;
@@ -684,15 +683,11 @@ function drawPhotoEditor() {
   photoEditorStrokes.forEach(stroke=>{ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width*scale/photoEditorPreviewScale;ctx.lineCap="round";ctx.beginPath();stroke.points.forEach((p,i)=>{const k=scale/photoEditorPreviewScale;if(!i)ctx.moveTo(p.x*k,p.y*k);else ctx.lineTo(p.x*k,p.y*k);});ctx.stroke();});
   photoEditorText.forEach(t=>{ctx.font="bold "+Math.max(18,Math.round(canvas.width*.055))+"px sans-serif";ctx.textAlign="center";ctx.lineWidth=4;ctx.strokeStyle="#000";ctx.fillStyle="#fff";ctx.strokeText(t,canvas.width/2,canvas.height*.85);ctx.fillText(t,canvas.width/2,canvas.height*.85);});
 }
-document.querySelectorAll(".photo-tool-tab").forEach(tab=>tab.addEventListener("click",()=>{
-  document.querySelectorAll(".photo-tool-tab").forEach(x=>x.classList.toggle("active",x===tab));
-  document.querySelectorAll(".photo-tool-panel").forEach(panel=>panel.classList.toggle("active",panel.dataset.panel===tab.dataset.tool));
-}));
 $("photoCrop").addEventListener("change",drawPhotoEditor);
 $("photoEditorClose").addEventListener("click",()=>{$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");});
 $("photoEditorCancel").addEventListener("click",()=>$("photoEditorClose").click());
 $("photoAddText").addEventListener("click",()=>{const t=$("photoText").value.trim();if(t){photoEditorText.push(t);$("photoText").value="";drawPhotoEditor();}});
-$("photoDrawToggle").addEventListener("click",()=>{photoEditorDrawing=!photoEditorDrawing;$("photoDrawToggle").textContent=photoEditorDrawing?"Завершить рисование":"Начать рисовать";$("photoEditorCanvas").classList.toggle("drawing",photoEditorDrawing);});
+$("photoDrawToggle").addEventListener("click",()=>{photoEditorDrawing=!photoEditorDrawing;$("photoDrawToggle").textContent="Рисовать: "+(photoEditorDrawing?"вкл.":"выкл.");});
 const photoCanvas=$("photoEditorCanvas");
 photoCanvas.addEventListener("pointerdown",e=>{if(!photoEditorDrawing)return;photoEditorDown=true;photoCanvas.setPointerCapture(e.pointerId);const r=photoCanvas.getBoundingClientRect();photoEditorStrokes.push({color:"#ff334f",width:4,points:[{x:(e.clientX-r.left)*photoCanvas.width/r.width,y:(e.clientY-r.top)*photoCanvas.height/r.height}]});});
 photoCanvas.addEventListener("pointermove",e=>{if(!photoEditorDown)return;const r=photoCanvas.getBoundingClientRect(),p=photoEditorStrokes[photoEditorStrokes.length-1];p.points.push({x:(e.clientX-r.left)*photoCanvas.width/r.width,y:(e.clientY-r.top)*photoCanvas.height/r.height});drawPhotoEditor();});
