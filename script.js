@@ -392,6 +392,16 @@ function renderChatList() {
   } else {
     const archived = chats.filter((c) => c.archived && visibleInList(c));
     if (archived.length) chatList.append(archiveItem(archived));
+    if (window.appStatus?.is_owner) {
+      const serviceItem = el("div", "chat-item service-notice-shortcut");
+      serviceItem.append(makeAvatar({ id: "service-notices", display_name: "Служебные уведомления" }, ""));
+      const serviceInfo = el("div", "chat-info");
+      const serviceTop = el("div", "chat-top");
+      serviceTop.append(el("div", "chat-name", "Служебные уведомления"));
+      serviceInfo.append(serviceTop, el("div", "chat-bottom", el("div", "chat-last", "Отправить выбранному пользователю или всем")));
+      serviceItem.append(serviceInfo);
+      chatList.append(serviceItem);
+    }
     const main = chats.filter((c) => !c.archived && visibleInList(c));
     main.forEach((c) => chatList.append(chatItem(c)));
     if (!main.length) chatList.append(el("div", "list-note", "Чатов пока нет. Найдите человека по имени или @юзернейму в поиске."));
