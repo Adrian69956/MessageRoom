@@ -617,7 +617,8 @@ async function getMediaSignedUrl(bucket, path) {
 async function appendMediaPreview(container, path, type, bucket) {
   const isImage = type !== "video";
   const storedName = (String(path).split("/").pop() || "").split("__").slice(1).join("__");
-  const filename = storedName || (isImage ? "Фото" : "Видео");
+  const isCompressed = /^compressed__/i.test(storedName);
+  const filename = storedName.replace(/^compressed__/i, "") || (isImage ? "Фото" : "Видео");
   const wrap = el("div", "media-preview" + (isImage ? " media-attachment-card" : ""));
   wrap.append(el("div", "media-loading", "Загрузка медиа…"));
   container.append(wrap);
@@ -633,7 +634,7 @@ async function appendMediaPreview(container, path, type, bucket) {
     wrap.append(node);
     return;
   }
-  const card = el("button", "media-file-card");
+  const card = el("button", "media-file-card" + (isCompressed ? " is-compressed" : ""));
   card.type = "button";
   card.title = "Открыть фото";
   node = document.createElement("img");
@@ -733,6 +734,7 @@ function showPendingChatFile(file) {
 }
 
 
+let photoEditorSourceName="messageroom-photo.jpg";
 let photoEditorImage=null,photoEditorDrawing=false,photoEditorStrokes=[],photoEditorText=[],photoEditorPreviewScale=1,photoEditorDown=false;
 let photoCropSelection={x:.5,y:.5},photoCropCustom={x:.1,y:.1,w:.8,h:.8},photoCropDrag=null,photoTextDrag=null,photoBrushColor="#ff334f",photoBrushSize=5;
 let photoEditorTab="crop";
@@ -746,9 +748,10 @@ function setPhotoEditorTab(tab){
 }
 function openPhotoEditor(){
   if(!pendingChatFile||!pendingChatFile.type.startsWith("image/"))return;
+  photoEditorSourceName = pendingChatFile.name || "messageroom-photo.jpg";
   const url=URL.createObjectURL(pendingChatFile),img=new Image();
   img.onload=()=>{photoEditorImage=img;photoEditorStrokes=[];photoEditorText=[];photoCropSelection={x:.5,y:.5};photoCropCustom={x:.1,y:.1,w:.8,h:.8};
-    $("photoCrop").value="original";$("photoCompress").checked=true;$("photoText").value="";
+    $("photoCrop").value="original";$("photoCompress").checked=false;$("photoText").value="";
     $("photoBrushSize").value="5";$("photoBrushValue").textContent="5";$("photoBrushColor").value="#ff334f";
     $("photoTextSize").value="42";$("photoTextColor").value="#ffffff";$("photoTextFont").value="Arial";$("photoTextFill").checked=false;$("photoTextFillColor").value="#000000";
     photoBrushColor="#ff334f";photoBrushSize=5;setPhotoEditorTab("crop");
@@ -831,7 +834,7 @@ $("photoEditorSave").addEventListener("click",()=>{
   const ctx=canvas.getContext("2d");ctx.drawImage(photoEditorImage,rect.x,rect.y,rect.w,rect.h,0,0,canvas.width,canvas.height);
   photoEditorStrokes.forEach(stroke=>{ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width/photoEditorPreviewScale*scale;ctx.lineCap="round";ctx.lineJoin="round";ctx.beginPath();stroke.points.forEach((p,i)=>{const x=(p.x/photoEditorPreviewScale-rect.x)*scale,y=(p.y/photoEditorPreviewScale-rect.y)*scale;if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();});
   photoEditorText.forEach(t=>{ctx.save();const size=t.size/photoEditorPreviewScale*scale;ctx.font=size+"px "+t.font;ctx.textAlign="center";ctx.textBaseline="middle";const x=(t.x*photoEditorImage.naturalWidth-rect.x)*scale,y=(t.y*photoEditorImage.naturalHeight-rect.y)*scale;if(t.fill){const m=ctx.measureText(t.text);ctx.fillStyle=t.fillColor||"#000000";ctx.globalAlpha=.72;ctx.fillRect(x-m.width/2-12*scale,y-size*.68,m.width+24*scale,size*1.35);ctx.globalAlpha=1;}ctx.fillStyle=t.color;ctx.fillText(t.text,x,y);ctx.restore();});
-  canvas.toBlob(blob=>{if(!blob){toast("Не удалось обработать фото");return;}const out=new File([blob],"messageroom-photo.jpg",{type:"image/jpeg",lastModified:Date.now()});pendingChatFile=out;
+  canvas.toBlob(blob=>{if(!blob){toast("Не удалось обработать фото");return;}const outName=(compressed?"compressed__":"")+photoEditorSourceName.replace(/^compressed__/, "");const out=new File([blob],outName,{type:"image/jpeg",lastModified:Date.now()});pendingChatFile=out;
     if(pendingChatPreviewUrl)URL.revokeObjectURL(pendingChatPreviewUrl);pendingChatPreviewUrl=URL.createObjectURL(out);
     const preview=$("chatMediaPending"),img=preview.querySelector("img");if(img)img.src=pendingChatPreviewUrl;
     const size=preview.querySelector(".chat-media-pending-size");if(size)size.textContent=Math.max(1,Math.round(out.size/1024))+" КБ"+(compressed?" · сжато":"");
