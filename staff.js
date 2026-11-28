@@ -73,6 +73,18 @@
     if(error){showMsg("staffTargetInfo","Не удалось выдать предупреждение: "+error.message,true);return;}
     staffOverlay.classList.remove("open");toast("Предупреждение выдано");
   });
+  $id("sendPersonalNotice").addEventListener("click", async () => {
+    if (!targetUserId) { showMsg("staffTargetInfo","Сначала выбери пользователя.",true); return; }
+    const message = $id("personalNoticeText").value.trim();
+    if (!message) { showMsg("personalNoticeMsg","Напиши текст уведомления.",true); return; }
+    const btn = $id("sendPersonalNotice"); btn.disabled = true;
+    const { error } = await sb.rpc("staff_send_user_notice", { target: targetUserId, message_text: message });
+    btn.disabled = false;
+    if (error) { showMsg("personalNoticeMsg","Не удалось отправить: "+error.message,true); return; }
+    $id("personalNoticeText").value = "";
+    showMsg("personalNoticeMsg","Персональное уведомление отправлено.");
+    toast("Сообщение отправлено пользователю");
+  });
   $id("issueRestriction").addEventListener("click", async () => {
     if (!targetUserId) { showMsg("staffTargetInfo","Сначала выбери пользователя.",true); return; }
     const hours=Number($id("restrictionHours").value);
