@@ -183,7 +183,7 @@
     video.onloadedmetadata=()=>{
       const scale=Math.min(1,1600/Math.max(video.videoWidth,video.videoHeight));
       canvas.width=Math.round(video.videoWidth*scale);canvas.height=Math.round(video.videoHeight*scale);
-      video.currentTime=Math.max(Number($s("storyTrimStart").value)||0,Math.min(Number($s("storyFrameScrub").value)||0,Number($s("storyTrimEnd").value)||video.duration));
+      video.currentTime=sourceUrl?0:Math.max(Number($s("storyTrimStart").value)||0,Math.min(Number($s("storyFrameScrub").value)||0,Number($s("storyTrimEnd").value)||video.duration));
       state.history=[canvas.toDataURL("image/png")];state.redo=[];modal.classList.add("open");
     };
     video.load();
