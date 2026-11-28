@@ -696,7 +696,7 @@ function openQueuedMediaEditor(index){
  const item=pendingChatFiles[index];if(!item)return;
  if(isQueuedVideo(item.file)){
    const open=()=>{$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");photoEditorDrawing=false;openVideoEditor(index);};
-   if(photoEditorImage)saveCurrentPhotoEdit(open);else open();
+   if($("photoEditor").classList.contains("show")&&photoEditorImage)saveCurrentPhotoEdit(open);else open();
  }else{
    if(ve("Editor")?.classList.contains("show"))closeVideoEditor();
    openPhotoEditor(index);
@@ -852,7 +852,7 @@ function saveCurrentPhotoEdit(onDone){
 $("photoEditorSave").addEventListener("click",()=>saveCurrentPhotoEdit(()=>$("photoEditorClose").click()));
 function renderPhotoEditorThumbnails(){
   const strip=$("photoEditorThumbnails");if(!strip)return;strip.innerHTML="";
-  pendingChatFiles.forEach((item,index)=>{const b=el("button","photo-editor-thumb"+(index===photoEditorIndex?" active":""));b.type="button";const media=isQueuedVideo(item.file)?el("video"):el("img");media.src=item.previewUrl;media.alt=item.file.name;if(media.tagName==="VIDEO"){media.muted=true;media.playsInline=true;media.preload="metadata";}b.append(media,el("span","",isQueuedVideo(item.file)?"▶ "+(index+1):String(index+1)));b.addEventListener("click",()=>{if(index===photoEditorIndex)return;const open=()=>{if(isQueuedVideo(item.file)){$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");openVideoEditor(index);}else openPhotoEditor(index);};if(photoEditorImage)saveCurrentPhotoEdit(open);else open();});strip.append(b);});
+  pendingChatFiles.forEach((item,index)=>{const b=el("button","photo-editor-thumb"+(index===photoEditorIndex?" active":""));b.type="button";const media=isQueuedVideo(item.file)?el("video"):el("img");media.src=item.previewUrl;media.alt=item.file.name;if(media.tagName==="VIDEO"){media.muted=true;media.playsInline=true;media.preload="metadata";}b.append(media,el("span","",isQueuedVideo(item.file)?"▶ "+(index+1):String(index+1)));b.addEventListener("click",()=>{if(index===photoEditorIndex)return;const open=()=>{if(isQueuedVideo(item.file)){$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");openVideoEditor(index);}else openPhotoEditor(index);};if($("photoEditor").classList.contains("show")&&photoEditorImage)saveCurrentPhotoEdit(open);else open();});strip.append(b);});
   const add=el("button","chat-media-add-more","+ Добавить фото/видео");add.type="button";add.addEventListener("click",()=>$("chatMediaFile").click());strip.append(add);
 }
 
