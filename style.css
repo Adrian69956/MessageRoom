@@ -899,3 +899,12 @@ input:checked + .switch { background: var(--grad); }
 .video-overlay-name{display:block;color:var(--text-muted);font-size:12px;margin:0 0 6px}
 .video-editor-stage[data-free-crop="true"] #videoOverlayCanvas{cursor:crosshair}
 @media(max-width:520px){.editor-switch{gap:3px}.editor-switch-btn{padding:7px 8px;font-size:12px}}
+
+/* Верхний переключатель формата медиа */
+.editor-switch{display:flex;align-items:center;gap:7px}
+.editor-switch-btn{min-width:58px;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1px solid var(--border);border-radius:10px;padding:5px 9px;background:var(--bg);color:var(--text);font-size:12px;line-height:1.15;cursor:pointer}
+.editor-switch-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.editor-switch-icon{font-size:19px;line-height:1}
+.editor-switch-btn small{font-size:9px;opacity:.8;font-weight:700;letter-spacing:.04em}
+.video-editor-stage canvas{inset:auto;width:auto;height:auto}
+@media(max-width:520px){.editor-switch{gap:4px}.editor-switch-btn{min-width:51px;min-height:44px;padding:4px 6px}}
