@@ -696,9 +696,23 @@ function isQueuedVideo(file){
 function openQueuedMediaEditor(index){
  const item=pendingChatFiles[index];if(!item)return;
  if(isQueuedVideo(item.file)){
-   const open=()=>{$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");photoEditorDrawing=false;openVideoEditor(index);};
-   if($("photoEditor").classList.contains("show")&&photoEditorImage&&photoEditorIndex!==index)saveCurrentPhotoEdit(open,true);else open();
- }else{if(ve("Editor")?.classList.contains("show"))closeVideoEditor();openPhotoEditor(index);}
+   const open=()=>{
+     $("photoEditor").classList.remove("show");
+     $("photoEditor").setAttribute("aria-hidden","true");
+     photoEditorDrawing=false;
+     openVideoEditor(index);
+   };
+   // Не сохраняем фото поверх выбранного видео: индекс фото-редактора
+   // может быть устаревшим после добавления нескольких файлов.
+   const photoItem=pendingChatFiles[photoEditorIndex];
+   const hasActivePhoto=$("photoEditor").classList.contains("show")
+     && photoEditorImage && photoItem && !isQueuedVideo(photoItem.file)
+     && photoEditorIndex!==index;
+   if(hasActivePhoto)saveCurrentPhotoEdit(open,true);else open();
+ }else{
+   if(ve("Editor")?.classList.contains("show"))closeVideoEditor();
+   openPhotoEditor(index);
+ }
 }
 
 let pendingChatFiles=[];
@@ -872,21 +886,31 @@ function setVideoTab(tab){videoMode=tab;$("videoEditorStage").dataset.freeCrop=S
 function renderVideoEditorThumbnails(){const strip=$("videoEditorThumbnails");if(!strip)return;strip.innerHTML="";pendingChatFiles.forEach((item,index)=>{const b=el("button","photo-editor-thumb"+(index===videoEditIndex?" active":""));b.type="button";const media=isQueuedVideo(item.file)?el("video"):el("img");media.src=item.previewUrl;media.alt=item.file.name;if(media.tagName==="VIDEO"){media.muted=true;media.playsInline=true;media.preload="metadata";}b.append(media,el("span","",isQueuedVideo(item.file)?"▶ "+(index+1):String(index+1)));b.addEventListener("click",()=>{if(index===videoEditIndex)return;if(videoRecorder&&videoRecorder.state!=="inactive"){toast("Дождись завершения экспорта видео");return;}closeVideoEditor();if(isQueuedVideo(item.file))openVideoEditor(index);else openPhotoEditor(index);});strip.append(b);});const add=el("button","chat-media-add-more","+ Добавить фото/видео");add.type="button";add.addEventListener("click",()=>$("chatMediaFile").click());strip.append(add);}
 function openVideoEditor(index){
  const item=pendingChatFiles[index];if(!item||!isQueuedVideo(item.file))return;
- if(videoEditUrl){URL.revokeObjectURL(videoEditUrl);videoEditUrl=null;}
- videoEditIndex=index;renderVideoEditorThumbnails();videoEditFile=item.file;videoEditUrl=URL.createObjectURL(item.file);
- $("videoModeFormat").textContent=veFormatName(item.file);$("videoModeFormatActive").textContent=veFormatName(item.file);
- videoFreeCrop={x:.1,y:.1,w:.8,h:.8};videoCropDrag=null;videoStrokes=[];videoTexts=[];videoOverlayImage=null;videoDuration=0;videoTrimA=0;videoTrimB=0;
- const v=ve("EditorPlayer");v.pause();v.onloadedmetadata=null;v.onerror=null;
- v.onloadedmetadata=()=>{
-   videoDuration=Number.isFinite(v.duration)?v.duration:0;
-   if(!videoDuration){ve("EditorStatus").textContent="Не удалось определить длительность видео";return;}
-   videoTrimA=0;videoTrimB=videoDuration;ve("Duration").textContent=veTime(videoDuration);ve("CurrentTime").textContent="0:00";
-   ve("TrimStart").value=0;ve("TrimEnd").value=1000;updateVideoTimeline();resizeVideoOverlay();
-   ve("EditorStatus").textContent="Готово к редактированию";drawVideoOverlay();
- };
- v.onerror=()=>ve("EditorStatus").textContent="Не удалось открыть этот формат видео";
- v.src=videoEditUrl;$("videoEditor").classList.add("show");$("videoEditor").setAttribute("aria-hidden","false");
- ve("EditorMeta").textContent=item.file.name;ve("EditorStatus").textContent="Загружаю видео…";v.load();setVideoTab("crop");
+ try{
+   if(videoEditUrl){URL.revokeObjectURL(videoEditUrl);videoEditUrl=null;}
+   videoEditIndex=index;videoEditFile=item.file;videoEditUrl=URL.createObjectURL(item.file);
+   renderVideoEditorThumbnails();
+   videoFreeCrop={x:.1,y:.1,w:.8,h:.8};videoCropDrag=null;videoStrokes=[];videoTexts=[];videoOverlayImage=null;videoDuration=0;videoTrimA=0;videoTrimB=0;
+   const v=ve("EditorPlayer");
+   if(!v)throw new Error("Не найден видеоплеер редактора");
+   v.pause();v.onloadedmetadata=null;v.onerror=null;
+   v.onloadedmetadata=()=>{
+     videoDuration=Number.isFinite(v.duration)?v.duration:0;
+     if(!videoDuration){ve("EditorStatus").textContent="Не удалось определить длительность видео";return;}
+     videoTrimA=0;videoTrimB=videoDuration;
+     ve("Duration").textContent=veTime(videoDuration);ve("CurrentTime").textContent="0:00";
+     ve("TrimStart").value=0;ve("TrimEnd").value=1000;updateVideoTimeline();resizeVideoOverlay();
+     ve("EditorStatus").textContent="Видео загружено — выбери обрезку, кадрирование или эффекты";drawVideoOverlay();
+   };
+   v.onerror=()=>ve("EditorStatus").textContent="Не удалось открыть видео. Попробуй MP4 или WebM.";
+   ve("EditorMeta").textContent=item.file.name;
+   $("videoEditor").classList.add("show");$("videoEditor").setAttribute("aria-hidden","false");
+   ve("EditorStatus").textContent="Загружаю видео…";
+   v.src=videoEditUrl;v.load();setVideoTab("crop");
+ }catch(error){
+   console.error("Video editor failed:",error);
+   ve("EditorStatus").textContent="Не удалось открыть редактор: "+(error?.message||"ошибка");
+ }
 }
 
 function closeVideoEditor(){if(videoRecorder&&videoRecorder.state!=="inactive"){toast("Дождись завершения экспорта видео");return;}const v=ve("EditorPlayer");v.pause();v.removeAttribute("src");v.load();if(videoEditUrl)URL.revokeObjectURL(videoEditUrl);if(videoOverlayUrl)URL.revokeObjectURL(videoOverlayUrl);videoEditUrl=null;videoOverlayUrl=null;ve("Editor").classList.remove("show");ve("Editor").setAttribute("aria-hidden","true");}
@@ -1897,10 +1921,13 @@ function exitFeed() {
 async function loadFeed() {
   if(feedBusy){feedReloadRequested=true;return;}
   feedBusy=true;const list=$("feedList");
-  if(!feedPosts.length)list.innerHTML='<div class="no-posts">Загружаем ленту…</div>';
+  if(!feedPosts.length)list.innerHTML='<div class="no-posts">Загружаем публикации всех пользователей…</div>';
   try{
-    await loadStatus();
-    const {data,error}=await sb.from("posts").select("id, author_id, text, created_at, edited_at, voice_path, voice_ms, media_path, media_type, media_mime, media_size, media_duration_ms").order("created_at",{ascending:false}).limit(40);
+    // Статус публикаций влияет только на форму создания поста, не на чтение ленты.
+    loadStatus().then(()=>updateFeedComposer()).catch(error=>console.warn("Feed status unavailable:",error));
+    const {data,error}=await sb.from("posts")
+      .select("id, author_id, text, created_at, edited_at, voice_path, voice_ms, media_path, media_type, media_mime, media_size, media_duration_ms")
+      .order("created_at",{ascending:false}).limit(100);
     if(error)throw error;
     const posts=data||[],ids=posts.map(p=>p.id);let reactions=[],comments=[];
     if(ids.length){
