@@ -223,50 +223,6 @@
     if(e.key==="ArrowLeft")$s("storyPrev").click();
   });
 
-  // Profile visits are recorded when the profile information panel is opened.
-  if(typeof window.openInfo==="function"){
-    const originalOpenInfo=window.openInfo;
-    window.openInfo=function(){
-      originalOpenInfo();
-      try{
-        const chat=currentChat(), target=chat&&chat.type==="private"?otherUserId(chat):null;
-        if(target&&target!==me.id)sb.rpc("record_profile_visit",{profile_id:target}).then(({error})=>{if(error)console.warn("Profile visit not recorded:",error);});
-      }catch(e){console.warn("Profile visit not recorded:",e);}
-    };
-  }
-  if(typeof window.refreshInfo==="function"){
-    const originalRefreshInfo=window.refreshInfo;
-    window.refreshInfo=function(){
-      originalRefreshInfo();
-      const chat=currentChat(),target=chat&&chat.type==="private"?otherUserId(chat):null;
-      if(!target||target===me.id||!$s("infoActions"))return;
-      const actions=$s("infoActions");
-      if(actions.querySelector("[data-close-friend]"))return;
-      const btn=node("button","tg-item");
-      btn.dataset.closeFriend="1";
-      btn.append(node("span","ii plain","★"),document.createTextNode("Близкие друзья"));
-      actions.prepend(btn);
-      btn.addEventListener("click",async()=>{
-        btn.disabled=true;
-        const {data,error}=await sb.from("close_friends").select("friend_id").eq("friend_id",target).maybeSingle();
-        if(error){if(typeof toast==="function")toast("Не удалось проверить список близких друзей");btn.disabled=false;return;}
-        if(data){
-          const result=await sb.from("close_friends").delete().eq("friend_id",target);
-          if(result.error){if(typeof toast==="function")toast("Не удалось удалить из близких друзей");}
-          else{btn.textContent="★ Добавить в близкие друзья";if(typeof toast==="function")toast("Пользователь удалён из близких друзей");}
-        }else{
-          const result=await sb.from("close_friends").insert({owner_id:me.id,friend_id:target});
-          if(result.error){if(typeof toast==="function")toast("Не удалось добавить в близкие друзья");}
-          else{btn.textContent="★ Убрать из близких друзей";if(typeof toast==="function")toast("Добавлено в близкие друзья");}
-        }
-        btn.disabled=false;
-      });
-      sb.from("close_friends").select("friend_id").eq("friend_id",target).maybeSingle().then(({data,error})=>{
-        if(!error)btn.textContent=data?"★ Убрать из близких друзей":"★ Добавить в близкие друзья";
-      });
-    };
-  }
-
   // Refresh the story rail at login and after realtime changes.
   const originalStartApp=window.startApp;
   if(typeof originalStartApp==="function"){
