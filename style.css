@@ -890,3 +890,12 @@ input:checked + .switch { background: var(--grad); }
 .video-all-time{font-weight:600}
 .video-editor-status{min-height:18px;margin-top:8px;color:var(--text-muted);font-size:12px}
 @media(max-width:600px){.video-editor-backdrop{padding:5px}.video-editor{padding:10px;max-height:98vh}.video-editor-stage{max-height:35vh;min-height:130px}.video-editor-stage video{max-height:35vh}.video-time-row span:nth-child(2){max-width:52%;line-height:1.3}.video-tool-row{gap:7px}.video-tool-panel{padding:9px}}
+
+/* Переключение фото/видео и свободная рамка кадрирования */
+.editor-switch{display:flex;align-items:center;gap:6px}
+.editor-switch-btn{border:1px solid var(--border);border-radius:9px;padding:8px 12px;background:var(--bg);color:var(--text);font-size:13px;cursor:pointer}
+.editor-switch-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.video-overlay-pick{margin:4px 0 8px}
+.video-overlay-name{display:block;color:var(--text-muted);font-size:12px;margin:0 0 6px}
+.video-editor-stage[data-free-crop="true"] #videoOverlayCanvas{cursor:crosshair}
+@media(max-width:520px){.editor-switch{gap:3px}.editor-switch-btn{padding:7px 8px;font-size:12px}}
