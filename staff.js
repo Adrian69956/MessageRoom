@@ -405,4 +405,5 @@
   $id("supportCategory").addEventListener("change",updateSupportCategoryFields);
   updateSupportCategoryFields();
   if(window.appStatus?.is_owner || window.appStatus?.is_admin_role || window.appStatus?.is_moderator)refreshStaffToolVisibility();
+  if(me)loadMyModerationStatus();
 })();
