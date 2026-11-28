@@ -27,12 +27,15 @@
     });
   }
 
-  rail.addEventListener("click", async () => {
+  const settingsButton = document.getElementById("settingsServiceNoticesBtn");
+  const openComposer = async () => {
     if (!window.appStatus?.is_owner) return;
     overlay.classList.add("open");
     status.textContent = "";
     if (target.options.length <= 1) await loadRecipients();
-  });
+  };
+  rail.addEventListener("click", openComposer);
+  settingsButton?.addEventListener("click", openComposer);
   close.addEventListener("click", () => overlay.classList.remove("open"));
   overlay.addEventListener("click", e => {
     if (e.target === overlay) overlay.classList.remove("open");
