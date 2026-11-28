@@ -697,11 +697,13 @@ function renderPendingChatFiles(){
   });
   const add=el("button","chat-media-add-more","+ Добавить");add.type="button";add.addEventListener("click",()=>$("chatMediaFile").click());preview.append(add);
   preview.classList.add("show");
+  renderPhotoEditorThumbnails();renderVideoEditorThumbnails();
 }
 function showPendingChatFiles(files){
   const incoming=[...files];if(!incoming.length)return;
   if(pendingChatFiles.length+incoming.length>7){toast("Можно отправить не больше 7 файлов за раз");$("chatMediaFile").value="";return;}
   incoming.forEach(file=>pendingChatFiles.push({file,previewUrl:URL.createObjectURL(file)}));
+  renderPhotoEditorThumbnails();renderVideoEditorThumbnails();
   photoEditorIndex=pendingChatFiles.length-incoming.length;pendingChatFile=pendingChatFiles[photoEditorIndex].file;updateQueuedVideoFormat();renderPendingChatFiles();
 }
 function updateQueuedVideoFormat(){const video=pendingChatFiles.find(x=>x.file.type.startsWith("video/"));const format=video?veFormatName(video.file):"—";if($("videoModeFormat"))$("videoModeFormat").textContent=format;if($("videoModeFormatActive"))$("videoModeFormatActive").textContent=format;}
@@ -821,7 +823,8 @@ function saveCurrentPhotoEdit(onDone){
 $("photoEditorSave").addEventListener("click",()=>saveCurrentPhotoEdit(()=>$("photoEditorClose").click()));
 function renderPhotoEditorThumbnails(){
   const strip=$("photoEditorThumbnails");if(!strip)return;strip.innerHTML="";
-  pendingChatFiles.forEach((item,index)=>{const b=el("button","photo-editor-thumb"+(index===photoEditorIndex?" active":""));b.type="button";const img=el("img");img.src=item.previewUrl;img.alt=item.file.name;b.append(img,el("span","",String(index+1)));b.addEventListener("click",()=>{if(index!==photoEditorIndex)saveCurrentPhotoEdit(()=>openPhotoEditor(index));});strip.append(b);});
+  pendingChatFiles.forEach((item,index)=>{const b=el("button","photo-editor-thumb"+(index===photoEditorIndex?" active":""));b.type="button";const media=item.file.type.startsWith("video/")?el("video"):el("img");media.src=item.previewUrl;media.alt=item.file.name;if(media.tagName==="VIDEO"){media.muted=true;media.playsInline=true;media.preload="metadata";}b.append(media,el("span","",item.file.type.startsWith("video/")?"▶ "+(index+1):String(index+1)));b.addEventListener("click",()=>{if(index===photoEditorIndex)return;const open=()=>{if(item.file.type.startsWith("video/")){$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");openVideoEditor(index);}else openPhotoEditor(index);};if(photoEditorImage)saveCurrentPhotoEdit(open);else open();});strip.append(b);});
+  const add=el("button","chat-media-add-more","+ Добавить фото/видео");add.type="button";add.addEventListener("click",()=>$("chatMediaFile").click());strip.append(add);
 }
 
 
@@ -833,9 +836,10 @@ function veTime(t){t=Math.max(0,t||0);return Math.floor(t/60)+":"+String(Math.fl
 function veBounds(prefix){const all=ve(prefix+"All").checked;return all?{start:0,end:videoDuration}:{start:Math.max(0,Number(ve(prefix+"In").value)||0),end:Math.min(videoDuration,Number(ve(prefix+"Out").value)||videoDuration)};}
 function veVisible(layer,t){return t>=layer.start&&t<=layer.end;}
 function setVideoTab(tab){videoMode=tab;$("videoEditorStage").dataset.freeCrop=String(tab==="crop"&&ve("Crop").value==="free");document.querySelectorAll("[data-video-tab]").forEach(b=>b.classList.toggle("active",b.dataset.videoTab===tab));document.querySelectorAll("[data-video-panel]").forEach(p=>p.classList.toggle("active",p.dataset.videoPanel===tab));ve("OverlayCanvas").style.cursor=tab==="draw"?"crosshair":tab==="image"&&videoOverlayImage?"move":"default";drawVideoOverlay();}
+function renderVideoEditorThumbnails(){const strip=$("videoEditorThumbnails");if(!strip)return;strip.innerHTML="";pendingChatFiles.forEach((item,index)=>{const b=el("button","photo-editor-thumb"+(index===videoEditIndex?" active":""));b.type="button";const media=item.file.type.startsWith("video/")?el("video"):el("img");media.src=item.previewUrl;media.alt=item.file.name;if(media.tagName==="VIDEO"){media.muted=true;media.playsInline=true;media.preload="metadata";}b.append(media,el("span","",item.file.type.startsWith("video/")?"▶ "+(index+1):String(index+1)));b.addEventListener("click",()=>{if(index===videoEditIndex)return;const next=()=>{closeVideoEditor();if(item.file.type.startsWith("video/"))openVideoEditor(index);else openPhotoEditor(index);};if(videoRecorder&&videoRecorder.state!=="inactive"){toast("Дождись завершения экспорта видео");return;}next();});strip.append(b);});const add=el("button","chat-media-add-more","+ Добавить фото/видео");add.type="button";add.addEventListener("click",()=>$("chatMediaFile").click());strip.append(add);}
 function openVideoEditor(index){
  const item=pendingChatFiles[index];if(!item||!item.file.type.startsWith("video/"))return;
- videoEditIndex=index;videoEditFile=item.file;videoEditUrl=URL.createObjectURL(item.file);$("videoModeFormat").textContent=veFormatName(item.file);$("videoModeFormatActive").textContent=veFormatName(item.file);videoFreeCrop={x:.1,y:.1,w:.8,h:.8};videoCropDrag=null;videoStrokes=[];videoTexts=[];videoOverlayImage=null;videoDuration=0;videoTrimA=0;videoTrimB=0;
+ videoEditIndex=index;renderVideoEditorThumbnails();videoEditFile=item.file;videoEditUrl=URL.createObjectURL(item.file);$("videoModeFormat").textContent=veFormatName(item.file);$("videoModeFormatActive").textContent=veFormatName(item.file);videoFreeCrop={x:.1,y:.1,w:.8,h:.8};videoCropDrag=null;videoStrokes=[];videoTexts=[];videoOverlayImage=null;videoDuration=0;videoTrimA=0;videoTrimB=0;
  const v=ve("EditorPlayer");v.pause();v.src=videoEditUrl;v.load();ve("Editor").classList.add("show");ve("Editor").setAttribute("aria-hidden","false");ve("EditorMeta").textContent=item.file.name;ve("EditorStatus").textContent="Загружаю видео…";
  v.onloadedmetadata=()=>{videoDuration=v.duration||0;videoTrimB=videoDuration;ve("Duration").textContent=veTime(videoDuration);ve("CurrentTime").textContent="0:00";ve("TrimStart").value=0;ve("TrimEnd").value=1000;updateVideoTimeline();resizeVideoOverlay();ve("EditorStatus").textContent="Готово к редактированию";drawVideoOverlay();};
  v.onerror=()=>ve("EditorStatus").textContent="Не удалось открыть этот формат видео";
@@ -886,10 +890,6 @@ ve("OverlaySize").addEventListener("input",()=>{if(videoOverlayImage)videoOverla
 ["Draw","Text","Image"].forEach(prefix=>[prefix+"All",prefix+"In",prefix+"Out"].forEach(id=>{const node=ve(id);if(node)node.addEventListener("change",()=>{if(prefix==="Image"&&videoOverlayImage)Object.assign(videoOverlayImage,veBounds("Image"));drawVideoOverlay();});}));
 ve("Crop").addEventListener("change",()=>{setVideoTab("crop");});ve("OverlayPick").addEventListener("click",()=>ve("OverlayFile").click());
 function findPendingMedia(type){return pendingChatFiles.findIndex(x=>x.file.type.startsWith(type));}
-$("photoToVideoBtn").addEventListener("click",()=>{const i=findPendingMedia("video");if(i<0){toast("В очереди нет видео");return;}saveCurrentPhotoEdit(()=>{$("photoEditorCancel").click();openVideoEditor(i);});});
-$("videoToPhotoBtn").addEventListener("click",()=>{const i=findPendingMedia("image");if(i<0){toast("В очереди нет фото");return;}closeVideoEditor();openPhotoEditor(i);});
-$("photoModeBtn").addEventListener("click",()=>{});
-$("videoModeBtn").addEventListener("click",()=>{});
 ve("EditorSave").addEventListener("click",exportEditedVideo);
 ["EditorClose","EditorCancel"].forEach(id=>ve(id).addEventListener("click",closeVideoEditor));
 window.addEventListener("resize",()=>{if(ve("Editor").classList.contains("show"))resizeVideoOverlay();});
@@ -973,6 +973,7 @@ $("chatMediaFile").addEventListener("change", async () => {
   const files=[...($("chatMediaFile").files||[])];if(!files.length)return;
   for(const file of files){const check=await validateMediaFile(file,false);if(check){toast(check);$("chatMediaFile").value="";return;}}
   showPendingChatFiles(files);$("chatMediaFile").value="";
+  renderPhotoEditorThumbnails();renderVideoEditorThumbnails();
 });
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.isComposing) {
