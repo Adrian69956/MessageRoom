@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MessageRoom</title>
-  <link rel="stylesheet" href="style.css?v=groups-1">
+  <link rel="stylesheet" href="style.css?v=groups-3">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#0077ff">
@@ -34,11 +34,11 @@
           <button class="icon-btn" id="menuBtn" title="Меню">
             <svg class="ic" viewBox="0 0 24 24"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
           </button>
-          <button class="create-chat-visible" id="createChatVisible" type="button" title="Создать группу или канал">＋<span>Создать</span></button>
           <div class="search-box">
             <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
             <input type="text" id="search" placeholder="Поиск" autocomplete="off">
           </div>
+          <button class="create-chat-visible" id="createChatVisible" type="button" title="Создать группу или канал" aria-label="Создать группу или канал"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
         </div>
         <div class="stories-rail" id="storiesRail" aria-label="Истории"></div>
         <div class="chat-list" id="chatList"></div>
