@@ -740,3 +740,18 @@ input:checked + .switch { background: var(--grad); }
 .media-loading, .media-error { color: var(--text-muted); font-size: 12px; padding: 8px; }
 .media-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-muted); }
 #postMediaBtn, #chatMediaBtn { font-size: 22px; font-weight: 400; }
+
+/* Прямая загрузка через label + нативный file input */
+.media-attach {
+  position: relative; width: 40px; height: 40px; flex: 0 0 40px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; color: var(--text-muted); cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.media-attach:hover { background: var(--hover); color: var(--accent); }
+.media-attach .ic { width: 22px; height: 22px; }
+.media-native-input {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; z-index: 2;
+}
+.feed-compose-row .media-attach { flex-shrink: 0; }
