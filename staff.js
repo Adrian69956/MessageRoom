@@ -213,9 +213,18 @@
     const btn=$id("supportCreate");btn.disabled=true;showMsg("supportCreateMsg","Создаём обращение…");
     const {data,error}=await sb.rpc("support_create_ticket",{ticket_category:category,ticket_subject:subject,ticket_description:description});
     if(error){btn.disabled=false;showMsg("supportCreateMsg","Ошибка: "+error.message,true);return;}
-    const file=$id("supportUserFile")?.files?.[0]||null;
-    $id("supportSubject").value="";$id("supportDescription").value="";
-    if(file)await uploadSupportFile(data,file,"supportUserReply","supportUserFile");
+    const file=$id("supportInitialFile")?.files?.[0]||null;
+    $id("supportSubject").value="";$id("supportDescription").value="";$id("supportInitialFile").value="";
+    if(file){
+      if(file.size>15*1024*1024){toast("Обращение создано, но файл больше 15 МБ");}
+      else {
+        const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"_").slice(-90);
+        const path=data+"/"+me.id+"/"+Date.now()+"_"+safeName;
+        const {error:upErr}=await sb.storage.from("support-attachments").upload(path,file,{upsert:false});
+        if(upErr)toast("Обращение создано, файл не загрузился: "+upErr.message);
+        else {const {error:msgErr}=await sb.rpc("support_send_message",{ticket:data,message_body:"",internal_note:false,file_path:path,file_name:file.name,file_type:file.type});if(msgErr)toast("Файл загружен, но не прикреплён: "+msgErr.message);}
+      }
+    }
     btn.disabled=false;
     userTicketId=data;currentUserTicket={id:data,category,subject,status:"open"};
     $id("supportHome").style.display="none";$id("supportUserChat").style.display="block";
