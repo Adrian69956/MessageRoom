@@ -841,3 +841,13 @@ input:checked + .switch { background: var(--grad); }
 .media-file-details { display:flex; flex-direction:column; gap:4px; min-width:0; flex:1; }
 .media-file-title { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:600; }
 .media-file-subtitle { color:var(--text-muted); font-size:11px; }
+
+/* Keep attachment geometry stable while thumbnails load on mobile */
+.message .media-attachment-card { min-height: 72px; }
+.media-file-card { min-height: 72px; }
+.message { animation: none; }
+.messages { overflow-anchor: none; }
+.media-file-subtitle { display: none; }
+@media (max-width: 768px) {
+  .media-file-card.is-compressed .media-file-subtitle { display: block; }
+}
