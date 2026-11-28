@@ -135,6 +135,45 @@
     if(v.readyState>=1)try{v.currentTime=Math.max(Number($s("storyTrimStart").value)||0,Math.min(Number(value)||0,Number($s("storyTrimEnd").value)||trimDuration));}catch(_){}
   }
 
+
+  function openStoryVideoOverlayEditor() {
+    const source=$s("storyTrimPreview");
+    if(!source||!source.videoWidth){if(typeof toast==="function")toast("Сначала выберите видео");return;}
+    let modal=$s("storyVideoOverlayEditor");
+    if(!modal){
+      modal=node("div","story-photo-editor");modal.id="storyVideoOverlayEditor";
+      modal.innerHTML='<header><button type="button" data-overlay-cancel>‹ Назад</button><strong>Рисунок и текст на видео</strong><button type="button" data-overlay-clear>Очистить</button></header><div class="story-video-overlay-stage"><video muted playsinline></video><canvas></canvas></div><footer><button type="button" data-overlay-undo>↶</button><button type="button" data-overlay-redo>↷</button><button type="button" data-overlay-tool="draw" class="active">Кисть</button><button type="button" data-overlay-tool="text">Текст</button><label>Размер <input type="range" min="2" max="48" value="7"></label><div class="story-photo-colors"><button type="button" data-overlay-color="#fff" style="background:#fff"></button><button type="button" data-overlay-color="#ff3158" style="background:#ff3158"></button><button type="button" data-overlay-color="#ffcc00" style="background:#ffcc00"></button><button type="button" data-overlay-color="#26d07c" style="background:#26d07c"></button><button type="button" data-overlay-color="#1687ff" style="background:#1687ff"></button><button type="button" data-overlay-color="#a855f7" style="background:#a855f7"></button></div><button type="button" data-overlay-save>✓</button></footer>';
+      document.body.append(modal);
+    }
+    const video=modal.querySelector("video"),canvas=modal.querySelector("canvas"),ctx=canvas.getContext("2d");
+    const state={color:"#fff",tool:"draw",history:[],redo:[]};
+    const snapshot=()=>{state.history.push(canvas.toDataURL("image/png"));if(state.history.length>25)state.history.shift();state.redo=[];};
+    const restore=data=>{const im=new Image();im.onload=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(im,0,0,canvas.width,canvas.height);};im.src=data;};
+    video.src=source.src;
+    video.onloadedmetadata=()=>{
+      const scale=Math.min(1,1600/Math.max(video.videoWidth,video.videoHeight));
+      canvas.width=Math.round(video.videoWidth*scale);canvas.height=Math.round(video.videoHeight*scale);
+      video.currentTime=Math.max(Number($s("storyTrimStart").value)||0,Math.min(Number($s("storyFrameScrub").value)||0,Number($s("storyTrimEnd").value)||video.duration));
+      state.history=[canvas.toDataURL("image/png")];state.redo=[];modal.classList.add("open");
+    };
+    video.load();
+    modal.querySelector("[data-overlay-cancel]").onclick=()=>modal.classList.remove("open");
+    modal.querySelector("[data-overlay-clear]").onclick=()=>{snapshot();ctx.clearRect(0,0,canvas.width,canvas.height);};
+    modal.querySelector("[data-overlay-undo]").onclick=()=>{if(state.history.length>1){state.redo.push(state.history.pop());restore(state.history[state.history.length-1]);}};
+    modal.querySelector("[data-overlay-redo]").onclick=()=>{if(state.redo.length){const value=state.redo.pop();state.history.push(value);restore(value);}};
+    modal.querySelectorAll("[data-overlay-tool]").forEach(b=>b.onclick=()=>{
+      state.tool=b.dataset.overlayTool;modal.querySelectorAll("[data-overlay-tool]").forEach(x=>x.classList.toggle("active",x===b));
+      if(state.tool==="text"){const value=prompt("Текст на видео");if(value){snapshot();ctx.font="bold "+Math.max(28,canvas.width*.06)+"px Arial";ctx.textAlign="center";ctx.lineWidth=4;ctx.strokeStyle="#0009";ctx.fillStyle=state.color;ctx.strokeText(value.slice(0,100),canvas.width/2,canvas.height/2,canvas.width*.88);ctx.fillText(value.slice(0,100),canvas.width/2,canvas.height/2,canvas.width*.88);}}
+    });
+    modal.querySelectorAll("[data-overlay-color]").forEach(b=>b.onclick=()=>{state.color=b.dataset.overlayColor;});
+    modal.querySelector("[data-overlay-save]").onclick=()=>canvas.toBlob(blob=>{if(blob){editedOverlayFile=new File([blob],"story-overlay.png",{type:"image/png"});modal.classList.remove("open");if(typeof toast==="function")toast("Рисунок добавлен к видео");}},"image/png");
+    let drawing=false;
+    const point=e=>{const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height};};
+    canvas.onpointerdown=e=>{if(state.tool!=="draw")return;drawing=true;canvas.setPointerCapture(e.pointerId);const p=point(e);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.strokeStyle=state.color;ctx.lineWidth=Number(modal.querySelector('input[type="range"]').value)*canvas.width/canvas.clientWidth;ctx.lineCap="round";ctx.lineJoin="round";};
+    canvas.onpointermove=e=>{if(!drawing)return;const p=point(e);ctx.lineTo(p.x,p.y);ctx.stroke();};
+    canvas.onpointerup=()=>{if(drawing){drawing=false;snapshot();}};
+  }
+
   function openStoryPhotoEditor(file) {
     let modal=$s("storyPhotoEditor");
     if(!modal){
