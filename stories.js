@@ -317,18 +317,20 @@
   async function exportTrimmedStoryVideo(file,start,end) {
     const url=URL.createObjectURL(file);
     const video=document.createElement("video");
+    let stream=null,recorder=null,watchdog=null;
     video.preload="auto";video.playsInline=true;video.src=url;video.volume=0;
     try {
       await new Promise((resolve,reject)=>{
         video.onloadedmetadata=resolve;video.onerror=()=>reject(new Error("Не удалось открыть видео для обрезки"));
       });
       const capture=video.captureStream||video.mozCaptureStream;
-      if(typeof capture!=="function") throw new Error("Этот браузер не поддерживает физическую обрезку видео. Попробуйте Chrome или Edge.");
-      const stream=capture.call(video);
+      if(typeof capture!=="function"||typeof MediaRecorder==="undefined")
+        throw new Error("Этот браузер не поддерживает физическую обрезку видео. Попробуйте Chrome или Edge.");
+      stream=capture.call(video);
       const mimeTypes=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm","video/mp4"];
       const mimeType=mimeTypes.find(type=>MediaRecorder.isTypeSupported(type));
-      if(!mimeType) throw new Error("Браузер не поддерживает экспорт обрезанного видео");
-      const recorder=new MediaRecorder(stream,{mimeType});
+      if(!mimeType)throw new Error("Браузер не поддерживает экспорт обрезанного видео");
+      recorder=new MediaRecorder(stream,{mimeType});
       const chunks=[];
       const blobPromise=new Promise((resolve,reject)=>{
         recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
@@ -343,12 +345,16 @@
       recorder.start(250);
       const stopAtEnd=()=>{if(video.currentTime>=end&&recorder.state==="recording"){video.pause();recorder.stop();}};
       video.addEventListener("timeupdate",stopAtEnd);
+      watchdog=setTimeout(()=>{if(recorder&&recorder.state==="recording"){video.pause();recorder.stop();}},(end-start)*1000+6000);
       await video.play();
       const blob=await blobPromise;
-      const ext=blob.type.includes("mp4")?"mp4":"webm";
       if(!blob.size)throw new Error("Не удалось создать обрезанный видеофайл");
+      const ext=blob.type.includes("mp4")?"mp4":"webm";
       return new File([blob],file.name.replace(/\.[^.]+$/,"")+"_trimmed."+ext,{type:blob.type||mimeType,lastModified:Date.now()});
     } finally {
+      if(watchdog)clearTimeout(watchdog);
+      if(recorder&&recorder.state==="recording")try{recorder.stop();}catch(_){}
+      if(stream)stream.getTracks().forEach(track=>track.stop());
       video.pause();video.removeAttribute("src");video.load();URL.revokeObjectURL(url);
     }
   }
