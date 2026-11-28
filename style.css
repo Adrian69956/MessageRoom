@@ -1041,3 +1041,9 @@ input:checked + .switch { background: var(--grad); }
 }
 
 .support-sender-link{color:var(--accent);cursor:pointer}.support-sender-link:hover{text-decoration:underline}
+
+/* Service notices owner composer and support-feed queue entry */
+.service-notices-window{width:min(560px,94vw);max-height:90vh;overflow:auto}
+.service-notices-window textarea,.service-notices-window select{width:100%;box-sizing:border-box}
+.support-feed-reports-btn{width:100%;margin:4px 0 10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-2);color:var(--text);font:inherit;text-align:left;cursor:pointer}
+.support-feed-reports-btn:hover{border-color:var(--accent);color:var(--accent)}
