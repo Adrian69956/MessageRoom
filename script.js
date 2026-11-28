@@ -54,6 +54,17 @@ const AV_COLORS = 7;
 // ---------- Элементы ----------
 const $ = (id) => document.getElementById(id);
 const app = $("app");
+// Bind the main Feed navigation immediately, before the rest of the app initializes.
+const feedNavButton = $("railFeed");
+if (feedNavButton) feedNavButton.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  try { enterFeed(); }
+  catch (error) {
+    console.error("Could not open feed:", error);
+    if (typeof toast === "function") toast("Не удалось открыть ленту. Обнови страницу.");
+  }
+});
 const chatList = $("chatList"), archiveList = $("archiveList");
 const search = $("search");
 const messagesBox = $("messages");
@@ -2170,7 +2181,6 @@ function updatePostCount() {
   $("postCount").textContent = n ? n + " / 4000" : "";
 }
 
-$("railFeed").addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); enterFeed(); });
 document.querySelectorAll("[data-feed-sort]").forEach(button=>button.addEventListener("click",()=>{feedSortMode=button.dataset.feedSort;renderFeed();}));
 $("feedBack").addEventListener("click", exitFeed);
 $("feedRefresh").addEventListener("click", () => loadFeed());
