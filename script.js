@@ -1630,7 +1630,6 @@ async function startApp(user) {
   $("adminOpen").style.display = admin ? "flex" : "none";
   $("mmAdmin").style.display = admin ? "flex" : "none";
   $("railAdmin").style.display = admin ? "flex" : "none";
-  $("railServiceNotices").style.display = window.appStatus.is_owner ? "flex" : "none";
   $("settingsServiceNoticesBtn").style.display = window.appStatus.is_owner ? "flex" : "none";
   $("railJournal").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator) ? "flex" : "none";
   $("railStaff").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator) ? "flex" : "none";
