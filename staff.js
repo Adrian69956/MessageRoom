@@ -206,8 +206,14 @@
     $id("supportFields").style.display="block";
     $id("supportSubjectLabel").textContent=f.subject;
     $id("supportSubject").placeholder=f.subjectHint;
+    if ($id("supportCategory").value === "complaint" && !$id("supportSubject").value.trim()) $id("supportSubject").value = "@";
     $id("supportDescriptionLabel").textContent=f.desc;
   }
+  $id("supportSubject").addEventListener("input", () => {
+    if ($id("supportCategory").value !== "complaint") return;
+    const field = $id("supportSubject");
+    if (!field.value.startsWith("@")) field.value = "@" + field.value.replace(/^@+/, "");
+  });
   $id("supportCategory").addEventListener("change",()=>{
     updateSupportCategoryFields();
     document.querySelectorAll("[data-support-category]").forEach(b=>b.classList.toggle("active",b.dataset.supportCategory===$id("supportCategory").value));
@@ -222,8 +228,15 @@
   $id("supportCreate").addEventListener("click",async()=>{
     const category=$id("supportCategory").value;
     if(!category){showMsg("supportCreateMsg","Сначала выбери категорию обращения.",true);return;}
-    const subject=$id("supportSubject").value.trim();
+    let subject=$id("supportSubject").value.trim();
     const description=$id("supportDescription").value.trim();
+    if(category==="complaint"){
+      const username=subject.replace(/^@+/,"").trim().toLowerCase();
+      if(!username){showMsg("supportCreateMsg","Укажи юзернейм пользователя после @.",true);return;}
+      const {data:target,error:lookupError}=await sb.from("profiles").select("id,username").ilike("username",username).maybeSingle();
+      if(lookupError || !target){showMsg("supportCreateMsg","Пользователь @"+username+" не найден. Проверь юзернейм.",true);return;}
+      subject="@"+target.username;
+    }
     if(!subject||!description){showMsg("supportCreateMsg","Заполни тему и описание.",true);return;}
     const btn=$id("supportCreate");btn.disabled=true;showMsg("supportCreateMsg","Создаём обращение…");
     const {data,error}=await sb.rpc("support_create_ticket",{ticket_category:category,ticket_subject:subject,ticket_description:description});
@@ -362,9 +375,26 @@
       const b=document.createElement("button");b.className="support-ticket"+(t.id===staffTicketId?" active":"");
       const who=supportProfiles[t.user_id];
       const strong=document.createElement("strong");strong.textContent=t.subject;
+      if(t.category==="complaint"){
+        strong.classList.add("support-complaint-user");
+        strong.title="Открыть профиль пользователя";
+        strong.addEventListener("click",e=>{
+          e.stopPropagation();
+          const username=String(t.subject||"").replace(/^@+/,"").trim();
+          if(username) openSupportReportedUser(username);
+        });
+      }
       const small=document.createElement("small");small.textContent=(who?"@"+who.username:"Пользователь")+" · "+ticketStatus(t.status)+" · "+new Date(t.updated_at).toLocaleString("ru-RU");
       b.append(strong,small);b.addEventListener("click",()=>openStaffTicket(t));list.append(b);
     });
+  }
+  async function openSupportReportedUser(username){
+    const {data,error}=await sb.from("profiles").select("id,username").ilike("username",username).maybeSingle();
+    if(error||!data){toast("Пользователь не найден");return;}
+    if(typeof startChatWith==="function"){
+      await startChatWith(data.id);
+      if(typeof openInfo==="function")openInfo();
+    }
   }
   async function openStaffTicket(ticket){
     staffTicketId=ticket.id;
