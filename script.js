@@ -17,6 +17,18 @@ let unreadFrom = 0;         // откуда начинаются непрочи�
 let reloadTimer = null, searchTimer = null, presenceTimer = null, lastTypingSent = 0;
 let screenStack = ["scrChats"];
 
+// Состояние ленты объявлено до любых обработчиков навигации: пользователь
+// может открыть ленту, пока остальная инициализация ещё продолжается.
+const REACTIONS = ["❤️"];
+let feedPosts = [];
+let feedViewedByMe = new Set();
+let feedHiddenAuthors = new Set();
+let feedViewObserver = null;
+let feedSortMode = "newest";
+let feedReloadTimer = null;
+let feedBusy = false;
+let feedReloadRequested = false;
+
 const prefs = Object.assign({ notifMsgs: true, sound: true, enterSend: true, wallpaper: 0, scale: 100, theme: "light" },
   (() => { try { return JSON.parse(localStorage.getItem("prefs") || "{}"); } catch (e) { return {}; } })());
 try {   // настройки из старой версии сайта
@@ -1960,7 +1972,8 @@ $("chatHeader").addEventListener("click", (e) => {
   if (currentChat()) openInfo();
 });
 $("infoClose").addEventListener("click", closeInfo);
-$("photoViewer").addEventListener("click", () => $("photoViewer").classList.remove("open"));
+const photoViewer = $("photoViewer");
+if (photoViewer) photoViewer.addEventListener("click", () => photoViewer.classList.remove("open"));
 
 // Нажатие на уведомление: открыть нужный чат
 if ("serviceWorker" in navigator) {
@@ -1970,15 +1983,6 @@ if ("serviceWorker" in navigator) {
 }
 
 // ===================== Лента постов =====================
-const REACTIONS = ["❤️"];
-let feedPosts = [];
-let feedViewedByMe = new Set();
-let feedHiddenAuthors = new Set();
-let feedViewObserver = null;
-let feedSortMode = "newest";
-let feedReloadTimer = null;
-let feedBusy = false;
-let feedReloadRequested = false;
 
 function isFeedOpen() { return app.classList.contains("feed-mode"); }
 
@@ -2320,8 +2324,13 @@ function updatePostCount() {
   $("postCount").textContent = n ? n + " / 4000" : "";
 }
 
-$("feedBack").addEventListener("click", exitFeed);
-$("feedRefresh").addEventListener("click", () => loadFeed());
-$("postText").addEventListener("input", updatePostCount);
-$("postMediaFile").addEventListener("change", async () => { const f = $("postMediaFile").files[0]; if (!f) return; const err = await validateMediaFile(f, true); if (err) { toast(err); $("postMediaFile").value = ""; return; } $("postMediaName").textContent = f.name; });
-$("postSend").addEventListener("click", publishPost);
+const feedBackButton = $("feedBack");
+if (feedBackButton) feedBackButton.addEventListener("click", exitFeed);
+const feedRefreshButton = $("feedRefresh");
+if (feedRefreshButton) feedRefreshButton.addEventListener("click", () => loadFeed());
+const postTextField = $("postText");
+if (postTextField) postTextField.addEventListener("input", updatePostCount);
+const postMediaInput = $("postMediaFile");
+if (postMediaInput) postMediaInput.addEventListener("change", async () => { const f = postMediaInput.files[0]; if (!f) return; const err = await validateMediaFile(f, true); if (err) { toast(err); postMediaInput.value = ""; return; } const name = $("postMediaName"); if (name) name.textContent = f.name; });
+const postSendButton = $("postSend");
+if (postSendButton) postSendButton.addEventListener("click", publishPost);
