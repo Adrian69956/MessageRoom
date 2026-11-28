@@ -801,3 +801,34 @@ input:checked + .switch { background: var(--grad); }
 .photo-cancel{background:var(--bg);color:var(--text)}
 .photo-done{background:var(--accent);color:#fff}
 @media(max-width:520px){.photo-editor{padding:11px}.photo-editor-tabs{gap:4px}.photo-tool-tab{font-size:12px;padding:9px 2px}.photo-viewer{padding-left:8px;padding-right:8px}}
+
+/* Обновлённый редактор фото */
+.photo-editor{background:var(--panel);color:var(--text);width:min(760px,100%);padding:16px}
+.photo-editor-stage{background:#171717;min-height:180px;max-height:58vh;margin:14px 0}
+.photo-editor-stage canvas{max-height:58vh;touch-action:none;cursor:default}
+.photo-editor-stage canvas.drawing{cursor:crosshair}
+.photo-editor-tabs{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.photo-tool-tab{font-weight:600;line-height:1.25;min-height:62px;background:var(--bg);color:var(--text)}
+.photo-tool-tab span,.photo-tool-tab b{font-size:20px}
+.photo-tool-panel{background:var(--bg);border-color:var(--border);min-height:76px}
+.photo-tool-panel p{margin:9px 0 0;color:var(--text-muted);font-size:12px}
+.photo-tool-panel select,.photo-tool-panel input[type=text]{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:9px}
+.photo-draw-controls,.photo-text-controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.photo-draw-controls label,.photo-text-controls label{display:flex;align-items:center;gap:8px}
+.photo-draw-controls input[type=range],.photo-text-controls input[type=range]{accent-color:var(--accent);max-width:150px}
+.photo-draw-controls input[type=color],.photo-text-controls input[type=color]{width:38px;height:34px;border:0;background:transparent;padding:0;cursor:pointer}
+.photo-color-presets{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}
+.photo-color-presets button{width:29px;height:29px;border-radius:9px;border:2px solid var(--border);background:var(--swatch);cursor:pointer}
+.photo-color-presets button:focus{outline:2px solid var(--accent);outline-offset:2px}
+.photo-text-entry{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.photo-text-entry input{flex:1;min-width:0}
+.photo-text-fill{display:flex;align-items:center;gap:8px;margin:12px 0}
+.photo-tool-action{font-weight:600}
+.photo-compress-choice{display:flex;align-items:center;gap:12px;cursor:pointer}
+.photo-compress-choice>span:first-of-type{display:flex;flex-direction:column;gap:3px;flex:1}
+.photo-compress-choice small{color:var(--text-muted);font-size:12px}
+.photo-compress-choice input{width:19px;height:19px;accent-color:var(--accent)}
+.photo-checkmark{font-size:21px;color:var(--accent);font-weight:800}
+.chat-media-pending.is-compressed img{display:none}
+.chat-media-pending.is-compressed{min-height:48px}
+@media(max-width:520px){.photo-editor-backdrop{padding:8px}.photo-editor{max-height:96vh;padding:10px}.photo-editor-stage{max-height:48vh}.photo-editor-stage canvas{max-height:48vh}.photo-tool-tab{min-height:56px}.photo-draw-controls,.photo-text-controls{gap:8px}}
