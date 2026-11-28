@@ -128,35 +128,24 @@
     let modal=$s("storyPhotoEditor");
     if(!modal){
       modal=node("div","story-photo-editor");modal.id="storyPhotoEditor";
-      const head=node("div","story-photo-editor-head");
-      const cancel=node("button","","‹ Назад");cancel.type="button";
-      const title=node("strong","","Редактор истории");
-      const clear=node("button","","Очистить");clear.type="button";
-      head.append(cancel,title,clear);
-      const canvas=node("canvas","");canvas.id="storyPhotoCanvas";
-      const tools=node("div","story-photo-editor-tools");
-      const undo=node("button","","↶");undo.type="button";
-      const redo=node("button","","↷");redo.type="button";
-      const draw=node("button","","Кисть");draw.type="button";draw.classList.add("active");
-      const text=node("button","","Текст");text.type="button";
-      const size=node("input","");size.type="range";size.min="2";size.max="48";size.value="7";size.setAttribute("aria-label","Размер кисти");
-      const colors=node("div","story-photo-colors");
-      ["#ffffff","#ff3158","#ffcc00","#26d07c","#1687ff","#a855f7","#111111"].forEach(color=>{const b=node("button","");b.type="button";b.style.background=color;b.addEventListener("click",()=>{state.color=color;});colors.append(b);});
-      const save=node("button","story-photo-save","✓");save.type="button";
-      tools.append(undo,redo,draw,text,size,colors,save);
-      modal.append(head,canvas,tools);document.body.append(modal);
-      cancel.onclick=()=>modal.classList.remove("open");
-      clear.onclick=()=>{state.history.push(canvas.toDataURL());state.redo=[];ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);};
-      undo.onclick=()=>{if(state.history.length>1){state.redo.push(state.history.pop());restore(state.history[state.history.length-1]);}};
-      redo.onclick=()=>{if(state.redo.length){const value=state.redo.pop();state.history.push(value);restore(value);}};
-      draw.onclick=()=>{state.tool="draw";draw.classList.add("active");text.classList.remove("active");};
-      text.onclick=()=>{state.tool="text";text.classList.add("active");draw.classList.remove("active");const value=prompt("Текст на истории");if(value){state.history.push(canvas.toDataURL());ctx.font="bold "+Math.max(28,canvas.width*.06)+"px Arial";ctx.textAlign="center";ctx.lineWidth=4;ctx.strokeStyle="#0009";ctx.fillStyle=state.color;ctx.strokeText(value.slice(0,100),canvas.width/2,canvas.height/2,canvas.width*.88);ctx.fillText(value.slice(0,100),canvas.width/2,canvas.height/2,canvas.width*.88);}};
-      save.onclick=()=>canvas.toBlob(blob=>{if(blob){editedMediaFile=new File([blob],"story-edited.jpg",{type:"image/jpeg"});$s("storyFileName").textContent=editedMediaFile.name+" · изменено";modal.classList.remove("open");}},"image/jpeg",.92);
+      modal.innerHTML='<header><button type="button" data-photo-cancel>‹ Назад</button><strong>Редактор истории</strong><button type="button" data-photo-clear>Очистить</button></header><canvas id="storyPhotoCanvas"></canvas><footer><button type="button" data-photo-undo>↶</button><button type="button" data-photo-redo>↷</button><button type="button" data-photo-tool="draw" class="active">Кисть</button><button type="button" data-photo-tool="text">Текст</button><label>Размер <input type="range" min="2" max="48" value="7"></label><div class="story-photo-colors"><button type="button" data-color="#fff" style="background:#fff"></button><button type="button" data-color="#ff3158" style="background:#ff3158"></button><button type="button" data-color="#ffcc00" style="background:#ffcc00"></button><button type="button" data-color="#26d07c" style="background:#26d07c"></button><button type="button" data-color="#1687ff" style="background:#1687ff"></button><button type="button" data-color="#a855f7" style="background:#a855f7"></button><button type="button" data-color="#111" style="background:#111"></button></div><button type="button" data-photo-save>✓</button></footer>';
+      document.body.append(modal);
     }
     const canvas=$s("storyPhotoCanvas"),ctx=canvas.getContext("2d"),image=new Image();
-    const state=modal._storyState||{color:"#ffffff",tool:"draw",history:[],redo:[]};modal._storyState=state;
+    const state={color:"#fff",tool:"draw",history:[],redo:[]};
     const restore=data=>{const im=new Image();im.onload=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(im,0,0,canvas.width,canvas.height);};im.src=data;};
-    const saveHistory=()=>{state.history.push(canvas.toDataURL());if(state.history.length>30)state.history.shift();state.redo=[];};
+    const snapshot=()=>{state.history.push(canvas.toDataURL());if(state.history.length>30)state.history.shift();state.redo=[];};
+    modal.querySelector("[data-photo-cancel]").onclick=()=>modal.classList.remove("open");
+    modal.querySelector("[data-photo-clear]").onclick=()=>{snapshot();ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);};
+    modal.querySelector("[data-photo-undo]").onclick=()=>{if(state.history.length>1){state.redo.push(state.history.pop());restore(state.history[state.history.length-1]);}};
+    modal.querySelector("[data-photo-redo]").onclick=()=>{if(state.redo.length){const value=state.redo.pop();state.history.push(value);restore(value);}};
+    modal.querySelectorAll("[data-photo-tool]").forEach(button=>button.onclick=()=>{
+      state.tool=button.dataset.photoTool;
+      modal.querySelectorAll("[data-photo-tool]").forEach(x=>x.classList.toggle("active",x===button));
+      if(state.tool==="text"){const value=prompt("Текст на истории");if(value){snapshot();ctx.font="bold "+Math.max(28,canvas.width*.06)+"px Arial";ctx.textAlign="center";ctx.lineWidth=4;ctx.strokeStyle="#0009";ctx.fillStyle=state.color;ctx.strokeText(value.slice(0,100),canvas.width/2,canvas.height/2,canvas.width*.88);ctx.fillText(value.slice(0,100),canvas.width/2,canvas.height/2,canvas.width*.88);}}
+    });
+    modal.querySelectorAll("[data-color]").forEach(button=>button.onclick=()=>{state.color=button.dataset.color;});
+    modal.querySelector("[data-photo-save]").onclick=()=>canvas.toBlob(blob=>{if(blob){editedMediaFile=new File([blob],"story-edited.jpg",{type:"image/jpeg"});$s("storyFileName").textContent=editedMediaFile.name+" · изменено";modal.classList.remove("open");}},"image/jpeg",.92);
     image.onload=()=>{
       const scale=Math.min(1,1800/Math.max(image.naturalWidth,image.naturalHeight));
       canvas.width=Math.round(image.naturalWidth*scale);canvas.height=Math.round(image.naturalHeight*scale);
@@ -167,9 +156,8 @@
     const point=e=>{const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height};};
     canvas.onpointerdown=e=>{if(state.tool!=="draw")return;drawing=true;canvas.setPointerCapture(e.pointerId);const p=point(e);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.strokeStyle=state.color;ctx.lineWidth=Number(modal.querySelector('input[type="range"]').value)*canvas.width/canvas.clientWidth;ctx.lineCap="round";ctx.lineJoin="round";};
     canvas.onpointermove=e=>{if(!drawing)return;const p=point(e);ctx.lineTo(p.x,p.y);ctx.stroke();};
-    canvas.onpointerup=()=>{if(drawing){drawing=false;saveHistory();}};
+    canvas.onpointerup=()=>{if(drawing){drawing=false;snapshot();}};
   }
-
   $s("storyMediaFile").addEventListener("change",()=>{
     const f=$s("storyMediaFile").files[0];editedMediaFile=null;
     if(f&&f.type.startsWith("image/"))openStoryPhotoEditor(f);
