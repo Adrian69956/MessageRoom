@@ -468,6 +468,10 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 }
 @media (max-width: 900px) { .left { width: 320px; } }
 @media (max-width: 768px) {
+  /* On phones the feed replaces the chat list instead of sharing its width. */
+  .app.feed-mode .left { display: none !important; }
+  .app.feed-mode .feed { display: flex; width: 100%; min-width: 0; flex: 1 1 100%; border-left: 0; }
+
   .left { width: 100%; border-right: none; }
   .chat { display: none; }
   .app.in-chat .left { display: none; }
