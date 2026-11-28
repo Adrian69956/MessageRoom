@@ -1619,7 +1619,7 @@ async function startApp(user) {
   $("railReports").style.display = canSeeReports ? "flex" : "none";
   $("railJournal").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator) ? "flex" : "none";
   $("railStaff").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator) ? "flex" : "none";
-  $("railSupport").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role) ? "flex" : "none";
+  $("railSupport").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator) ? "flex" : "none";
   $("mmSupport").style.display = "flex";
   updateTitle();
   relinkPushSub();
