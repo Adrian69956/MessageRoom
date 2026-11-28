@@ -573,18 +573,7 @@ function closeChat() {
 async function markRead(force = false) {
   const c = currentChat();
   if (!c || !me || document.hidden || unreadCount(c) === 0 || (!force && !isAtBottom())) return;
-  const last = lastMessage(c);
-  if (!last) return;
-  const { error } = await sb.from("chat_members")
-    .update({ last_read_at: last.created_at })
-    .eq("chat_id", c.id).eq("user_id", me.id);
-  if (error) {
-    console.error("Could not save read state:", error);
-    return;
-  }
-  c.lastRead = new Date(last.created_at).getTime();
-  c.unread = 0;
-  renderChatList(); updateTitle(); updateToBottom();
+  await markChatRead(c);
 }
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { markRead(); touchPresence(); } });
 
@@ -1258,8 +1247,12 @@ async function startRecording(context) {
     recorder: recorder, stream: stream, chunks: [], startedAt: Date.now(),
     context: context, mime: recorder.mimeType || mime || "audio/webm", timer: null,
   };
+  // Keep the recording session in the listener closure. stopRecording() clears
+  // the global recording flag before MediaRecorder emits its final dataavailable
+  // event; checking that global here used to discard the final audio chunk.
+  const recordingSession = recording;
   recorder.addEventListener("dataavailable", (event) => {
-    if (event.data && event.data.size > 0 && recording) recording.chunks.push(event.data);
+    if (event.data && event.data.size > 0) recordingSession.chunks.push(event.data);
   });
   recorder.start(250);
   $("recBar").classList.add("show");
@@ -1431,12 +1424,40 @@ async function clearChat(c, removeFromList) {
   if (removeFromList && c.id === currentId) closeChat(); else renderAll();
 }
 async function markChatRead(c) {
-  const last = lastMessage(c);
-  if (!last) return;
-  c.lastRead = new Date(last.created_at).getTime();
-  c.unread = 0;
-  renderChatList(); updateTitle();
-  await sb.from("chat_members").update({ last_read_at: last.created_at }).eq("chat_id", c.id).eq("user_id", me.id);
+  if (!c || !me) return false;
+  try {
+    // Read the latest message from the server rather than relying on the
+    // locally cached 30-message page, which may be stale during refreshes.
+    const { data: latest, error: latestError } = await sb.from("messages")
+      .select("created_at")
+      .eq("chat_id", c.id)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestError) throw latestError;
+    if (!latest) return false;
+
+    const currentRead = Number.isFinite(c.lastRead) ? c.lastRead : 0;
+    const targetRead = Math.max(currentRead, new Date(latest.created_at).getTime());
+    const { data, error } = await sb.from("chat_members")
+      .update({ last_read_at: new Date(targetRead).toISOString() })
+      .eq("chat_id", c.id)
+      .eq("user_id", me.id)
+      .select("last_read_at")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data || !data.last_read_at) throw new Error("Статус прочтения не сохранился на сервере");
+
+    c.lastRead = new Date(data.last_read_at).getTime();
+    c.unread = 0;
+    renderChatList(); updateTitle(); updateToBottom();
+    return true;
+  } catch (error) {
+    console.error("Could not save read state:", error);
+    toast("Не удалось отметить прочитанным: " + (error.message || "ошибка сервера"));
+    return false;
+  }
 }
 async function setBlocked(uid, value) {
   if (value && !confirm("Заблокировать " + nameOf(uid) + "? Вы не сможете писать друг другу.")) return;
