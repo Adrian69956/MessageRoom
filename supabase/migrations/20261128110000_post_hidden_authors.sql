@@ -22,3 +22,5 @@ create policy post_hidden_authors_delete
 on public.post_hidden_authors
 for delete to authenticated
 using (user_id = (select auth.uid()));
+
+grant select, insert, delete on public.post_hidden_authors to authenticated;
