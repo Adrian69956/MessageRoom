@@ -20,6 +20,8 @@
       <button class="rail-btn" data-rail="scrArchive" title="Архив"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg><span class="rail-label">Архив</span></button>
       <button class="rail-btn" data-rail="scrSettings" title="Настройки"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="rail-label">Настройки</span></button>
       <div class="rail-spacer"></div>
+      <button class="rail-btn rail-extra" id="railStaff" title="Модерация" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7z"/><path d="m9 12 2 2 4-4"/></svg></button>
+      <button class="rail-btn rail-extra" id="railSupport" title="Поддержка" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v12H8l-4 4z"/><path d="M8 9h8M8 13h5"/></svg></button>
       <button class="rail-btn rail-extra" id="railJournal" title="Журнал действий" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/><circle cx="18" cy="19" r="2"/></svg></button>
       <button class="rail-btn rail-extra" id="railReports" title="Поддержка · Лента" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg></button>
       <button class="rail-btn rail-extra" id="railAdmin" title="Админ-панель" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></button>
@@ -124,6 +126,11 @@
             <div class="settings-msg" id="emailMsg"></div>
             <button class="save-btn secondary" id="saveEmail">Изменить почту</button>
             <div class="hint">Сначала придёт письмо для подтверждения — адрес сменится после перехода по ссылке.</div>
+          </div>
+
+          <div class="form" id="myModerationStatus">
+            <div class="form-title">Предупреждения и ограничения</div>
+            <div id="myModerationList" class="moderation-status-list">Загрузка…</div>
           </div>
 
           <div class="form">
@@ -406,6 +413,7 @@
 
   <div class="menu-pop" id="mainMenu">
     <button id="mmArchive"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>Архив<span class="mm-count" id="mmArchiveCount"></span></button>
+    <button id="mmSupport"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v12H8l-4 4z"/><path d="M8 9h8M8 13h5"/></svg>Поддержка</button>
     <button id="mmSettings"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Настройки</button>
     <label class="mm-toggle"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>Ночной режим<input type="checkbox" id="mmNight"><i class="switch"></i></label>
     <button id="mmAdmin" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>Админ-панель</button>
@@ -544,12 +552,91 @@
     </div>
   </div>
 
+
+  <div class="overlay" id="staffToolsOverlay">
+    <div class="settings staff-tools">
+      <div class="settings-head"><h2 id="staffToolsTitle">Модерация</h2><button class="icon-btn" id="staffToolsClose" title="Закрыть"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
+      <div class="field"><span>Пользователь (@юзернейм)</span><input id="staffTargetSearch" placeholder="Введите точный юзернейм"></div>
+      <div id="staffTargetInfo" class="settings-msg"></div>
+      <div id="warningControls" class="settings-section">
+        <div class="settings-title">Предупреждение</div>
+        <select id="warningReason">
+          <option value="Спам или навязчивая реклама">Спам или навязчивая реклама</option>
+          <option value="Оскорбления и травля">Оскорбления и травля</option>
+          <option value="Ненависть или дискриминация">Ненависть или дискриминация</option>
+          <option value="Неприемлемый контент">Неприемлемый контент</option>
+          <option value="Мошенничество">Мошенничество</option>
+          <option value="Нарушение правил общения">Нарушение правил общения</option>
+          <option value="custom">Собственная причина</option>
+        </select>
+        <textarea id="warningCustom" rows="2" maxlength="1000" placeholder="Укажи причину" style="display:none"></textarea>
+        <button class="save-btn" id="issueWarning">Выдать предупреждение</button>
+      </div>
+      <div id="restrictionControls" class="settings-section">
+        <div class="settings-title">Временное ограничение (до 24 часов)</div>
+        <select id="restrictionType">
+          <option value="posts">Запрет публикаций</option>
+          <option value="comments">Запрет комментариев</option>
+          <option value="media">Запрет загрузки фото, видео и аудио</option>
+        </select>
+        <label class="field"><span>Срок в часах (1–24)</span><input id="restrictionHours" type="number" min="1" max="24" value="24"></label>
+        <textarea id="restrictionReason" rows="2" maxlength="1000" placeholder="Причина ограничения"></textarea>
+        <button class="save-btn" id="issueRestriction">Применить ограничение</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="supportOverlay">
+    <div class="settings support-window">
+      <div class="settings-head"><h2 id="supportTitle">Центр поддержки</h2><button class="icon-btn" id="supportClose" title="Закрыть"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
+      <div id="supportUserView">
+        <div id="supportHome">
+          <div class="settings-section">
+            <div class="settings-title">Новое обращение</div>
+            <label class="field"><span>Категория</span><select id="supportCategory">
+              <option value="complaint">Жалоба на пользователя</option>
+              <option value="appeal">Апелляция наказания</option>
+              <option value="question">Задать вопрос</option>
+              <option value="bug">Сообщить об ошибке</option>
+              <option value="other">Другое</option>
+            </select></label>
+            <label class="field"><span id="supportSubjectLabel">Тема обращения</span><input id="supportSubject" maxlength="160" placeholder="Кратко опишите тему"></label>
+            <label class="field"><span id="supportDescriptionLabel">Описание</span><textarea id="supportDescription" rows="4" maxlength="5000" placeholder="Подробно опишите ситуацию"></textarea></label>
+            <div class="settings-msg" id="supportCreateMsg"></div>
+            <button class="save-btn" id="supportCreate">Отправить обращение</button>
+          </div>
+          <div class="settings-section"><div class="settings-title">Мои обращения</div><div id="mySupportTickets" class="support-ticket-list">Загрузка…</div></div>
+        </div>
+        <div id="supportUserChat" style="display:none">
+          <button class="link-btn" id="supportUserBack">← Все обращения</button>
+          <div id="supportUserTicketTitle" class="support-ticket-title"></div>
+          <div id="supportUserMessages" class="support-messages"></div>
+          <div class="support-compose"><textarea id="supportUserReply" rows="2" placeholder="Сообщение…"></textarea><input type="file" id="supportUserFile" accept="image/*,video/mp4,audio/*,application/pdf"><button class="save-btn" id="supportUserSend">Отправить</button></div>
+        </div>
+      </div>
+      <div id="supportStaffView" style="display:none">
+        <div class="support-category-tabs" id="supportCategoryTabs"></div>
+        <div class="support-staff-layout">
+          <div id="supportStaffTickets" class="support-ticket-list">Загрузка…</div>
+          <div id="supportStaffChat" class="support-staff-chat">
+            <div id="supportStaffTicketTitle" class="support-ticket-title">Выбери обращение</div>
+            <div id="supportStaffMessages" class="support-messages"></div>
+            <div id="supportInternalNotes" class="support-internal-notes"></div>
+            <div class="support-compose"><textarea id="supportStaffReply" rows="2" placeholder="Ответ пользователю…"></textarea><input type="file" id="supportStaffFile" accept="image/*,video/mp4,audio/*,application/pdf"><label class="check"><input type="checkbox" id="supportInternal"> Внутренняя заметка</label><button class="save-btn" id="supportStaffSend">Отправить</button></div>
+            <div id="supportOwnerActions" class="support-owner-actions"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=1795780670"></script>
   <script src="auth.js?v=1795780670"></script>
-  <script src="script.js?v=roles-reports-1"></script>
+  <script src="script.js?v=staff-support-1"></script>
   <script src="push.js?v=1795780670"></script>
-  <script src="admin.js?v=roles-reports-1"></script>
-  <script src="reports.js?v=roles-reports-1"></script>
+  <script src="admin.js?v=staff-support-1"></script>
+  <script src="reports.js?v=staff-support-1"></script>
+  <script src="staff.js?v=staff-support-1"></script>
 </body>
 </html>
