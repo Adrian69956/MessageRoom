@@ -252,7 +252,7 @@
   document.getElementById("journalClose").addEventListener("click", () => journal.classList.remove("open"));
   journal.addEventListener("click", (event) => { if (event.target === journal) journal.classList.remove("open"); });
 
-  document.getElementById("railReports").addEventListener("click", () => {
+  document.getElementById("supportFeedReportsBtn").addEventListener("click", () => {
     if (!canSeeQueue()) return;
     queue.classList.add("open");
     subscribe();
