@@ -273,7 +273,7 @@
         <div class="chat-media-pending" id="chatMediaPending" aria-live="polite"></div>
 <div class="photo-editor-backdrop" id="photoEditor" aria-hidden="true">
   <section class="photo-editor" role="dialog" aria-modal="true" aria-labelledby="photoEditorTitle">
-    <header class="photo-editor-head"><strong id="photoEditorTitle">Редактор фото</strong><button type="button" class="icon-btn" id="photoEditorClose" aria-label="Закрыть">×</button></header>
+    <header class="photo-editor-head"><strong id="photoEditorTitle">Редактор фото</strong><div class="editor-switch"><button type="button" class="editor-switch-btn active" id="photoModeBtn">Фото</button><button type="button" class="editor-switch-btn" id="photoToVideoBtn">Видео</button><button type="button" class="icon-btn" id="photoEditorClose" aria-label="Закрыть">×</button></div></header>
     <div class="photo-editor-thumbnails" id="photoEditorThumbnails" aria-label="Выбранные фото"></div>
     <div class="photo-editor-stage"><canvas id="photoEditorCanvas"></canvas></div>
     <nav class="photo-editor-tabs" aria-label="Инструменты фото">
@@ -308,7 +308,7 @@
 
 <div class="video-editor-backdrop" id="videoEditor" aria-hidden="true">
   <section class="video-editor" role="dialog" aria-modal="true" aria-labelledby="videoEditorTitle">
-    <header class="photo-editor-head"><div><strong id="videoEditorTitle">Редактор видео</strong><small id="videoEditorMeta">Подготовка видео</small></div><button type="button" class="icon-btn" id="videoEditorClose" aria-label="Закрыть">×</button></header>
+    <header class="photo-editor-head"><div><strong id="videoEditorTitle">Редактор видео</strong><small id="videoEditorMeta">Подготовка видео</small></div><div class="editor-switch"><button type="button" class="editor-switch-btn" id="videoToPhotoBtn">Фото</button><button type="button" class="editor-switch-btn active" id="videoModeBtn">Видео</button><button type="button" class="icon-btn" id="videoEditorClose" aria-label="Закрыть">×</button></div></header>
     <div class="video-editor-stage"><video id="videoEditorPlayer" playsinline preload="metadata"></video><canvas id="videoOverlayCanvas"></canvas><button type="button" id="videoEditorPlay" class="video-editor-play">▶</button></div>
     <div class="video-timeline-wrap">
       <div class="video-timeline" id="videoTimeline"><div class="video-trim-range" id="videoTrimRange"></div><div class="video-playhead" id="videoPlayhead"></div><input id="videoTrimStart" type="range" min="0" max="1000" value="0" aria-label="Начало обрезки"><input id="videoTrimEnd" type="range" min="0" max="1000" value="1000" aria-label="Конец обрезки"></div>
@@ -321,8 +321,8 @@
       <button type="button" class="photo-tool-tab" data-video-tab="image">▧<br>Фото</button>
     </nav>
     <section class="video-tool-panel active" data-video-panel="crop">
-      <label>Формат <select id="videoCrop"><option value="original">Оригинал</option><option value="1:1">1:1</option><option value="3:4">3:4</option><option value="4:3">4:3</option><option value="9:16">9:16</option><option value="16:9">16:9</option></select></label>
-      <p>Выбери формат кадра. При экспорте изображение будет вписано в выбранные пропорции.</p>
+      <label>Формат <select id="videoCrop"><option value="original">Оригинал</option><option value="free">Свободный формат</option><option value="1:1">1:1</option><option value="3:4">3:4</option><option value="4:3">4:3</option><option value="9:16">9:16</option><option value="16:9">16:9</option></select></label>
+      <p id="videoCropHint">Выбери формат кадра. Для свободного формата двигай края рамки прямо на видео.</p>
     </section>
     <section class="video-tool-panel" data-video-panel="draw">
       <div class="video-tool-row"><label>Цвет <input id="videoBrushColor" type="color" value="#ff334f"></label><label>Толщина <input id="videoBrushSize" type="range" min="1" max="24" value="5"></label></div>
@@ -336,7 +336,7 @@
       <button type="button" class="photo-tool-action" id="videoAddText">Добавить текст</button>
     </section>
     <section class="video-tool-panel" data-video-panel="image">
-      <label>Фото для наложения <input id="videoOverlayFile" type="file" accept="image/*"></label>
+      <button type="button" class="photo-tool-action video-overlay-pick" id="videoOverlayPick">Фото для наложения</button><input id="videoOverlayFile" type="file" accept="image/*" hidden><span id="videoOverlayName" class="video-overlay-name">Фото не выбрано</span>
       <div class="video-tool-row"><label>Размер <input id="videoOverlaySize" type="range" min="10" max="100" value="35"></label><label>Появление, сек. <input id="videoImageIn" type="number" min="0" step="0.1" value="0"></label><label>Исчезновение, сек. <input id="videoImageOut" type="number" min="0" step="0.1" value="0"></label></div>
       <label class="video-all-time"><input type="checkbox" id="videoImageAll" checked> Всё видео</label>
       <p>После выбора фото перетащи его в нужное место на видео.</p>
