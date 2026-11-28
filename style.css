@@ -832,3 +832,12 @@ input:checked + .switch { background: var(--grad); }
 .chat-media-pending.is-compressed img{display:none}
 .chat-media-pending.is-compressed{min-height:48px}
 @media(max-width:520px){.photo-editor-backdrop{padding:8px}.photo-editor{max-height:96vh;padding:10px}.photo-editor-stage{max-height:48vh}.photo-editor-stage canvas{max-height:48vh}.photo-tool-tab{min-height:56px}.photo-draw-controls,.photo-text-controls{gap:8px}}
+
+/* Компактная карточка фото в сообщении: миниатюра + исходное имя файла */
+.message .media-attachment-card { width: min(290px, 100%); max-width: 100%; margin: 7px 0; overflow: visible; background: transparent; }
+.media-file-card { display:flex; align-items:center; gap:11px; width:100%; min-width:0; padding:7px 10px 7px 7px; border:1px solid var(--border); border-radius:13px; background:var(--panel); color:var(--text); text-align:left; cursor:pointer; }
+.media-file-card:hover { background:var(--hover); }
+.media-file-card img { display:block; width:58px; height:58px; flex:0 0 58px; object-fit:cover; border-radius:10px; background:#000; }
+.media-file-details { display:flex; flex-direction:column; gap:4px; min-width:0; flex:1; }
+.media-file-title { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:600; }
+.media-file-subtitle { color:var(--text-muted); font-size:11px; }
