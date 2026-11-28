@@ -12,6 +12,10 @@
   let trimDuration = 0;
   let trimObjectUrl = null;
   let storyChannel = null;
+  let audienceMode = "everyone";
+  let selectedAudienceIds = [];
+  let excludedAudienceIds = [];
+  let privacyPeople = [];
 
   const node = (tag, cls, text) => {
     const n = document.createElement(tag);
@@ -65,7 +69,7 @@
       const ring=node("span","story-ring");
       const av=node("span","story-avatar");
       av.append(typeof makeAvatar==="function" ? makeAvatar(group.profile,"") : node("span","","?"));
-      ring.append(av);
+      const n=group.stories.length, seg=100/n;\n      ring.style.background="conic-gradient("+group.stories.map((_,i)=>"hsl("+(i*360/n)+" 85% 58%) "+(i*seg)+"% "+((i+1)*seg-1)+"%").join(",")+")";\n      ring.append(av);
       b.append(ring,node("span","story-label",group.profile.display_name||"Пользователь"));
       b.addEventListener("click",()=>openViewer(group.stories));
       rail.append(b);
@@ -88,6 +92,8 @@
     $s("storyCaption").value="";
     $s("storyText").value="";
     $s("storyCreateError").textContent="";
+    audienceMode="everyone";selectedAudienceIds=[];excludedAudienceIds=[];
+    renderPrivacyControls();
     $s("storyCreateOverlay").classList.add("open");
     $s("storyCreateOverlay").setAttribute("aria-hidden","false");
   }
@@ -141,11 +147,54 @@
   });
   $s("storyFrameScrub").addEventListener("input",e=>seekTrimPreview(e.target.value));
 
+
+  async function loadPrivacyPeople() {
+    const {data:visits}=await sb.from("profile_visits").select("profile_id,visited_at").eq("viewer_id",me.id).order("visited_at",{ascending:false});
+    const ids=[...new Set((visits||[]).map(x=>x.profile_id).filter(x=>x!==me.id))];
+    if(!ids.length){privacyPeople=[];return;}
+    const {data:people}=await sb.from("profiles").select("id,display_name,avatar_url").in("id",ids);
+    const map=new Map((people||[]).map(p=>[p.id,p]));
+    privacyPeople=ids.map(id=>map.get(id)).filter(Boolean);
+  }
+  async function renderPrivacyControls() {
+    const host=$s("storyPrivacyControls"); if(!host)return;
+    host.innerHTML='<h3>КТО ВИДИТ ЭТУ ИСТОРИЮ</h3><div class="story-audience-choice"><label><input type="radio" name="storyAudienceMode" value="everyone" checked> Все</label><button type="button" data-privacy="exclude">добавить исключения</button></div><div class="story-audience-choice"><label><input type="radio" name="storyAudienceMode" value="close_friends"> Близкие друзья</label><button type="button" data-privacy="close">изменить</button></div><div class="story-audience-choice"><label><input type="radio" name="storyAudienceMode" value="selected"> Выбранные пользователи</label><button type="button" data-privacy="selected">выбрать</button></div><div class="story-privacy-list" id="storyPrivacyList" hidden></div>';
+    await loadPrivacyPeople();
+    host.querySelectorAll('input[name="storyAudienceMode"]').forEach(r=>r.addEventListener("change",()=>{audienceMode=r.value;}));
+    host.querySelectorAll("[data-privacy]").forEach(b=>b.addEventListener("click",()=>showPrivacyList(b.dataset.privacy)));
+  }
+  async function showPrivacyList(mode) {
+    const list=$s("storyPrivacyList");if(!list)return;
+    if(!privacyPeople.length)await loadPrivacyPeople();
+    list.hidden=false;list.innerHTML="";
+    list.append(node("strong","",mode==="exclude"?"Кому запретить просмотр":mode==="close"?"Близкие друзья":"Кто увидит эту историю"));
+    if(!privacyPeople.length){list.append(node("p","","Список пока пуст: сначала посетите профили пользователей."));return;}
+    if(mode==="close"){
+      const {data:friends}=await sb.from("close_friends").select("friend_id").eq("owner_id",me.id);
+      selectedAudienceIds=(friends||[]).map(x=>x.friend_id);
+    }
+    const chosen=mode==="exclude"?excludedAudienceIds:selectedAudienceIds;
+    privacyPeople.forEach(p=>{
+      const row=node("label","story-privacy-person");
+      const check=node("input","");check.type="checkbox";check.checked=chosen.includes(p.id);
+      check.addEventListener("change",async()=>{
+        const arr=mode==="exclude"?excludedAudienceIds:selectedAudienceIds;
+        if(check.checked){if(!arr.includes(p.id))arr.push(p.id);}else{const i=arr.indexOf(p.id);if(i>=0)arr.splice(i,1);}
+        if(mode==="close"){
+          if(check.checked)await sb.from("close_friends").upsert({owner_id:me.id,friend_id:p.id},{onConflict:"owner_id,friend_id"});
+          else await sb.from("close_friends").delete().eq("owner_id",me.id).eq("friend_id",p.id);
+        }
+      });
+      row.append(check,node("span","",p.display_name||"Пользователь"));list.append(row);
+    });
+    const done=node("button","story-privacy-done","Готово");done.type="button";done.addEventListener("click",()=>{list.hidden=true;});list.append(done);
+  }
+
   async function publishStory() {
     const button=$s("storyPublish"), errorBox=$s("storyCreateError");
     errorBox.textContent="";
     const duration=Number($s("storyDuration").value);
-    const audience=$s("storyAudience").value;
+    const audience=audienceMode==="close_friends"?"close_friends":"visitors";
     const text=storyType==="text"?safeText($s("storyText").value).trim():safeText($s("storyCaption").value).trim();
     if (![4,6,12].includes(duration)) {errorBox.textContent="Выбери срок от 4 до 12 часов";return;}
     if (storyType==="text" && !text) {errorBox.textContent="Напиши текст истории";return;}
@@ -175,7 +224,7 @@
         const {error}=await sb.from("stories").insert({
         id:storyId,user_id:me.id,story_type:storyType==="text"?"text":(file.type.startsWith("video/")?"video":"photo"),
         text,media_path:mediaPath,background:storyType==="text"?$s("storyBackground").value:null,
-        audience,duration_hours:duration,
+        audience,audience_mode:audienceMode,selected_user_ids:audienceMode==="selected"?selectedAudienceIds:[],excluded_user_ids:audienceMode==="everyone"?excludedAudienceIds:[],duration_hours:duration,
         trim_start_seconds:file&&file.type.startsWith("video/")?(Number($s("storyTrimStart").value)||0):0,
         trim_end_seconds:file&&file.type.startsWith("video/")?Number($s("storyTrimEnd").value):null,
         preview_seconds:file&&file.type.startsWith("video/")?(Number($s("storyFrameScrub").value)||0):0,
@@ -237,9 +286,18 @@
       del.addEventListener("click",()=>deleteStory(s));
       bottom.append(del);
     }else{
+      const like=node("button","story-like","♡ Нравится");like.type="button";
+      const {data:mineLike}=await sb.from("story_likes").select("story_id").eq("story_id",s.id).eq("user_id",me.id).maybeSingle();
+      if(mineLike){like.classList.add("liked");like.textContent="♥ Вам нравится";}
+      like.addEventListener("click",async()=>{like.disabled=true;try{if(like.classList.contains("liked")){const {error}=await sb.from("story_likes").delete().eq("story_id",s.id).eq("user_id",me.id);if(error)throw error;like.classList.remove("liked");like.textContent="♡ Нравится";}else{const {error}=await sb.from("story_likes").insert({story_id:s.id,user_id:me.id});if(error)throw error;like.classList.add("liked");like.textContent="♥ Вам нравится";}}catch(e){if(typeof toast==="function")toast("Не удалось поставить отметку");}finally{like.disabled=false;}});
+      bottom.append(like);
       const {data:existing}=await sb.from("story_views").select("story_id").eq("story_id",s.id).eq("viewer_id",me.id).maybeSingle();
       if(!existing)await sb.from("story_views").insert({story_id:s.id,viewer_id:me.id});
       bottom.textContent="История исчезнет через "+s.duration_hours+" ч. после публикации";
+    }
+    if(s.user_id===me.id){
+      const {count}=await sb.from("story_likes").select("user_id",{count:"exact",head:true}).eq("story_id",s.id);
+      bottom.prepend(node("span","story-like-count","♥ "+(count||0)));
     }
     $s("storyPrev").disabled=activeStoryIndex===0;
     $s("storyNext").disabled=activeStoryIndex===viewerStories.length-1;
