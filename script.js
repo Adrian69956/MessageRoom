@@ -635,7 +635,6 @@ async function sendMessage() {
   addMessage(data, true);
 }
 $("sendBtn").addEventListener("click", sendMessage);
-$("chatMediaBtn").addEventListener("click", () => $("chatMediaFile").click());
 $("chatMediaFile").addEventListener("change", async () => { const f = $("chatMediaFile").files[0]; if (f) await uploadChatMedia(f); $("chatMediaFile").value = ""; });
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.isComposing) {
@@ -1660,6 +1659,5 @@ $("railFeed").addEventListener("click", (e) => { e.stopPropagation(); enterFeed(
 $("feedBack").addEventListener("click", exitFeed);
 $("feedRefresh").addEventListener("click", () => loadFeed());
 $("postText").addEventListener("input", updatePostCount);
-$("postMediaBtn").addEventListener("click", () => $("postMediaFile").click());
 $("postMediaFile").addEventListener("change", async () => { const f = $("postMediaFile").files[0]; if (!f) return; const err = await validateMediaFile(f, true); if (err) { toast(err); $("postMediaFile").value = ""; return; } $("postMediaName").textContent = f.name; });
 $("postSend").addEventListener("click", publishPost);
