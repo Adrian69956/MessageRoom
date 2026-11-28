@@ -285,7 +285,6 @@ function chatItem(c) {
   else if (c.pinned) bottom.append(svgEl(ICONS.pin, "pin"));
   info.append(top, bottom);
   item.append(info);
-  item.addEventListener("click", () => { openChat(c.id); });
   return item;
 }
 function archiveItem(list) {
@@ -311,6 +310,20 @@ function personItem(p) {
   return item;
 }
 function visibleInList(c) { return !(c.clearedAt && !c.messages.length && c.id !== currentId); }
+
+// Delegated click handling keeps chat rows responsive across desktop and touch layouts.
+chatList.addEventListener("click", (e) => {
+  const item = e.target.closest(".chat-item[data-id]");
+  if (!item || !chatList.contains(item)) return;
+  const chat = chats.find((c) => c.id === item.dataset.id);
+  if (chat) openChat(chat.id);
+});
+archiveList.addEventListener("click", (e) => {
+  const item = e.target.closest(".chat-item[data-id]");
+  if (!item || !archiveList.contains(item)) return;
+  const chat = chats.find((c) => c.id === item.dataset.id);
+  if (chat) openChat(chat.id);
+});
 
 function renderChatList() {
   if (!me) return;
@@ -845,7 +858,7 @@ function openVideoEditor(index){
  v.onerror=()=>ve("EditorStatus").textContent="Не удалось открыть этот формат видео";
  setVideoTab("crop");
 }
-function closeVideoEditor(){const v=ve("EditorPlayer");v.pause();v.removeAttribute("src");v.load();if(videoEditUrl)URL.revokeObjectURL(videoEditUrl);if(videoOverlayUrl)URL.revokeObjectURL(videoOverlayUrl);videoEditUrl=null;videoOverlayUrl=null;ve("Editor").classList.remove("show");ve("Editor").setAttribute("aria-hidden","true");}
+function closeVideoEditor(){if(videoRecorder&&videoRecorder.state!=="inactive"){toast("Дождись завершения экспорта видео");return;}const v=ve("EditorPlayer");v.pause();v.removeAttribute("src");v.load();if(videoEditUrl)URL.revokeObjectURL(videoEditUrl);if(videoOverlayUrl)URL.revokeObjectURL(videoOverlayUrl);videoEditUrl=null;videoOverlayUrl=null;ve("Editor").classList.remove("show");ve("Editor").setAttribute("aria-hidden","true");}
 function updateVideoTimeline(){const v=ve("EditorPlayer"),d=videoDuration||1;ve("TrimStart").style.setProperty("--range-start",(videoTrimA/d*100)+"%");ve("TrimEnd").style.setProperty("--range-end",(videoTrimB/d*100)+"%");ve("TrimRange").style.left=(videoTrimA/d*100)+"%";ve("TrimRange").style.width=((videoTrimB-videoTrimA)/d*100)+"%";ve("Playhead").style.left=(v.currentTime/d*100)+"%";ve("CurrentTime").textContent=veTime(v.currentTime);}
 function resizeVideoOverlay(){const v=ve("EditorPlayer"),c=ve("OverlayCanvas"),stage=ve("EditorStage"),r=v.getBoundingClientRect(),sr=stage.getBoundingClientRect();if(!r.width||!r.height)return;c.style.left=(r.left-sr.left)+"px";c.style.top=(r.top-sr.top)+"px";c.style.width=r.width+"px";c.style.height=r.height+"px";c.width=Math.round(r.width*devicePixelRatio);c.height=Math.round(r.height*devicePixelRatio);drawVideoOverlay();}
 function veCropRect(){const v=ve("EditorPlayer"),mode=ve("Crop").value;if(mode==="original")return{x:0,y:0,w:1,h:1};if(mode==="free")return{...videoFreeCrop};const p=mode.split(":").map(Number),target=p[0]/p[1],source=(v.videoWidth||1)/(v.videoHeight||1);let w=1,h=1;if(source>target)w=target/source;else h=source/target;return{x:(1-w)/2,y:(1-h)/2,w,h};}
@@ -863,16 +876,57 @@ function veRenderFrame(ctx,v,w,h,t){ctx.fillStyle="#000";ctx.fillRect(0,0,w,h);c
  if(videoOverlayImage&&veVisible(videoOverlayImage,t)){const ow=(v.clientWidth||w)*videoOverlayImage.size/100,oh=ow*videoOverlayImage.image.height/videoOverlayImage.image.width;ctx.drawImage(videoOverlayImage.image,videoOverlayImage.x*(v.clientWidth||w)-ow/2,videoOverlayImage.y*(v.clientHeight||h)-oh/2,ow,oh);}
  ctx.restore();}
 async function exportEditedVideo(){
- const v=ve("EditorPlayer");if(!videoEditFile||!videoDuration)return;
+ const v=ve("EditorPlayer");
+ if(!videoEditFile||!videoDuration)return;
  if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){ve("EditorStatus").textContent="Экспорт видео не поддерживается этим браузером";return;}
- const start=Math.max(0,videoTrimA),end=Math.min(videoDuration,videoTrimB);if(end-start<.15){ve("EditorStatus").textContent="Выбери более длинный фрагмент";return;}
- const out=document.createElement("canvas"),crop=veCropRect();let w=Math.max(2,Math.round(v.videoWidth*crop.w)),h=Math.max(2,Math.round(v.videoHeight*crop.h));const scale=Math.min(1280/Math.max(w,h),1);out.width=Math.max(2,Math.round(w*scale));out.height=Math.max(2,Math.round(h*scale));const ctx=out.getContext("2d"),stream=out.captureStream(30);
- let audioStream=null;try{audioStream=v.captureStream?v.captureStream():null;if(audioStream)audioStream.getAudioTracks().forEach(t=>stream.addTrack(t));}catch(e){}
- const mime=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"].find(x=>MediaRecorder.isTypeSupported(x));if(!mime){ve("EditorStatus").textContent="Браузер не поддерживает экспорт WebM";return;}
- videoExportChunks=[];videoRecorder=new MediaRecorder(stream,{mimeType:mime});videoRecorder.ondataavailable=e=>{if(e.data.size)videoExportChunks.push(e.data);};videoRecorder.onstop=()=>{const blob=new Blob(videoExportChunks,{type:"video/webm"}),name=videoEditFile.name.replace(/\.[^.]+$/,"")+"_edited.webm",file=new File([blob],name,{type:"video/webm",lastModified:Date.now()}),item=pendingChatFiles[videoEditIndex];if(item){URL.revokeObjectURL(item.previewUrl);item.file=file;item.previewUrl=URL.createObjectURL(file);pendingChatFile=file;renderPendingChatFiles();}stream.getTracks().forEach(t=>t.stop());ve("EditorStatus").textContent="Видео сохранено в очередь";ve("EditorSave").disabled=false;};
- const oldTime=v.currentTime;v.pause();v.currentTime=start;await new Promise(resolve=>{const done=()=>{v.removeEventListener("seeked",done);resolve();};v.addEventListener("seeked",done,{once:true});});ve("EditorSave").disabled=true;ve("EditorStatus").textContent="Экспортирую видео… не закрывай редактор";videoRecorder.start(100);let stopped=false;
- const frame=()=>{if(!videoRecorder||videoRecorder.state!=="recording"||stopped)return;veRenderFrame(ctx,v,out.width,out.height,v.currentTime);if(v.currentTime>=end||v.ended){stopped=true;v.pause();videoRecorder.stop();return;}requestAnimationFrame(frame);};
- v.play().then(()=>requestAnimationFrame(frame)).catch(()=>{ve("EditorStatus").textContent="Не удалось запустить экспорт";videoRecorder.stop();});
+ const start=Math.max(0,videoTrimA),end=Math.min(videoDuration,videoTrimB);
+ if(end-start<.15){ve("EditorStatus").textContent="Выбери более длинный фрагмент";return;}
+ const mimeCandidates=["video/mp4","video/mp4;codecs=avc1.42E01E","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
+ const mime=mimeCandidates.find(x=>MediaRecorder.isTypeSupported(x));
+ if(!mime){ve("EditorStatus").textContent="Этот браузер не поддерживает экспорт видео. Попробуй Chrome или Safari поновее.";return;}
+ const out=document.createElement("canvas"),crop=veCropRect();
+ let w=Math.max(2,Math.round(v.videoWidth*crop.w)),h=Math.max(2,Math.round(v.videoHeight*crop.h));
+ const scale=Math.min(1280/Math.max(w,h),1);
+ out.width=Math.max(2,Math.round(w*scale));out.height=Math.max(2,Math.round(h*scale));
+ const ctx=out.getContext("2d"),stream=out.captureStream(30);
+ try{const audioStream=v.captureStream?v.captureStream():null;if(audioStream)audioStream.getAudioTracks().forEach(t=>stream.addTrack(t));}catch(e){}
+ videoExportChunks=[];
+ try{videoRecorder=new MediaRecorder(stream,{mimeType});}
+ catch(e){stream.getTracks().forEach(t=>t.stop());ve("EditorStatus").textContent="Не удалось запустить экспорт в этом браузере";return;}
+ const exportFileName=videoEditFile.name.replace(/\.[^.]+$/,"")+"_edited"+(mime.includes("mp4")?".mp4":".webm");
+ videoRecorder.ondataavailable=e=>{if(e.data&&e.data.size)videoExportChunks.push(e.data);};
+ videoRecorder.onerror=()=>{ve("EditorStatus").textContent="Ошибка при обработке видео";ve("EditorSave").disabled=false;stream.getTracks().forEach(t=>t.stop());};
+ videoRecorder.onstop=()=>{
+   const blob=new Blob(videoExportChunks,{type:mime.split(";")[0]});
+   if(!blob.size){ve("EditorStatus").textContent="Не удалось получить обработанное видео";ve("EditorSave").disabled=false;stream.getTracks().forEach(t=>t.stop());return;}
+   const file=new File([blob],exportFileName,{type:mime.split(";")[0],lastModified:Date.now()}),item=pendingChatFiles[videoEditIndex];
+   if(item){URL.revokeObjectURL(item.previewUrl);item.file=file;item.previewUrl=URL.createObjectURL(file);pendingChatFile=file;renderPendingChatFiles();}
+   stream.getTracks().forEach(t=>t.stop());ve("EditorStatus").textContent="Видео сохранено в очередь";ve("EditorSave").disabled=false;
+ };
+ const oldTime=v.currentTime;
+ v.pause();
+ try{
+   if(Math.abs(v.currentTime-start)>.02){
+     const seeked=new Promise((resolve,reject)=>{
+       const done=()=>{cleanup();resolve();},fail=()=>{cleanup();reject(new Error("seek failed"));};
+       const cleanup=()=>{v.removeEventListener("seeked",done);v.removeEventListener("error",fail);};
+       v.addEventListener("seeked",done,{once:true});v.addEventListener("error",fail,{once:true});
+     });
+     v.currentTime=start;
+     await seeked;
+   }
+ }catch(e){ve("EditorStatus").textContent="Не удалось перейти к началу выбранного фрагмента";stream.getTracks().forEach(t=>t.stop());return;}
+ ve("EditorSave").disabled=true;ve("EditorStatus").textContent="Экспортирую видео… не закрывай редактор";
+ try{videoRecorder.start(250);}catch(e){ve("EditorStatus").textContent="Браузер не смог начать экспорт";ve("EditorSave").disabled=false;stream.getTracks().forEach(t=>t.stop());return;}
+ let stopped=false;
+ const frame=()=>{
+   if(!videoRecorder||videoRecorder.state!=="recording"||stopped)return;
+   try{veRenderFrame(ctx,v,out.width,out.height,v.currentTime);}catch(e){stopped=true;v.pause();videoRecorder.stop();return;}
+   if(v.currentTime>=end||v.ended){stopped=true;v.pause();videoRecorder.stop();return;}
+   requestAnimationFrame(frame);
+ };
+ try{await v.play();requestAnimationFrame(frame);}
+ catch(e){ve("EditorStatus").textContent="Нажми воспроизведение и повтори сохранение";if(videoRecorder.state==="recording")videoRecorder.stop();else ve("EditorSave").disabled=false;}
 }
 ve("EditorPlay").addEventListener("click",()=>{const v=ve("EditorPlayer");if(v.paused){if(v.currentTime>=videoTrimB)v.currentTime=videoTrimA;v.play();}else v.pause();});
 ve("EditorPlayer").addEventListener("play",()=>ve("EditorPlay").textContent="Ⅱ");ve("EditorPlayer").addEventListener("pause",()=>ve("EditorPlay").textContent="▶");
@@ -890,6 +944,22 @@ ve("OverlaySize").addEventListener("input",()=>{if(videoOverlayImage)videoOverla
 ["Draw","Text","Image"].forEach(prefix=>[prefix+"All",prefix+"In",prefix+"Out"].forEach(id=>{const node=ve(id);if(node)node.addEventListener("change",()=>{if(prefix==="Image"&&videoOverlayImage)Object.assign(videoOverlayImage,veBounds("Image"));drawVideoOverlay();});}));
 ve("Crop").addEventListener("change",()=>{setVideoTab("crop");});ve("OverlayPick").addEventListener("click",()=>ve("OverlayFile").click());
 function findPendingMedia(type){return pendingChatFiles.findIndex(x=>x.file.type.startsWith(type));}
+function switchToQueuedEditor(type){
+ const index=findPendingMedia(type);
+ if(index<0){toast(type==="video"?"В очереди нет видео":"В очереди нет фото");return;}
+ if(type==="video"){
+   const open=()=>{$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");photoEditorDrawing=false;openVideoEditor(index);};
+   if(photoEditorImage)saveCurrentPhotoEdit(open);else open();
+   return;
+ }
+ if(videoRecorder&&videoRecorder.state!=="inactive"){toast("Дождись завершения экспорта видео");return;}
+ if(videoEditIndex>=0&&videoMode!=="crop"||videoEditIndex>=0&&ve("Crop").value!=="original"){
+   if(!confirm("Переключиться на фото? Несохранённые изменения видео будут потеряны."))return;
+ }
+ closeVideoEditor();openPhotoEditor(index);
+}
+$("photoSwitchVideo").addEventListener("click",()=>switchToQueuedEditor("video"));
+$("videoSwitchPhoto").addEventListener("click",()=>switchToQueuedEditor("image"));
 ve("EditorSave").addEventListener("click",exportEditedVideo);
 ["EditorClose","EditorCancel"].forEach(id=>ve(id).addEventListener("click",closeVideoEditor));
 window.addEventListener("resize",()=>{if(ve("Editor").classList.contains("show"))resizeVideoOverlay();});

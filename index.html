@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MessageRoom</title>
-  <link rel="stylesheet" href="style.css?v=video-editor-1">
+  <link rel="stylesheet" href="style.css?v=media-editor-2">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#0077ff">
@@ -273,7 +273,7 @@
         <div class="chat-media-pending" id="chatMediaPending" aria-live="polite"></div>
 <div class="photo-editor-backdrop" id="photoEditor" aria-hidden="true">
   <section class="photo-editor" role="dialog" aria-modal="true" aria-labelledby="photoEditorTitle">
-    <header class="photo-editor-head"><strong id="photoEditorTitle">Редактор фото</strong><div class="editor-switch"><button type="button" class="icon-btn" id="photoEditorClose" aria-label="Закрыть">×</button></div></header>
+    <header class="photo-editor-head"><strong id="photoEditorTitle">Редактор фото</strong><div class="editor-switch"><button type="button" class="editor-switch-btn" id="photoSwitchVideo" title="Переключиться на видео" aria-label="Переключиться на видео"><span class="editor-switch-icon" aria-hidden="true">▶</span><small>VIDEO</small></button><button type="button" class="icon-btn" id="photoEditorClose" aria-label="Закрыть">×</button></div></header>
     <div class="photo-editor-thumbnails" id="photoEditorThumbnails" aria-label="Выбранные фото и видео"></div>
     <div class="photo-editor-stage"><canvas id="photoEditorCanvas"></canvas></div>
     <nav class="photo-editor-tabs" aria-label="Инструменты фото">
@@ -308,7 +308,7 @@
 
 <div class="video-editor-backdrop" id="videoEditor" aria-hidden="true">
   <section class="video-editor" role="dialog" aria-modal="true" aria-labelledby="videoEditorTitle">
-    <header class="photo-editor-head"><div><strong id="videoEditorTitle">Редактор видео</strong><small id="videoEditorMeta">Подготовка видео</small></div><div class="editor-switch"><button type="button" class="icon-btn" id="videoEditorClose" aria-label="Закрыть">×</button></div></header>
+    <header class="photo-editor-head"><div><strong id="videoEditorTitle">Редактор видео</strong><small id="videoEditorMeta">Подготовка видео</small></div><div class="editor-switch"><button type="button" class="editor-switch-btn" id="videoSwitchPhoto" title="Переключиться на фото" aria-label="Переключиться на фото"><span class="editor-switch-icon" aria-hidden="true">▣</span><small>PHOTO</small></button><button type="button" class="icon-btn" id="videoEditorClose" aria-label="Закрыть">×</button></div></header>
     <div class="photo-editor-thumbnails video-editor-thumbnails" id="videoEditorThumbnails" aria-label="Выбранные фото и видео"></div>
     <div class="video-editor-stage" id="videoEditorStage"><video id="videoEditorPlayer" playsinline preload="metadata"></video><canvas id="videoOverlayCanvas"></canvas><button type="button" id="videoEditorPlay" class="video-editor-play">▶</button></div>
     <div class="video-timeline-wrap">
@@ -492,7 +492,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=1795780670"></script>
   <script src="auth.js?v=1795780670"></script>
-  <script src="script.js?v=video-editor-1"></script>
+  <script src="script.js?v=media-editor-2"></script>
   <script src="push.js?v=1795780670"></script>
   <script src="admin.js?v=1795780670"></script>
 </body>
