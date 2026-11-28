@@ -1704,7 +1704,7 @@ $("chatCreateSubmit").addEventListener("click",async()=>{
  catch(error){const map={username_taken:"Это публичное имя уже занято.",member_not_found:"Один из участников не найден.",group_needs_members:"Для группы нужен хотя бы один участник.",invalid_public_username:"Проверь публичную ссылку."};msg.textContent=map[error.message]||("Не удалось создать: "+(error.message||"ошибка"));}
  finally{btn.disabled=false;btn.textContent="Создать";}
 });
-$"createChatVisible").addEventListener("click",()=>openCreateChat("group"));
+$("createChatVisible").addEventListener("click",()=>openCreateChat("group"));
 $("mmNewGroup").addEventListener("click",()=>{mainMenu.classList.remove("open");openCreateChat("group");});
 $("mmNewChannel").addEventListener("click",()=>{mainMenu.classList.remove("open");openCreateChat("channel");});
 
