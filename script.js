@@ -678,7 +678,7 @@ let pendingChatFiles=[];
 let pendingChatFile=null,pendingChatPreviewUrl=null,photoEditorIndex=0;
 function clearPendingChatFile(){
   pendingChatFiles.forEach(x=>{if(x.previewUrl)URL.revokeObjectURL(x.previewUrl);});
-  pendingChatFiles=[];pendingChatFile=null;pendingChatPreviewUrl=null;
+  pendingChatFiles=[];pendingChatFile=null;pendingChatPreviewUrl=null;updateQueuedVideoFormat();
   const preview=$("chatMediaPending");if(preview){preview.classList.remove("show");preview.innerHTML="";}
   $("chatMediaFile").value="";
 }
@@ -932,7 +932,7 @@ async function sendMessage() {
       while(pendingChatFiles.length){
         const item=pendingChatFiles[0],sent=await uploadChatMedia(item.file,first?text:"");
         if(!sent){toast("Остальные файлы остались в очереди — можно повторить отправку");return;}
-        first=false;URL.revokeObjectURL(item.previewUrl);pendingChatFiles.shift();pendingChatFile=pendingChatFiles[0]?.file||null;renderPendingChatFiles();
+        first=false;URL.revokeObjectURL(item.previewUrl);pendingChatFiles.shift();pendingChatFile=pendingChatFiles[0]?.file||null;updateQueuedVideoFormat();renderPendingChatFiles();
       }
       clearPendingChatFile();
       input.value = ""; autoGrow(); cancelCompose();
