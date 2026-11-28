@@ -1696,7 +1696,7 @@ document.querySelectorAll(".rail-btn[data-rail]").forEach((b) => b.addEventListe
 $("railMe").addEventListener("click", () => { screenStack = ["scrChats", "scrSettings"]; showScreen("scrSettings"); if (window.innerWidth <= 768 && currentId) closeChat(); });
 $("railTheme").addEventListener("click", () => setTheme(prefs.theme === "dark" ? "light" : "dark"));
 $("railAdmin").addEventListener("click", () => $("adminOpen").click());
-$("railStories").addEventListener("click", () => toast("Истории появятся на одном из следующих этапов"));
+
 
 // ---------- Настройки: главная ----------
 function myProfile() { return (me && profiles[me.id]) || {}; }
