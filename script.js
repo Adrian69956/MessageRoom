@@ -65,6 +65,31 @@ if (feedNavButton) feedNavButton.addEventListener("click", (event) => {
     if (typeof toast === "function") toast("Не удалось открыть ленту. Обнови страницу.");
   }
 });
+
+// Нажатие на логотип MessageRoom перезагружает приложение.
+const appLogo = document.querySelector(".rail-logo");
+if (appLogo) {
+  appLogo.setAttribute("role", "button");
+  appLogo.setAttribute("tabindex", "0");
+  appLogo.setAttribute("aria-label", "Обновить MessageRoom");
+  appLogo.addEventListener("click", () => window.location.reload());
+  appLogo.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      window.location.reload();
+    }
+  });
+}
+
+// Обработчики ленты регистрируются в начале файла, чтобы поздняя ошибка
+// в другом модуле не отключала публикацию и переключение сортировки.
+document.querySelectorAll("[data-feed-sort]").forEach((button) => {
+  button.addEventListener("click", () => {
+    feedSortMode = button.dataset.feedSort === "popular" ? "popular" : "newest";
+    updateFeedSortButtons();
+    renderFeed();
+  });
+});
 const chatList = $("chatList"), archiveList = $("archiveList");
 const search = $("search");
 const messagesBox = $("messages");
@@ -1272,13 +1297,29 @@ async function sendVoiceBlob(blob, ms, context) {
     ? crypto.randomUUID()
     : String(Date.now()) + Math.random().toString(16).slice(2);
   const path = me.id + "/" + name + "." + ext;
-  const upload = await sb.storage.from("voice").upload(path, blob, { contentType: type, upsert: false });
+  let upload;
+  try {
+    upload = await sb.storage.from("voice").upload(path, blob, { contentType: type, upsert: false });
+  } catch (error) {
+    toast("Не удалось загрузить запись: " + (error.message || error));
+    return;
+  }
   if (upload.error) { toast("Не удалось загрузить запись: " + upload.error.message); return; }
 
   if (context === "post") {
-    const { error } = await sb.from("posts").insert({ voice_path: path, voice_ms: ms });
-    if (error) { toast("Не опубликовалось: " + error.message); return; }
-    await loadFeed();
+    try {
+      const { data: status, error: statusError } = await sb.rpc("get_app_status");
+      if (statusError) throw statusError;
+      window.appStatus = status || window.appStatus;
+      updateFeedComposer();
+      if (!window.appStatus.can_post) throw new Error("Публикация сейчас запрещена для этого аккаунта.");
+      const { error } = await sb.from("posts").insert({ voice_path: path, voice_ms: ms });
+      if (error) throw error;
+      await loadFeed();
+    } catch (error) {
+      await sb.storage.from("voice").remove([path]);
+      toast("Голосовой пост не опубликован: " + (error.message || error));
+    }
     return;
   }
 
@@ -1948,17 +1989,22 @@ async function loadFeed() {
   feedBusy=true;const list=$("feedList");
   if(!feedPosts.length)list.innerHTML='<div class="no-posts">Загружаем публикации всех пользователей…</div>';
   try{
-    // Статус публикаций влияет только на форму создания поста, не на чтение ленты.
-    loadStatus().then(()=>updateFeedComposer()).catch(error=>console.warn("Feed status unavailable:",error));
-    const [{data,error},{data:hiddenRows,error:hiddenError}]=await Promise.all([
-      sb.from("posts")
-        .select("id, author_id, text, created_at, edited_at, voice_path, voice_ms, media_path, media_type, media_mime, media_size, media_duration_ms")
-        .order("created_at",{ascending:false}).limit(100),
-      sb.from("post_hidden_authors").select("author_id").eq("user_id",me.id)
-    ]);
+    // Сначала обновляем статус, но ошибка таблицы скрытых авторов не должна
+    // ломать саму ленту и сортировку.
+    try { await loadStatus(); } catch (statusError) { console.warn("Feed status unavailable:", statusError); }
+    updateFeedComposer();
+    const {data,error}=await sb.from("posts")
+      .select("id, author_id, text, created_at, edited_at, voice_path, voice_ms, media_path, media_type, media_mime, media_size, media_duration_ms")
+      .order("created_at",{ascending:false}).limit(100);
     if(error)throw error;
-    if(hiddenError)throw hiddenError;
-    feedHiddenAuthors=new Set((hiddenRows||[]).map(row=>row.author_id));
+    const {data:hiddenRows,error:hiddenError}=await sb.from("post_hidden_authors")
+      .select("author_id").eq("user_id",me.id);
+    if(hiddenError) {
+      console.warn("Hidden authors unavailable; showing full feed:", hiddenError);
+      feedHiddenAuthors = new Set();
+    } else {
+      feedHiddenAuthors=new Set((hiddenRows||[]).map(row=>row.author_id));
+    }
     const posts=data||[],ids=posts.map(p=>p.id);let reactions=[],comments=[],views=[];
     if(ids.length){
       const [rr,cr,vr]=await Promise.all([sb.from("post_reactions").select("post_id,user_id,emoji,created_at").in("post_id",ids),sb.from("post_comments").select("post_id").in("post_id",ids),sb.from("post_views").select("post_id,user_id,viewed_at").in("post_id",ids)]);
@@ -2215,22 +2261,37 @@ async function publishPost() {
   const text = field.value.trim();
   const file = $("postMediaFile").files[0] || null;
   if (!text && !file) { toast("Добавьте текст или фото/видео"); return; }
-  $("postSend").disabled = true;
+  const send = $("postSend");
+  send.disabled = true;
   let media = null;
-  if (file) {
-    const check = await validateMediaFile(file, true);
-    if (check) { $("postSend").disabled = false; toast(check); return; }
-    const path = me.id + "/" + crypto.randomUUID() + safeMediaExtension(file.name);
-    const up = await sb.storage.from("post-media").upload(path, file, { contentType: file.type, upsert: false });
-    if (up.error) { $("postSend").disabled = false; toast("Не удалось загрузить файл: " + up.error.message); return; }
-    media = { media_path: path, media_type: file.type.startsWith("video/") ? "video" : "image", media_mime: file.type, media_size: file.size, media_duration_ms: file._mediaDurationMs || null };
+  try {
+    // Обновляем серверные права перед публикацией, чтобы не опираться на старый статус.
+    const { data: status, error: statusError } = await sb.rpc("get_app_status");
+    if (statusError) throw new Error("Не удалось проверить разрешение на публикацию: " + statusError.message);
+    window.appStatus = status || window.appStatus;
+    updateFeedComposer();
+    if (!window.appStatus.can_post) throw new Error("Публикация сейчас запрещена для этого аккаунта. Проверьте режим публикаций и статус аккаунта.");
+    if (file) {
+      const check = await validateMediaFile(file, true);
+      if (check) throw new Error(check);
+      const randomName = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+      const path = me.id + "/" + randomName + safeMediaExtension(file.name);
+      const up = await sb.storage.from("post-media").upload(path, file, { contentType: file.type, upsert: false });
+      if (up.error) throw new Error("Не удалось загрузить файл: " + up.error.message);
+      media = { media_path: path, media_type: file.type.startsWith("video/") ? "video" : "image", media_mime: file.type, media_size: file.size, media_duration_ms: file._mediaDurationMs || null };
+    }
+    const { error } = await sb.from("posts").insert({ text: text || null, ...(media || {}) });
+    if (error) throw new Error("Не опубликовалось: " + error.message);
+    field.value = ""; $("postMediaFile").value = ""; $("postMediaName").textContent = "";
+    updatePostCount();
+    await loadFeed();
+  } catch (error) {
+    if (media) { try { await sb.storage.from("post-media").remove([media.media_path]); } catch (cleanupError) { console.warn("Could not clean up uploaded media:", cleanupError); } }
+    console.error("Post publish failed:", error);
+    toast(error.message || "Не удалось опубликовать пост");
+  } finally {
+    send.disabled = false;
   }
-  const { error } = await sb.from("posts").insert({ text: text || null, ...(media || {}) });
-  $("postSend").disabled = false;
-  if (error) { if (media) await sb.storage.from("post-media").remove([media.media_path]); toast("Не опубликовалось: " + error.message); return; }
-  field.value = ""; $("postMediaFile").value = ""; $("postMediaName").textContent = "";
-  updatePostCount();
-  await loadFeed();
 }
 
 function updatePostCount() {
@@ -2238,7 +2299,6 @@ function updatePostCount() {
   $("postCount").textContent = n ? n + " / 4000" : "";
 }
 
-document.querySelectorAll("[data-feed-sort]").forEach(button=>button.addEventListener("click",()=>{feedSortMode=button.dataset.feedSort;renderFeed();}));
 $("feedBack").addEventListener("click", exitFeed);
 $("feedRefresh").addEventListener("click", () => loadFeed());
 $("postText").addEventListener("input", updatePostCount);
