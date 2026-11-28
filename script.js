@@ -510,6 +510,7 @@ function openChat(id) {
   if (recording) stopRecording(false);
   if (app.classList.contains("feed-mode")) {
     app.classList.remove("feed-mode");
+    $("feedScreen").style.removeProperty("display");
     $("railFeed").classList.remove("active");
     document.querySelector('.rail-btn[data-rail="scrChats"]').classList.add("active");
   }
@@ -1891,6 +1892,9 @@ if ("serviceWorker" in navigator) {
 // ===================== Лента постов =====================
 const REACTIONS = ["❤️", "🔥", "😂", "👍", "😮", "😢"];
 let feedPosts = [];
+let feedViewedByMe = new Set();
+let feedViewObserver = null;
+let feedSortMode = "newest";
 let feedReloadTimer = null;
 let feedBusy = false;
 let feedReloadRequested = false;
@@ -1904,6 +1908,7 @@ function scheduleFeedReload() {
 
 function enterFeed() {
   app.classList.add("feed-mode");
+  $("feedScreen").style.display = "flex";
   app.classList.remove("in-chat");
   document.querySelectorAll(".rail-btn[data-rail]").forEach((b) => b.classList.remove("active"));
   $("railFeed").classList.add("active");
@@ -1912,6 +1917,7 @@ function enterFeed() {
 
 function exitFeed() {
   app.classList.remove("feed-mode");
+  $("feedScreen").style.removeProperty("display");
   $("railFeed").classList.remove("active");
   screenStack = ["scrChats"];
   showScreen("scrChats");
@@ -1929,16 +1935,20 @@ async function loadFeed() {
       .select("id, author_id, text, created_at, edited_at, voice_path, voice_ms, media_path, media_type, media_mime, media_size, media_duration_ms")
       .order("created_at",{ascending:false}).limit(100);
     if(error)throw error;
-    const posts=data||[],ids=posts.map(p=>p.id);let reactions=[],comments=[];
+    const posts=data||[],ids=posts.map(p=>p.id);let reactions=[],comments=[],views=[];
     if(ids.length){
-      const [rr,cr]=await Promise.all([sb.from("post_reactions").select("post_id,user_id,emoji").in("post_id",ids),sb.from("post_comments").select("post_id").in("post_id",ids)]);
+      const [rr,cr,vr]=await Promise.all([sb.from("post_reactions").select("post_id,user_id,emoji,created_at").in("post_id",ids),sb.from("post_comments").select("post_id").in("post_id",ids),sb.from("post_views").select("post_id,user_id,viewed_at").in("post_id",ids)]);
       if(rr.error)console.warn("Feed reactions unavailable:",rr.error);else reactions=rr.data||[];
       if(cr.error)console.warn("Feed comment counts unavailable:",cr.error);else comments=cr.data||[];
+      if(vr.error)console.warn("Feed view counts unavailable:",vr.error);else views=vr.data||[];
     }
-    const reactionMap=new Map(),commentMap=new Map();
-    reactions.forEach(r=>{if(!reactionMap.has(r.post_id))reactionMap.set(r.post_id,[]);reactionMap.get(r.post_id).push({user_id:r.user_id,emoji:r.emoji});});
+    const reactionMap=new Map(),commentMap=new Map(),viewMap=new Map(),dailyViewMap=new Map();
+    const cutoff=Date.now()-86400000;
+    reactions.forEach(r=>{if(!reactionMap.has(r.post_id))reactionMap.set(r.post_id,[]);reactionMap.get(r.post_id).push({user_id:r.user_id,emoji:r.emoji,created_at:r.created_at});});
     comments.forEach(c=>commentMap.set(c.post_id,(commentMap.get(c.post_id)||0)+1));
-    feedPosts=posts.map(p=>({...p,post_reactions:reactionMap.get(p.id)||[],post_comments:[{count:commentMap.get(p.id)||0}]}));
+    views.forEach(v=>{viewMap.set(v.post_id,(viewMap.get(v.post_id)||0)+1);if(new Date(v.viewed_at).getTime()>=cutoff)dailyViewMap.set(v.post_id,(dailyViewMap.get(v.post_id)||0)+1);});
+    feedViewedByMe=new Set(views.filter(v=>v.user_id===me.id).map(v=>v.post_id));
+    feedPosts=posts.map(p=>{const rs=reactionMap.get(p.id)||[];return {...p,post_reactions:rs,post_comments:[{count:commentMap.get(p.id)||0}],view_count:viewMap.get(p.id)||0,daily_view_count:dailyViewMap.get(p.id)||0,daily_like_count:rs.filter(r=>new Date(r.created_at).getTime()>=cutoff).length};});
     const authors=[...new Set(feedPosts.map(p=>p.author_id))];if(authors.length)await loadProfiles(authors);
     updateFeedComposer();renderFeed();
   }catch(error){
@@ -1976,11 +1986,40 @@ function reactionList(post) {
 function renderFeed() {
   const list = $("feedList");
   list.innerHTML = "";
-  if (!feedPosts.length) {
-    list.append(el("div", "no-posts", "Пока постов нет. Напишите первый!"));
+  if (feedViewObserver) feedViewObserver.disconnect();
+  let posts = feedPosts.slice();
+  if (feedSortMode === "popular") {
+    const cutoff = Date.now() - 86400000;
+    posts = posts.filter(post => new Date(post.created_at).getTime() >= cutoff);
+    posts.sort((a,b) => ((b.daily_like_count||0)+(b.daily_view_count||0))-((a.daily_like_count||0)+(a.daily_view_count||0)) || new Date(b.created_at)-new Date(a.created_at));
+  }
+  if (!posts.length) {
+    list.append(el("div", "no-posts", feedSortMode === "popular" ? "За последние сутки публикаций пока нет." : "Пока постов нет. Напишите первый!"));
     return;
   }
-  feedPosts.forEach((post) => list.append(postCard(post)));
+  posts.forEach(post => { const card=postCard(post); card.dataset.postId=post.id; list.append(card); });
+  if ("IntersectionObserver" in window) {
+    feedViewObserver = new IntersectionObserver(entries => entries.forEach(entry => { if(entry.isIntersecting){ const post=feedPosts.find(p=>p.id===entry.target.dataset.postId); if(post) markPostViewed(post,entry.target); feedViewObserver.unobserve(entry.target); } }), {root:$("feedBody"),threshold:0.35});
+    list.querySelectorAll(".post").forEach(card=>feedViewObserver.observe(card));
+  } else {
+    list.querySelectorAll(".post").forEach(card=>{const post=feedPosts.find(p=>p.id===card.dataset.postId);if(post)markPostViewed(post,card);});
+  }
+  updateFeedSortButtons();
+}
+
+function updateFeedSortButtons(){
+  document.querySelectorAll("[data-feed-sort]").forEach(button=>{const active=button.dataset.feedSort===feedSortMode;button.classList.toggle("active",active);button.setAttribute("aria-pressed",String(active));});
+}
+
+async function markPostViewed(post,card){
+  if(feedViewedByMe.has(post.id))return;
+  feedViewedByMe.add(post.id);
+  const {error}=await sb.from("post_views").insert({post_id:post.id,user_id:me.id});
+  if(error){if(error.code!=="23505"){feedViewedByMe.delete(post.id);console.warn("Could not record post view:",error);}return;}
+  post.view_count=(post.view_count||0)+1;
+  post.daily_view_count=(post.daily_view_count||0)+1;
+  const counter=card.querySelector(".post-view-count");
+  if(counter)counter.textContent="👁 "+post.view_count;
 }
 
 function postCard(post) {
@@ -2010,6 +2049,7 @@ function postCard(post) {
   if (post.media_path) appendMediaPreview(card, post.media_path, post.media_type, "post-media");
 
   const actions = el("div", "post-actions");
+  actions.append(el("span", "post-view-count", "👁 " + (post.view_count || 0)));
   const reaction = reactionList(post);
   REACTIONS.forEach((emoji) => {
     const count = reaction.counts[emoji] || 0;
@@ -2130,7 +2170,8 @@ function updatePostCount() {
   $("postCount").textContent = n ? n + " / 4000" : "";
 }
 
-$("railFeed").addEventListener("click", (e) => { e.stopPropagation(); enterFeed(); });
+$("railFeed").addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); enterFeed(); });
+document.querySelectorAll("[data-feed-sort]").forEach(button=>button.addEventListener("click",()=>{feedSortMode=button.dataset.feedSort;renderFeed();}));
 $("feedBack").addEventListener("click", exitFeed);
 $("feedRefresh").addEventListener("click", () => loadFeed());
 $("postText").addEventListener("input", updatePostCount);
