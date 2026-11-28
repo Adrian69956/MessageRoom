@@ -941,3 +941,14 @@ input:checked + .switch { background: var(--grad); }
 
 .post-view-count { display:inline-flex; align-items:center; color:var(--text-muted); font-size:13px; padding:7px 9px; margin-right:auto; }
 .app.feed-mode .feed { display:flex !important; }
+
+/* Скрытые авторы: уведомление остаётся на месте публикации с возможностью отмены. */
+.post-hidden-notice {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; background: var(--bg-2); box-shadow: none;
+  border: 1px solid var(--border);
+}
+.post-hidden-message { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.post-hidden-message strong { font-size: 14px; font-weight: 600; }
+.post-hidden-message span { color: var(--text-muted); font-size: 13px; line-height: 1.4; }
+.hide-author-btn { flex: 0 0 auto; }
