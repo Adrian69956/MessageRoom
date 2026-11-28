@@ -428,7 +428,21 @@
   </div>
   <div class="story-viewer-overlay" id="storyViewerOverlay" aria-hidden="true"><div class="story-viewer" id="storyViewer"><div class="story-viewer-bars" id="storyViewerBars"></div><div class="story-viewer-top"><div class="story-viewer-author" id="storyViewerAuthor"></div><button type="button" id="storyViewerClose" aria-label="Закрыть">×</button></div><div class="story-viewer-content" id="storyViewerContent"></div><button type="button" class="story-nav story-prev" id="storyPrev" aria-label="Предыдущая история"></button><button type="button" class="story-nav story-next" id="storyNext" aria-label="Следующая история"></button><div class="story-viewer-bottom" id="storyViewerBottom"></div></div></div>
 
+  <div class="overlay" id="chatCreateOverlay" aria-hidden="true">
+    <section class="settings chat-create-window" role="dialog" aria-modal="true" aria-labelledby="chatCreateTitle">
+      <div class="settings-head"><h2 id="chatCreateTitle">Создать группу</h2><button class="icon-btn" id="chatCreateClose" type="button" aria-label="Закрыть">×</button></div>
+      <div class="chat-create-tabs"><button type="button" class="active" data-create-kind="group">Новая группа</button><button type="button" data-create-kind="channel">Новый канал</button></div>
+      <label class="field"><span>Название</span><input id="chatCreateName" maxlength="80" placeholder="Название"></label>
+      <label class="field"><span>Описание</span><textarea id="chatCreateDescription" rows="2" maxlength="255" placeholder="О чём это сообщество?"></textarea></label>
+      <div class="settings-section" id="chatCreateMembersSection"><div class="settings-title">Добавить участников</div><input id="chatCreateMemberSearch" placeholder="Поиск по имени или @username"><div id="chatCreateSelected" class="chat-create-selected"></div><div id="chatCreatePeople" class="chat-create-people"><div class="list-note">Найди пользователей по имени</div></div></div>
+      <div class="settings-section"><div class="settings-title">Тип сообщества</div><div class="chat-create-visibility"><label><input type="radio" name="chatCreateVisibility" value="private" checked> Частная</label><label><input type="radio" name="chatCreateVisibility" value="public"> Публичная</label></div><div class="hint">Частная — доступ по приглашению. Публичная — можно найти по ссылке.</div><label class="field" id="chatCreateUsernameWrap" hidden><span>Публичная ссылка (5–32 символа)</span><input id="chatCreateUsername" maxlength="32" placeholder="my_community"></label><label class="tg-item toggle"><span>Заявки на вступление</span><input type="checkbox" id="chatCreateApproval"><i class="switch"></i></label><label class="tg-item toggle"><span>Показывать историю новым участникам</span><input type="checkbox" id="chatCreateHistory" checked><i class="switch"></i></label></div>
+      <div class="settings-msg" id="chatCreateMessage"></div><button class="save-btn" id="chatCreateSubmit" type="button">Создать</button>
+    </section>
+  </div>
+
   <div class="menu-pop" id="mainMenu">
+    <button id="mmNewGroup">＋ Создать группу</button>
+    <button id="mmNewChannel">▣ Создать канал</button>
     <button id="mmArchive"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>Архив<span class="mm-count" id="mmArchiveCount"></span></button>
     <button id="mmSupport"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v12H8l-4 4z"/><path d="M8 9h8M8 13h5"/></svg>Поддержка</button>
     <button id="mmSettings"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Настройки</button>
@@ -686,7 +700,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=1795780670"></script>
   <script src="auth.js?v=1795780670"></script>
-  <script src="script.js?v=stories-2"></script>
+  <script src="script.js?v=groups-1"></script>
   <script src="stories.js?v=stories-9"></script>
   <script src="push.js?v=1795780670"></script>
   <script src="admin.js?v=staff-notice-15"></script>
