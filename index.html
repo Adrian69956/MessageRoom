@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MessageRoom</title>
-  <link rel="stylesheet" href="style.css?v=desktop-refresh-5">
+  <link rel="stylesheet" href="style.css?v=photo-editor-drag-6">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#0077ff">
@@ -282,7 +282,7 @@
       <button type="button" class="photo-tool-tab" data-photo-tab="compress"><span aria-hidden="true">✓</span><br>Сжать</button>
     </nav>
     <section class="photo-tool-panel active" data-photo-panel="crop">
-      <label>Формат <select id="photoCrop"><option value="original">Оригинал</option><option value="1:1">1:1</option><option value="3:4">3:4</option><option value="4:3">4:3</option><option value="9:16">9:16</option><option value="16:9">16:9</option><option value="4:5">4:5</option><option value="5:4">5:4</option></select></label>
+      <label>Формат <select id="photoCrop"><option value="original">Оригинал</option><option value="custom">Свободная</option><option value="1:1">1:1</option><option value="3:4">3:4</option><option value="4:3">4:3</option><option value="9:16">9:16</option><option value="16:9">16:9</option><option value="4:5">4:5</option><option value="5:4">5:4</option></select></label>
       <p>Перетаскивай рамку на фото, чтобы выбрать нужную область</p>
     </section>
     <section class="photo-tool-panel" data-photo-panel="draw">
@@ -293,7 +293,7 @@
     <section class="photo-tool-panel" data-photo-panel="text">
       <label class="photo-text-entry">Текст на фото <input id="photoText" type="text" maxlength="100" placeholder="Введите текст"></label>
       <div class="photo-text-controls"><label>Размер <input id="photoTextSize" type="range" min="16" max="100" value="42"></label><label>Цвет <input id="photoTextColor" type="color" value="#ffffff"></label><label>Шрифт <select id="photoTextFont"><option value="Arial">Arial</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option><option value="Impact">Impact</option><option value="cursive">Рукописный</option><option value="serif">С засечками</option></select></label></div>
-      <label class="photo-text-fill"><input id="photoTextFill" type="checkbox"> Подложка под текст</label>
+      <div class="photo-text-fill"><label><input id="photoTextFill" type="checkbox"> Подложка под текст</label><label>Цвет заливки <input id="photoTextFillColor" type="color" value="#000000"></label></div>
       <button type="button" class="photo-tool-action" id="photoAddText">Добавить на фото</button>
       <p>Текст можно добавить несколько раз — он появится на изображении</p>
     </section>
@@ -449,7 +449,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=1795780670"></script>
   <script src="auth.js?v=1795780670"></script>
-  <script src="script.js?v=desktop-refresh-5"></script>
+  <script src="script.js?v=photo-editor-drag-6"></script>
   <script src="push.js?v=1795780670"></script>
   <script src="admin.js?v=1795780670"></script>
 </body>
