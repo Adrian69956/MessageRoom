@@ -576,6 +576,10 @@ function safeMediaExtension(name) {
   const ext = (String(name).match(/\.[a-z0-9]{1,8}$/i) || [""])[0].toLowerCase();
   return ext || ".bin";
 }
+function safeMediaFilename(name) {
+  const clean = String(name || "photo").normalize("NFKC").replace(/[^a-z0-9а-яё._ -]/gi, "_").trim().replace(/[ .]+/g, "_").slice(0, 80);
+  return clean || "photo" + safeMediaExtension(name);
+}
 async function validateMediaFile(file, isPost) {
   const image = /^image\/(jpeg|png|webp|gif)$/i.test(file.type);
   const video = /^video\/(mp4|webm|quicktime)$/i.test(file.type);
@@ -611,30 +615,44 @@ async function getMediaSignedUrl(bucket, path) {
   try{return await promise;}catch(error){mediaSignedUrlCache.delete(key);throw error;}
 }
 async function appendMediaPreview(container, path, type, bucket) {
-  const wrap = el("div", "media-preview");
+  const isImage = type !== "video";
+  const storedName = (String(path).split("/").pop() || "").split("__").slice(1).join("__");
+  const filename = storedName || (isImage ? "Фото" : "Видео");
+  const wrap = el("div", "media-preview" + (isImage ? " media-attachment-card" : ""));
   wrap.append(el("div", "media-loading", "Загрузка медиа…"));
   container.append(wrap);
   let signedUrl;
-  try{signedUrl=await getMediaSignedUrl(bucket,path);}
-  catch(error){wrap.innerHTML="";wrap.append(el("div","media-error","Медиа недоступно"));return;}
-  wrap.innerHTML="";
+  try { signedUrl = await getMediaSignedUrl(bucket, path); }
+  catch (error) { wrap.replaceChildren(el("div", "media-error", "Медиа недоступно")); return; }
+  wrap.innerHTML = "";
   let node;
-  if (type === "video") {
+  if (!isImage) {
     node = document.createElement("video");
     node.controls = true; node.playsInline = true; node.preload = "metadata";
-  } else {
-    node = document.createElement("img");
-    node.alt = "Изображение";
-    node.loading = "eager";
-    node.decoding = "async";
-    node.referrerPolicy = "strict-origin-when-cross-origin";
-    node.addEventListener("error", () => { const err=el("div","media-error","Не удалось загрузить фото. Нажмите, чтобы повторить."); err.style.cursor="pointer"; err.addEventListener("click",()=>{mediaSignedUrlCache.delete(bucket+":"+path);wrap.innerHTML="";appendMediaPreview(container,path,type,bucket);}); wrap.replaceChildren(err); });
-    node.classList.add("media-openable");
-    node.title = "Нажмите, чтобы открыть фото";
-    node.addEventListener("click", () => openPhotoViewer(signedUrl, path.split("/").pop() || "messageroom-photo.jpg"));
+    node.src = signedUrl;
+    wrap.append(node);
+    return;
   }
+  const card = el("button", "media-file-card");
+  card.type = "button";
+  card.title = "Открыть фото";
+  node = document.createElement("img");
+  node.alt = filename;
+  node.loading = "eager";
+  node.decoding = "async";
+  node.referrerPolicy = "strict-origin-when-cross-origin";
+  node.addEventListener("error", () => {
+    const err = el("div", "media-error", "Фото не загрузилось. Нажмите, чтобы повторить.");
+    err.addEventListener("click", () => { mediaSignedUrlCache.delete(bucket + ":" + path); appendMediaPreview(container, path, type, bucket); });
+    wrap.replaceChildren(err);
+  });
   node.src = signedUrl;
-  wrap.append(node);
+  const details = el("span", "media-file-details");
+  details.append(el("span", "media-file-title", filename));
+  details.append(el("span", "media-file-subtitle", "Фото · нажмите, чтобы открыть"));
+  card.append(node, details);
+  card.addEventListener("click", () => openPhotoViewer(signedUrl, filename));
+  wrap.append(card);
 }
 
 function openPhotoViewer(url, filename) {
@@ -826,9 +844,15 @@ async function uploadChatMedia(file, messageText) {
   if (!c || !canWrite(c)) return false;
   const check = await validateMediaFile(file, false);
   if (check) { toast(check); return false; }
-  const path = c.id + "/" + me.id + "/" + crypto.randomUUID() + safeMediaExtension(file.name);
+  const path = c.id + "/" + me.id + "/" + crypto.randomUUID() + "__" + safeMediaFilename(file.name);
   toast("Загружаю файл…");
-  const up = await sb.storage.from("chat-media").upload(path, file, { contentType: file.type, upsert: false });
+  let up;
+  try {
+    up = await sb.storage.from("chat-media").upload(path, file, { contentType: file.type, upsert: false });
+  } catch (error) {
+    toast("Ошибка загрузки фото: " + (error.message || "проверьте соединение"));
+    return false;
+  }
   if (up.error) { toast("Не удалось загрузить: " + up.error.message); return false; }
   const row = { chat_id: c.id, text: messageText || null, media_path: path, media_type: file.type.startsWith("video/") ? "video" : "image", media_mime: file.type, media_size: file.size };
   if (replyTo) row.reply_to = replyTo.id;
