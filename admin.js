@@ -64,6 +64,24 @@ function userRow(u) {
   );
   row.append(info);
   if (u.id !== me.id) {
+    const deleteBtn = el("button", "admin-ban danger", "Удалить аккаунт");
+    deleteBtn.addEventListener("click", async () => {
+      if (!confirm("Полностью удалить аккаунт @" + u.username + "? Все данные пользователя будут удалены. Это нельзя отменить.")) return;
+      const phrase = prompt('Для подтверждения введи: УДАЛИТЬ');
+      if (phrase !== "УДАЛИТЬ") return;
+      deleteBtn.disabled = true;
+      const { data, error } = await sb.functions.invoke("delete-account", { body: { targetUserId: u.id } });
+      if (error || !data?.success) {
+        alert("Не удалось удалить аккаунт: " + (data?.error || error?.message || "неизвестная ошибка"));
+        deleteBtn.disabled = false;
+        return;
+      }
+      if (data.storageWarnings?.length) alert("Аккаунт удалён, но некоторые файлы не удалось очистить: " + data.storageWarnings.join("; "));
+      await searchAdminUsers();
+      await loadAdminStats();
+      await loadStaffRoles();
+    });
+    row.append(deleteBtn);
     const btn = el("button", "admin-ban" + (u.banned ? "" : " danger"), u.banned ? "Разблокировать" : "Заблокировать");
     btn.addEventListener("click", async () => {
       if (!u.banned && !confirm("Заблокировать " + u.display_name + "?")) return;
