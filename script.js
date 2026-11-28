@@ -2243,9 +2243,17 @@ async function toggleReaction(post, emoji) {
 }
 
 async function deletePost(post) {
-  if (!confirm("Удалить пост?")) return;
-  const { error } = await sb.from("posts").delete().eq("id", post.id);
-  if (error) { toast("Не удалось удалить: " + error.message); return; }
+  let result;
+  if (window.appStatus.is_admin_role && !window.appStatus.is_owner) {
+    const reason = prompt("Укажи, какое нарушение правил содержит публикация:");
+    if (!reason || !reason.trim()) return;
+    if (!confirm("Удалить публикацию за нарушение правил?")) return;
+    result = await sb.rpc("staff_delete_post", { target: post.id, reason: reason.trim() });
+  } else {
+    if (!confirm("Удалить пост?")) return;
+    result = await sb.from("posts").delete().eq("id", post.id);
+  }
+  if (result.error) { toast("Не удалось удалить: " + result.error.message); return; }
   await loadFeed();
 }
 
@@ -2267,8 +2275,15 @@ async function toggleComments(post, card) {
     if (c.author_id === me.id || window.appStatus.is_admin || window.appStatus.is_admin_role) {
       const del = el("button", "comment-del", "удалить");
       del.addEventListener("click", async () => {
-        const { error: err } = await sb.from("post_comments").delete().eq("id", c.id);
-        if (err) { toast("Не удалось: " + err.message); return; }
+        let result;
+        if (window.appStatus.is_admin_role && !window.appStatus.is_owner) {
+          const reason = prompt("Укажи, какое нарушение правил содержит комментарий:");
+          if (!reason || !reason.trim()) return;
+          result = await sb.rpc("staff_delete_comment", { target: c.id, reason: reason.trim() });
+        } else {
+          result = await sb.from("post_comments").delete().eq("id", c.id);
+        }
+        if (result.error) { toast("Не удалось: " + result.error.message); return; }
         await loadFeed();
       });
       row.append(del);
