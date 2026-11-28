@@ -6,6 +6,7 @@
   let targetUserId = null;
   let targetUsername = "";
   let userTicketId = null;
+  let currentUserTicket = null;
   let staffTicketId = null;
   let supportChannel = null;
   let supportCategory = "complaint";
@@ -91,7 +92,7 @@
   $id("railStaff").addEventListener("click",()=>openStaffAction());
 
   async function loadMyModerationStatus() {
-    if (!window.me) return;
+    if (!me) return;
     const {data,error}=await sb.rpc("get_my_moderation_status");
     const list=$id("myModerationList");
     if(!list)return;
@@ -148,7 +149,7 @@
     if(isOwner())loadStaffAssignees();
   }
   function openSupportUser(){
-    if(!window.me)return;
+    if(!me)return;
     supportOverlay.classList.add("open");
     supportHomeView();
     subscribeSupport();
@@ -166,7 +167,7 @@
   function closeSupport(){
     supportOverlay.classList.remove("open");
     if(supportChannel){sb.removeChannel(supportChannel);supportChannel=null;}
-    userTicketId=null;staffTicketId=null;
+    userTicketId=null;staffTicketId=null;currentUserTicket=null;
   }
   function subscribeSupport(){
     if(supportChannel)return;
@@ -214,14 +215,14 @@
     $id("supportSubject").value="";$id("supportDescription").value="";
     if(file)await uploadSupportFile(data,file,"supportUserReply","supportUserFile");
     btn.disabled=false;
-    userTicketId=data;
+    userTicketId=data;currentUserTicket={id:data,category,subject,status:"open"};
     $id("supportHome").style.display="none";$id("supportUserChat").style.display="block";
-    $id("supportUserTicketTitle").textContent=categoryLabel(category)+" · "+subject;
+    renderUserTicketHeader();
     await loadTicketMessages(data,"supportUserMessages");
     toast("Обращение отправлено");
   });
   $id("supportUserBack").addEventListener("click",()=>{
-    userTicketId=null;$id("supportHome").style.display="block";$id("supportUserChat").style.display="none";loadMyTickets();
+    userTicketId=null;currentUserTicket=null;$id("supportHome").style.display="block";$id("supportUserChat").style.display="none";loadMyTickets();
   });
   async function loadMyTickets(){
     const list=$id("mySupportTickets");list.innerHTML="Загрузка…";
@@ -236,9 +237,18 @@
       b.append(strong,small);b.addEventListener("click",()=>openUserTicket(t));list.append(b);
     });
   }
+  function renderUserTicketHeader(){
+    const title=$id("supportUserTicketTitle");title.innerHTML="";
+    const text=document.createElement("span");text.textContent=categoryLabel(currentUserTicket.category)+" · "+currentUserTicket.subject+" · "+ticketStatus(currentUserTicket.status);title.append(text);
+    if(currentUserTicket.status==="closed"){
+      const reopen=document.createElement("button");reopen.className="link-btn";reopen.textContent="Вернуть в работу";
+      reopen.addEventListener("click",async()=>{const {error}=await sb.rpc("support_reopen_ticket",{ticket:currentUserTicket.id});if(error){toast("Ошибка: "+error.message);return;}currentUserTicket.status="open";renderUserTicketHeader();$id("supportUserSend").disabled=false;toast("Обращение снова открыто");});title.append(reopen);
+    }
+    $id("supportUserSend").disabled=currentUserTicket.status==="closed";
+  }
   async function openUserTicket(ticket){
-    userTicketId=ticket.id;$id("supportHome").style.display="none";$id("supportUserChat").style.display="block";
-    $id("supportUserTicketTitle").textContent=categoryLabel(ticket.category)+" · "+ticket.subject+" · "+ticketStatus(ticket.status);
+    userTicketId=ticket.id;currentUserTicket=ticket;$id("supportHome").style.display="none";$id("supportUserChat").style.display="block";
+    renderUserTicketHeader();
     await loadTicketMessages(ticket.id,"supportUserMessages");
   }
 
