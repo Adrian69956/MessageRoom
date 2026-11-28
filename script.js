@@ -1963,7 +1963,7 @@ function refreshInfo() {
     if (p.bio) rows.append(infoRow(ICONS.info, p.bio, "О себе"));
     fillInfoExtra(p, rows);
   } else if (isSystemChat(c)) {
-    rows.append(infoRow(ICONS.info, "Официальные новости и уведомления MessageRoom. Писать в этот чат может только администратор.", "Описание"));
+    rows.append(infoRow(ICONS.info, c.type === "notice" ? "Персональные сообщения от администрации и модерации. Ответить или удалить этот чат нельзя." : "Официальные новости и уведомления MessageRoom. Писать в этот чат может только администратор.", "Описание"));
   }
   const tg = el("label", "tg-item toggle");
   tg.append(svgEl(ICONS.bell, "ii plain"), document.createTextNode("Уведомления"));
