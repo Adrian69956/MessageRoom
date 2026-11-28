@@ -1617,6 +1617,9 @@ async function startApp(user) {
   const canSeeReports = !!(window.appStatus.is_owner || window.appStatus.is_moderator);
   $("railReports").style.display = canSeeReports ? "flex" : "none";
   $("railJournal").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator) ? "flex" : "none";
+  $("railStaff").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator) ? "flex" : "none";
+  $("railSupport").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role) ? "flex" : "none";
+  $("mmSupport").style.display = "flex";
   updateTitle();
   relinkPushSub();
   touchPresence(); refreshPresence();
@@ -2211,6 +2214,11 @@ function postCard(post) {
   const cbtn = el("button", "react comments-btn", "💬" + (comments ? " " + comments : ""));
   cbtn.addEventListener("click", () => toggleComments(post, card));
   actions.append(cbtn);
+  if (post.author_id !== me.id && typeof window.openStaffAction === "function" && (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator)) {
+    const staffBtn = el("button", "react staff-action-btn", window.appStatus.is_moderator ? "⚑ Предупредить" : "⚑ Ограничить");
+    staffBtn.addEventListener("click", () => window.openStaffAction(post.author_id, author.username));
+    actions.append(staffBtn);
+  }
   if (post.author_id !== me.id && typeof window.openPostReport === "function") {
     const reportBtn = el("button", "react post-report-btn", "⚑ Пожаловаться");
     reportBtn.type = "button";
@@ -2272,6 +2280,11 @@ async function toggleComments(post, card) {
     const row = el("div", "comment");
     row.append(el("b", "", authorOf(c.author_id).display_name || "Пользователь"));
     row.append(document.createTextNode(": " + c.text));
+    if (c.author_id !== me.id && typeof window.openStaffAction === "function" && (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator)) {
+      const staffBtn = el("button", "comment-del", window.appStatus.is_moderator ? "предупредить" : "ограничить");
+      staffBtn.addEventListener("click", () => window.openStaffAction(c.author_id, authorOf(c.author_id).username));
+      row.append(staffBtn);
+    }
     if (c.author_id === me.id || window.appStatus.is_admin || window.appStatus.is_admin_role) {
       const del = el("button", "comment-del", "удалить");
       del.addEventListener("click", async () => {
