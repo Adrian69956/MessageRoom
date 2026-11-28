@@ -273,8 +273,8 @@
         <div class="chat-media-pending" id="chatMediaPending" aria-live="polite"></div>
 <div class="photo-editor-backdrop" id="photoEditor" aria-hidden="true">
   <section class="photo-editor" role="dialog" aria-modal="true" aria-labelledby="photoEditorTitle">
-    <header class="photo-editor-head"><strong id="photoEditorTitle">Редактор фото</strong><div class="editor-switch"><button type="button" class="editor-switch-btn active" id="photoModeBtn" aria-label="Редактор фото" title="Фото"><span class="editor-switch-icon" aria-hidden="true">▧</span></button><button type="button" class="editor-switch-btn" id="photoToVideoBtn" aria-label="Редактор видео" title="Видео"><span class="editor-switch-icon" aria-hidden="true">▣▶</span><small id="videoModeFormat">—</small></button><button type="button" class="icon-btn" id="photoEditorClose" aria-label="Закрыть">×</button></div></header>
-    <div class="photo-editor-thumbnails" id="photoEditorThumbnails" aria-label="Выбранные фото"></div>
+    <header class="photo-editor-head"><strong id="photoEditorTitle">Редактор фото</strong><div class="editor-switch"><button type="button" class="icon-btn" id="photoEditorClose" aria-label="Закрыть">×</button></div></header>
+    <div class="photo-editor-thumbnails" id="photoEditorThumbnails" aria-label="Выбранные фото и видео"></div>
     <div class="photo-editor-stage"><canvas id="photoEditorCanvas"></canvas></div>
     <nav class="photo-editor-tabs" aria-label="Инструменты фото">
       <button type="button" class="photo-tool-tab active" data-photo-tab="crop"><span aria-hidden="true">▣</span><br>Обрезать</button>
@@ -308,7 +308,8 @@
 
 <div class="video-editor-backdrop" id="videoEditor" aria-hidden="true">
   <section class="video-editor" role="dialog" aria-modal="true" aria-labelledby="videoEditorTitle">
-    <header class="photo-editor-head"><div><strong id="videoEditorTitle">Редактор видео</strong><small id="videoEditorMeta">Подготовка видео</small></div><div class="editor-switch"><button type="button" class="editor-switch-btn" id="videoToPhotoBtn" aria-label="Редактор фото" title="Фото"><span class="editor-switch-icon" aria-hidden="true">▧</span></button><button type="button" class="editor-switch-btn active" id="videoModeBtn" aria-label="Редактор видео" title="Видео"><span class="editor-switch-icon" aria-hidden="true">▣▶</span><small id="videoModeFormatActive">—</small></button><button type="button" class="icon-btn" id="videoEditorClose" aria-label="Закрыть">×</button></div></header>
+    <header class="photo-editor-head"><div><strong id="videoEditorTitle">Редактор видео</strong><small id="videoEditorMeta">Подготовка видео</small></div><div class="editor-switch"><button type="button" class="icon-btn" id="videoEditorClose" aria-label="Закрыть">×</button></div></header>
+    <div class="photo-editor-thumbnails video-editor-thumbnails" id="videoEditorThumbnails" aria-label="Выбранные фото и видео"></div>
     <div class="video-editor-stage" id="videoEditorStage"><video id="videoEditorPlayer" playsinline preload="metadata"></video><canvas id="videoOverlayCanvas"></canvas><button type="button" id="videoEditorPlay" class="video-editor-play">▶</button></div>
     <div class="video-timeline-wrap">
       <div class="video-timeline" id="videoTimeline"><div class="video-trim-range" id="videoTrimRange"></div><div class="video-playhead" id="videoPlayhead"></div><input id="videoTrimStart" type="range" min="0" max="1000" value="0" aria-label="Начало обрезки"><input id="videoTrimEnd" type="range" min="0" max="1000" value="1000" aria-label="Конец обрезки"></div>
