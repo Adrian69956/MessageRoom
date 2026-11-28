@@ -624,7 +624,7 @@ function showPendingChatFile(file) {
 }
 
 
-let photoEditorImage = null, photoEditorDrawing = false, photoEditorStrokes = [], photoEditorText = [];
+let photoEditorImage = null, photoEditorDrawing = false, photoEditorStrokes = [], photoEditorText = [], photoEditorPreviewScale = 1;
 let photoEditorDown = false;
 function openPhotoEditor() {
   if (!pendingChatFile || !pendingChatFile.type.startsWith("image/")) return;
@@ -650,9 +650,9 @@ function photoCropRect() {
 function drawPhotoEditor() {
   if(!photoEditorImage)return;
   const canvas=$("photoEditorCanvas"), rect=photoCropRect(), scale=Math.min(900/rect.w,600/rect.h,1);
-  canvas.width=Math.max(1,Math.round(rect.w*scale)); canvas.height=Math.max(1,Math.round(rect.h*scale));
+  photoEditorPreviewScale=scale; canvas.width=Math.max(1,Math.round(rect.w*scale)); canvas.height=Math.max(1,Math.round(rect.h*scale));
   const ctx=canvas.getContext("2d"); ctx.drawImage(photoEditorImage,rect.x,rect.y,rect.w,rect.h,0,0,canvas.width,canvas.height);
-  photoEditorStrokes.forEach(stroke=>{ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width*scale;ctx.lineCap="round";ctx.beginPath();stroke.points.forEach((p,i)=>{if(!i)ctx.moveTo(p.x*scale,p.y*scale);else ctx.lineTo(p.x*scale,p.y*scale);});ctx.stroke();});
+  photoEditorStrokes.forEach(stroke=>{ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width*scale/photoEditorPreviewScale;ctx.lineCap="round";ctx.beginPath();stroke.points.forEach((p,i)=>{const k=scale/photoEditorPreviewScale;if(!i)ctx.moveTo(p.x*k,p.y*k);else ctx.lineTo(p.x*k,p.y*k);});ctx.stroke();});
   photoEditorText.forEach(t=>{ctx.font="bold "+Math.max(18,Math.round(canvas.width*.055))+"px sans-serif";ctx.textAlign="center";ctx.lineWidth=4;ctx.strokeStyle="#000";ctx.fillStyle="#fff";ctx.strokeText(t,canvas.width/2,canvas.height*.85);ctx.fillText(t,canvas.width/2,canvas.height*.85);});
 }
 $("photoCrop").addEventListener("change",drawPhotoEditor);
@@ -661,7 +661,7 @@ $("photoEditorCancel").addEventListener("click",()=>$("photoEditorClose").click(
 $("photoAddText").addEventListener("click",()=>{const t=$("photoText").value.trim();if(t){photoEditorText.push(t);$("photoText").value="";drawPhotoEditor();}});
 $("photoDrawToggle").addEventListener("click",()=>{photoEditorDrawing=!photoEditorDrawing;$("photoDrawToggle").textContent="Рисовать: "+(photoEditorDrawing?"вкл.":"выкл.");});
 const photoCanvas=$("photoEditorCanvas");
-photoCanvas.addEventListener("pointerdown",e=>{if(!photoEditorDrawing)return;photoEditorDown=true;photoCanvas.setPointerCapture(e.pointerId);const r=photoCanvas.getBoundingClientRect();photoEditorStrokes.push({color="#ff334f",width:4,points:[{x:(e.clientX-r.left)*photoCanvas.width/r.width,y:(e.clientY-r.top)*photoCanvas.height/r.height}]});});
+photoCanvas.addEventListener("pointerdown",e=>{if(!photoEditorDrawing)return;photoEditorDown=true;photoCanvas.setPointerCapture(e.pointerId);const r=photoCanvas.getBoundingClientRect();photoEditorStrokes.push({color:"#ff334f",width:4,points:[{x:(e.clientX-r.left)*photoCanvas.width/r.width,y:(e.clientY-r.top)*photoCanvas.height/r.height}]});});
 photoCanvas.addEventListener("pointermove",e=>{if(!photoEditorDown)return;const r=photoCanvas.getBoundingClientRect(),p=photoEditorStrokes[photoEditorStrokes.length-1];p.points.push({x:(e.clientX-r.left)*photoCanvas.width/r.width,y:(e.clientY-r.top)*photoCanvas.height/r.height});drawPhotoEditor();});
 ["pointerup","pointercancel"].forEach(ev=>photoCanvas.addEventListener(ev,()=>photoEditorDown=false));
 $("photoEditorSave").addEventListener("click",()=>{
@@ -681,7 +681,7 @@ $("photoEditorSave").addEventListener("click",()=>{
     const img=$("chatMediaPending").querySelector("img");if(img)img.src=pendingChatPreviewUrl;
     const size=$("chatMediaPending").querySelector(".chat-media-pending-size");if(size)size.textContent=Math.max(1,Math.round(out.size/1024))+" КБ"+(compressed?" · сжато":"");
     $("photoEditorClose").click();toast("Фото обработано");
-  },"image/jpeg",compressed?.72:.94);
+  },"image/jpeg",compressed ? 0.72 : 0.94);
 });
 
 async function uploadChatMedia(file, messageText) {
