@@ -833,7 +833,7 @@ const ve=id=>$("video"+id);
 function veTime(t){t=Math.max(0,t||0);return Math.floor(t/60)+":"+String(Math.floor(t%60)).padStart(2,"0");}
 function veBounds(prefix){const all=ve(prefix+"All").checked;return all?{start:0,end:videoDuration}:{start:Math.max(0,Number(ve(prefix+"In").value)||0),end:Math.min(videoDuration,Number(ve(prefix+"Out").value)||videoDuration)};}
 function veVisible(layer,t){return t>=layer.start&&t<=layer.end;}
-function setVideoTab(tab){videoMode=tab;ve("Stage").dataset.freeCrop=String(tab==="crop"&&ve("Crop").value==="free");document.querySelectorAll("[data-video-tab]").forEach(b=>b.classList.toggle("active",b.dataset.videoTab===tab));document.querySelectorAll("[data-video-panel]").forEach(p=>p.classList.toggle("active",p.dataset.videoPanel===tab));ve("OverlayCanvas").style.cursor=tab==="draw"?"crosshair":tab==="image"&&videoOverlayImage?"move":"default";drawVideoOverlay();}
+function setVideoTab(tab){videoMode=tab;$("videoEditorStage").dataset.freeCrop=String(tab==="crop"&&ve("Crop").value==="free");document.querySelectorAll("[data-video-tab]").forEach(b=>b.classList.toggle("active",b.dataset.videoTab===tab));document.querySelectorAll("[data-video-panel]").forEach(p=>p.classList.toggle("active",p.dataset.videoPanel===tab));ve("OverlayCanvas").style.cursor=tab==="draw"?"crosshair":tab==="image"&&videoOverlayImage?"move":"default";drawVideoOverlay();}
 function openVideoEditor(index){
  const item=pendingChatFiles[index];if(!item||!item.file.type.startsWith("video/"))return;
  videoEditIndex=index;videoEditFile=item.file;videoEditUrl=URL.createObjectURL(item.file);videoFreeCrop={x:.1,y:.1,w:.8,h:.8};videoCropDrag=null;videoStrokes=[];videoTexts=[];videoOverlayImage=null;videoDuration=0;videoTrimA=0;videoTrimB=0;
