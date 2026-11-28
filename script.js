@@ -128,7 +128,7 @@ function otherUserId(c) { return c.members.find((id) => id !== me.id); }
 function chatTitle(c) { return c.type === "private" ? nameOf(otherUserId(c)) : (c.title || "Чат"); }
 function isBlockedChat(c) { return c.type === "private" && blocked.has(otherUserId(c)); }
 function isSystemChat(c) { return c.type === "system" || c.type === "notice"; }
-function canWrite(c) { return (c.type === "notice" ? false : (!isSystemChat(c) || window.appStatus.is_admin)) && !isBlockedChat(c); }
+function canWrite(c) { if (!c || isBlockedChat(c) || c.type === "notice") return false; if (isSystemChat(c)) return !!window.appStatus.is_admin; if (c.type === "channel") return ["owner","admin"].includes(c.role); return c.memberSettings ? c.memberSettings.can_send_messages !== false : true; }
 function lastMessage(c) { return c.messages[c.messages.length - 1]; }
 function fmtMs(ms) {
   const total = Math.max(0, Math.round((ms || 0) / 1000));
@@ -233,7 +233,7 @@ async function fetchMessages(chatId, before, clearedAt) {
 async function loadAll() {
   const previousChats = new Map(chats.map(c => [c.id, c]));
   const { data: rows, error } = await sb.from("chat_members")
-    .select("chat_id, user_id, pinned, archived, muted, cleared_at, last_read_at, chats(id, type, title, created_at)");
+    .select("chat_id, user_id, pinned, archived, muted, cleared_at, last_read_at, role, can_send_messages, can_send_media, can_add_members, can_pin_messages, can_change_info, chats(id, type, title, description, photo_path, visibility, username, join_approval, history_visible, slow_mode_seconds, reactions_enabled, can_send_media, created_at)");
   if (error) { console.error(error); return; }
   const ids = [...new Set(rows.map((r) => r.chat_id))];
   const userIds = [...new Set(rows.map((r) => r.user_id).concat(me.id, [...blocked]))];
@@ -246,7 +246,7 @@ async function loadAll() {
     const others = group.filter((r) => r.user_id !== me.id);
     const clearedAt = mine.cleared_at ? new Date(mine.cleared_at).getTime() : 0;
     return {
-      id: id, type: mine.chats.type, title: mine.chats.title,
+      id: id, type: mine.chats.type, title: mine.chats.title, description: mine.chats.description || "", visibility: mine.chats.visibility || "private", username: mine.chats.username || null, joinApproval: !!mine.chats.join_approval, historyVisible: mine.chats.history_visible !== false, slowModeSeconds: mine.chats.slow_mode_seconds || 0, reactionsEnabled: mine.chats.reactions_enabled !== false, role: mine.role || "member", memberSettings: mine,
       createdAt: new Date(mine.chats.created_at).getTime(),
       pinned: mine.pinned, archived: mine.archived, muted: mine.muted, clearedAt: clearedAt,
       lastRead: new Date(mine.last_read_at).getTime(),
@@ -1673,6 +1673,39 @@ function go(id) { closeMenus(); screenStack.push(id); showScreen(id); }
 function back() { if (screenStack.length > 1) screenStack.pop(); showScreen(screenStack[screenStack.length - 1]); }
 document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", back));
 document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
+
+// ---------- Создание групп и каналов ----------
+let createChatKind = "group";
+let createChatSelected = new Map();
+let createChatSearchTimer = null;
+const createOverlay = $("chatCreateOverlay");
+function openCreateChat(kind) {
+  createChatKind = kind === "channel" ? "channel" : "group"; createChatSelected.clear();
+  $("chatCreateTitle").textContent = createChatKind === "group" ? "Создать группу" : "Создать канал";
+  $("chatCreateName").value = ""; $("chatCreateDescription").value = ""; $("chatCreateMemberSearch").value = ""; $("chatCreateUsername").value = "";
+  $("chatCreateApproval").checked = false; $("chatCreateHistory").checked = true; $("chatCreateMessage").textContent = "";
+  $("chatCreateMembersSection").style.display = createChatKind === "group" ? "" : "none";
+  document.querySelectorAll("[data-create-kind]").forEach(b=>b.classList.toggle("active",b.dataset.createKind===createChatKind));
+  createOverlay.classList.add("open"); createOverlay.setAttribute("aria-hidden","false"); renderCreateChatSelected(); renderCreateChatPeople([]);
+  setTimeout(()=>$("chatCreateName").focus(),50);
+}
+function closeCreateChat(){createOverlay.classList.remove("open");createOverlay.setAttribute("aria-hidden","true");}
+function renderCreateChatSelected(){const box=$("chatCreateSelected");box.innerHTML="";createChatSelected.forEach(p=>{const b=el("button","chat-create-chip",p.display_name+" ×");b.type="button";b.addEventListener("click",()=>{createChatSelected.delete(p.id);renderCreateChatSelected();});box.append(b);});}
+function renderCreateChatPeople(list){const box=$("chatCreatePeople");box.innerHTML="";if(!list.length){box.append(el("div","list-note","Начни вводить имя или @username"));return;}list.forEach(p=>{const b=el("button","chat-create-person");b.type="button";b.append(makeAvatar(p,"small"));const info=el("span","chat-create-person-info");info.append(el("strong","",p.display_name||"Пользователь"),el("small","","@"+(p.username||"")));b.append(info);b.append(el("span","chat-create-person-check",createChatSelected.has(p.id)?"✓":"＋"));b.addEventListener("click",()=>{if(createChatSelected.has(p.id))createChatSelected.delete(p.id);else createChatSelected.set(p.id,p);renderCreateChatSelected();renderCreateChatPeople(list);});box.append(b);});}
+$("chatCreateMemberSearch").addEventListener("input",()=>{clearTimeout(createChatSearchTimer);const q=$("chatCreateMemberSearch").value.trim().replace(/^@/,"");if(q.length<2){renderCreateChatPeople([]);return;}createChatSearchTimer=setTimeout(async()=>{const {data,error}=await sb.from("profiles").select("id,display_name,username,avatar_url").or("username.ilike.*"+q+"*,display_name.ilike.*"+q+"*").neq("id",me.id).limit(20);if(error){$("chatCreatePeople").textContent="Не удалось загрузить пользователей";return;}renderCreateChatPeople(data||[]);},250);});
+document.querySelectorAll("[data-create-kind]").forEach(b=>b.addEventListener("click",()=>openCreateChat(b.dataset.createKind)));
+document.querySelectorAll('input[name="chatCreateVisibility"]').forEach(r=>r.addEventListener("change",()=>{$("chatCreateUsernameWrap").hidden=document.querySelector('input[name="chatCreateVisibility"]:checked').value!=="public";}));
+$("chatCreateClose").addEventListener("click",closeCreateChat); createOverlay.addEventListener("click",e=>{if(e.target===createOverlay)closeCreateChat();});
+$("chatCreateSubmit").addEventListener("click",async()=>{
+ const title=$("chatCreateName").value.trim(), description=$("chatCreateDescription").value.trim(); const visibility=document.querySelector('input[name="chatCreateVisibility"]:checked').value; const username=$("chatCreateUsername").value.trim().toLowerCase(); const btn=$("chatCreateSubmit"),msg=$("chatCreateMessage");
+ if(!title){msg.textContent="Укажи название.";return;} if(createChatKind==="group"&&!createChatSelected.size){msg.textContent="Добавь хотя бы одного участника.";return;} if(visibility==="public"&&!/^[a-z0-9_]{5,32}$/.test(username)){msg.textContent="Проверь публичную ссылку: 5–32 символа, латиница, цифры и _.";return;}
+ btn.disabled=true;btn.textContent="Создаём…";msg.textContent="";
+ try{const {data,error}=await sb.rpc("create_group_or_channel",{p_kind:createChatKind,p_title:title,p_description:description,p_member_ids:[...createChatSelected.keys()],p_visibility:visibility,p_username:username||null,p_join_approval:$("chatCreateApproval").checked,p_history_visible:$("chatCreateHistory").checked});if(error)throw error;closeCreateChat();await loadAll();openChat(data);toast(createChatKind==="group"?"Группа создана":"Канал создан");}
+ catch(error){const map={username_taken:"Это публичное имя уже занято.",member_not_found:"Один из участников не найден.",group_needs_members:"Для группы нужен хотя бы один участник.",invalid_public_username:"Проверь публичную ссылку."};msg.textContent=map[error.message]||("Не удалось создать: "+(error.message||"ошибка"));}
+ finally{btn.disabled=false;btn.textContent="Создать";}
+});
+$("mmNewGroup").addEventListener("click",()=>{mainMenu.classList.remove("open");openCreateChat("group");});
+$("mmNewChannel").addEventListener("click",()=>{mainMenu.classList.remove("open");openCreateChat("channel");});
 
 $("menuBtn").addEventListener("click", (e) => {
   e.stopPropagation();
