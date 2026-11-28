@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MessageRoom</title>
-  <link rel="stylesheet" href="style.css?v=groups-3">
+  <link rel="stylesheet" href="style.css?v=create-flow-1">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#0077ff">
@@ -429,15 +429,47 @@
   </div>
   <div class="story-viewer-overlay" id="storyViewerOverlay" aria-hidden="true"><div class="story-viewer" id="storyViewer"><div class="story-viewer-bars" id="storyViewerBars"></div><div class="story-viewer-top"><div class="story-viewer-author" id="storyViewerAuthor"></div><button type="button" id="storyViewerClose" aria-label="Закрыть">×</button></div><div class="story-viewer-content" id="storyViewerContent"></div><button type="button" class="story-nav story-prev" id="storyPrev" aria-label="Предыдущая история"></button><button type="button" class="story-nav story-next" id="storyNext" aria-label="Следующая история"></button><div class="story-viewer-bottom" id="storyViewerBottom"></div></div></div>
 
-  <div class="overlay" id="chatCreateOverlay" aria-hidden="true">
+  <div class="overlay chat-create-overlay" id="chatCreateOverlay" aria-hidden="true">
     <section class="settings chat-create-window" role="dialog" aria-modal="true" aria-labelledby="chatCreateTitle">
-      <div class="settings-head"><h2 id="chatCreateTitle">Создать группу</h2><button class="icon-btn" id="chatCreateClose" type="button" aria-label="Закрыть">×</button></div>
-      <div class="chat-create-tabs"><button type="button" class="active" data-create-kind="group">Новая группа</button><button type="button" data-create-kind="channel">Новый канал</button></div>
-      <label class="field"><span>Название</span><input id="chatCreateName" maxlength="80" placeholder="Название"></label>
-      <label class="field"><span>Описание</span><textarea id="chatCreateDescription" rows="2" maxlength="255" placeholder="О чём это сообщество?"></textarea></label>
-      <div class="settings-section" id="chatCreateMembersSection"><div class="settings-title">Добавить участников</div><input id="chatCreateMemberSearch" placeholder="Поиск по имени или @username"><div id="chatCreateSelected" class="chat-create-selected"></div><div id="chatCreatePeople" class="chat-create-people"><div class="list-note">Найди пользователей по имени</div></div></div>
-      <div class="settings-section"><div class="settings-title">Тип сообщества</div><div class="chat-create-visibility"><label><input type="radio" name="chatCreateVisibility" value="private" checked> Частная</label><label><input type="radio" name="chatCreateVisibility" value="public"> Публичная</label></div><div class="hint">Частная — доступ по приглашению. Публичная — можно найти по ссылке.</div><label class="field" id="chatCreateUsernameWrap" hidden><span>Публичная ссылка (5–32 символа)</span><input id="chatCreateUsername" maxlength="32" placeholder="my_community"></label><label class="tg-item toggle"><span>Заявки на вступление</span><input type="checkbox" id="chatCreateApproval"><i class="switch"></i></label><label class="tg-item toggle"><span>Показывать историю новым участникам</span><input type="checkbox" id="chatCreateHistory" checked><i class="switch"></i></label></div>
-      <div class="settings-msg" id="chatCreateMessage"></div><button class="save-btn" id="chatCreateSubmit" type="button">Создать</button>
+      <div class="create-pane" id="createChooser">
+        <div class="settings-head"><h2>Создать</h2><button class="icon-btn" id="chatCreateClose" type="button" aria-label="Закрыть">×</button></div>
+        <div class="create-choice-list">
+          <button type="button" id="chooseCreateGroup"><span class="create-choice-icon">👥</span><span><b>Создать группу</b><small>Общайтесь с друзьями</small></span><span>›</span></button>
+          <button type="button" id="chooseCreateChannel"><span class="create-choice-icon">📢</span><span><b>Создать канал</b><small>Публикуйте новости и записи</small></span><span>›</span></button>
+        </div>
+      </div>
+      <div class="create-pane" id="createGroupPeople" hidden>
+        <header class="create-header"><button type="button" class="create-back" data-create-back="chooser" aria-label="Назад">‹</button><h2>Добавить участников</h2><button type="button" class="create-close" data-create-close aria-label="Закрыть">×</button></header>
+        <input id="chatCreateMemberSearch" class="create-search" placeholder="Поиск контактов" autocomplete="off">
+        <div id="chatCreateSelected" class="chat-create-selected"></div>
+        <div id="chatCreatePeople" class="chat-create-people"><div class="list-note">Введите имя или @username, чтобы найти людей</div></div>
+        <footer class="create-footer"><button type="button" class="create-cancel" data-create-close>Отменить</button><button type="button" class="create-primary" id="groupPeopleNext">Далее</button></footer>
+      </div>
+      <div class="create-pane" id="createGroupDetails" hidden>
+        <header class="create-header"><button type="button" class="create-back" data-create-back="people" aria-label="Назад">‹</button><h2>Создать группу</h2><button type="button" class="create-close" data-create-close aria-label="Закрыть">×</button></header>
+        <div class="create-avatar-row"><label class="create-avatar-pick" for="chatCreateAvatar"><span id="chatCreateAvatarPreview">＋</span><small>Фото</small></label><input id="chatCreateAvatar" type="file" accept="image/*" hidden><label class="create-name-field"><span>Название группы</span><input id="chatCreateName" maxlength="80" placeholder="Название группы" autocomplete="off"></label></div>
+        <div class="settings-msg" id="chatCreateMessage"></div>
+        <footer class="create-footer"><button type="button" class="create-cancel" data-create-close>Отменить</button><button type="button" class="create-primary" id="groupCreateSubmit" disabled>Далее</button></footer>
+      </div>
+      <div class="create-pane" id="createChannelDetails" hidden>
+        <header class="create-header"><button type="button" class="create-back" data-create-back="chooser" aria-label="Назад">‹</button><h2>Создать канал</h2><button type="button" class="create-close" data-create-close aria-label="Закрыть">×</button></header>
+        <label class="create-avatar-pick create-avatar-large" for="chatCreateAvatar"><span id="chatCreateAvatarPreview">＋</span><small>Добавить фото</small></label>
+        <input id="chatCreateAvatar" type="file" accept="image/*" hidden>
+        <label class="create-field"><span>Название канала</span><input id="chatCreateName" maxlength="80" placeholder="Название канала" autocomplete="off"></label>
+        <label class="create-field"><span>Описание</span><textarea id="chatCreateDescription" maxlength="1000" rows="3" placeholder="Расскажите о канале (до 1000 символов)"></textarea><small id="channelDescriptionCount">0 / 1000</small></label>
+        <label class="create-field"><span>Юзернейм канала</span><input id="chatCreateUsername" maxlength="32" placeholder="например, my_channel" autocomplete="off"><small>Для публичного канала: 5–32 символа, латиница, цифры и _</small></label>
+        <div class="settings-msg" id="channelCreateMessage"></div>
+        <footer class="create-footer"><button type="button" class="create-primary" id="channelDetailsNext" disabled>Создать канал</button><button type="button" class="create-cancel" data-create-close>Не создавать</button></footer>
+      </div>
+      <div class="create-pane create-success-pane" id="createChannelSuccess" hidden>
+        <header class="create-header"><button type="button" class="create-back" data-create-back="channel" aria-label="Назад">‹</button><h2>Поздравляем, канал создан!</h2><button type="button" class="create-close" data-create-close aria-label="Закрыть">×</button></header>
+        <div class="create-confetti" aria-hidden="true">🎉</div>
+        <h3>Выберите тип канала</h3>
+        <label class="create-type-option"><input type="radio" name="channelVisibility" value="private" checked><span><b>Приватный</b><small>Канал доступен только по пригласительной ссылке</small></span></label>
+        <label class="create-type-option"><input type="radio" name="channelVisibility" value="public"><span><b>Публичный</b><small>Канал можно найти в поиске</small></span></label>
+        <div class="settings-msg" id="channelVisibilityMessage"></div>
+        <footer class="create-footer"><span></span><button type="button" class="create-primary" id="channelFinish">Продолжить</button></footer>
+      </div>
     </section>
   </div>
 
@@ -701,7 +733,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=1795780670"></script>
   <script src="auth.js?v=1795780670"></script>
-  <script src="script.js?v=groups-2"></script>
+  <script src="script.js?v=create-flow-1"></script>
   <script src="stories.js?v=stories-9"></script>
   <script src="push.js?v=1795780670"></script>
   <script src="admin.js?v=staff-notice-15"></script>
