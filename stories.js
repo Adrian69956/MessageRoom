@@ -462,7 +462,7 @@
     if(!confirm("Удалить эту историю?"))return;
     const {error}=await sb.from("stories").delete().eq("id",s.id).eq("user_id",me.id);
     if(error){if(typeof toast==="function")toast("Не удалось удалить историю");return;}
-    if(s.media_path)await sb.storage.from("story-media").remove([s.media_path]);
+    const mediaToRemove=[s.media_path,s.overlay_path].filter(Boolean);if(mediaToRemove.length)await sb.storage.from("story-media").remove(mediaToRemove);
     storyRows=storyRows.filter(x=>x.id!==s.id);
     viewerStories.splice(activeStoryIndex,1);
     await loadStories();
