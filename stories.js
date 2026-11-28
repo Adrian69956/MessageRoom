@@ -204,7 +204,7 @@
     canvas.onpointerup=()=>{if(drawing){drawing=false;snapshot();}};
   }
 
-  function openStoryPhotoEditor(file) {
+  function openStoryPhotoEditor(file, onSave) {
     let modal=$s("storyPhotoEditor");
     if(!modal){
       modal=node("div","story-photo-editor");modal.id="storyPhotoEditor";
@@ -225,7 +225,7 @@
       if(state.tool==="text")openCanvasTextEditor(canvas,ctx,state,snapshot);
     });
     modal.querySelectorAll("[data-color]").forEach(button=>button.onclick=()=>{state.color=button.dataset.color;});
-    modal.querySelector("[data-photo-save]").onclick=()=>canvas.toBlob(blob=>{if(blob){editedMediaFile=new File([blob],"story-edited.jpg",{type:"image/jpeg"});$s("storyFileName").textContent=editedMediaFile.name+" · изменено";modal.classList.remove("open");}},"image/jpeg",.92);
+    modal.querySelector("[data-photo-save]").onclick=()=>canvas.toBlob(async blob=>{if(blob){const edited=new File([blob],"story-edited.jpg",{type:"image/jpeg"});if(onSave){try{await onSave(edited);modal.classList.remove("open");}catch(error){if(typeof toast==="function")toast(error.message||"Не удалось сохранить изменения");}}else{editedMediaFile=edited;$s("storyFileName").textContent=editedMediaFile.name+" · изменено";modal.classList.remove("open");}}},"image/jpeg",.92);
     image.onload=()=>{
       const scale=Math.min(1,1800/Math.max(image.naturalWidth,image.naturalHeight));
       canvas.width=Math.round(image.naturalWidth*scale);canvas.height=Math.round(image.naturalHeight*scale);
@@ -535,8 +535,31 @@
     const old=$s("storyOwnerMenuPopup");if(old){old.remove();return;}
     const popup=node("div","story-owner-menu-popup");popup.id="storyOwnerMenuPopup";
     const edit=node("button","","Изменить подпись");edit.type="button";
+    const editMedia=node("button","","Редактировать фото");editMedia.type="button";
     const remove=node("button","danger","Удалить историю");remove.type="button";
-    popup.append(edit,remove);$s("storyViewer").append(popup);
+    popup.append(edit,editMedia,remove);$s("storyViewer").append(popup);
+    editMedia.onclick=async()=>{
+      popup.remove();
+      if(story.story_type!=="photo"||!story.media_path){if(typeof toast==="function")toast("Редактирование медиа доступно для фото");return;}
+      try{
+        const {data,error}=await sb.storage.from("story-media").createSignedUrl(story.media_path,300);
+        if(error||!data?.signedUrl)throw error||new Error("Фото недоступно");
+        const response=await fetch(data.signedUrl);if(!response.ok)throw new Error("Не удалось загрузить фото");
+        const blob=await response.blob();
+        const file=new File([blob],"story-original."+((blob.type.split("/")[1]||"jpg").replace("jpeg","jpg")),{type:blob.type||"image/jpeg"});
+        openStoryPhotoEditor(file,async edited=>{
+          const newPath=me.id+"/"+story.id+"__edited_"+Date.now()+".jpg";
+          const upload=await sb.storage.from("story-media").upload(newPath,edited,{contentType:"image/jpeg",upsert:false});
+          if(upload.error)throw upload.error;
+          const update=await sb.from("stories").update({media_path:newPath}).eq("id",story.id).eq("user_id",me.id);
+          if(update.error){await sb.storage.from("story-media").remove([newPath]);throw update.error;}
+          await sb.storage.from("story-media").remove([story.media_path]);
+          story.media_path=newPath;
+          await loadStories();await renderViewerStory();
+          if(typeof toast==="function")toast("Фото обновлено");
+        });
+      }catch(error){if(typeof toast==="function")toast(error.message||"Не удалось открыть редактор");}
+    };
     edit.onclick=async()=>{
       popup.remove();
       const caption=prompt("Новая подпись:",story.text||"");
