@@ -536,6 +536,7 @@
       .on("postgres_changes",{event:"*",schema:"public",table:"profile_visits"},loadStories)
       .on("postgres_changes",{event:"*",schema:"public",table:"close_friends"},loadStories)
       .on("postgres_changes",{event:"*",schema:"public",table:"story_views"},loadStories)
+      .on("postgres_changes",{event:"*",schema:"public",table:"story_likes"},loadStories)
       .subscribe();
   };
   const oldSubscribe=window.subscribeRealtime;
