@@ -68,6 +68,7 @@
             <div class="tg-row" id="setBioRow"><span class="ii plain"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span><div><div id="setBioView"></div><div class="tg-sub">О себе</div></div></div>
           </div>
           <div class="tg-list">
+            <button class="tg-item" id="settingsSupportBtn"><span class="ii c-green"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v12H8l-4 4z"/><path d="M8 9h8M8 13h5"/></svg></span>Центр поддержки</button>
             <button class="tg-item" data-go="scrAccount"><span class="ii c-blue"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>Мой аккаунт</button>
             <button class="tg-item" data-go="scrPrivacy"><span class="ii c-gray"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>Конфиденциальность</button>
             <button class="tg-item" data-go="scrNotif"><span class="ii c-red"><svg class="ic" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>Уведомления и звуки</button>
@@ -597,6 +598,16 @@
       <div class="settings-head"><h2 id="supportTitle">Центр поддержки</h2><button class="icon-btn" id="supportClose" title="Закрыть"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
       <div id="supportUserView">
         <div id="supportHome">
+          <div class="settings-section">
+            <div class="settings-title">Выберите тип обращения</div>
+            <div class="support-quick-categories" id="supportQuickCategories">
+              <button type="button" data-support-category="complaint">Жалоба</button>
+              <button type="button" data-support-category="appeal">Апелляция</button>
+              <button type="button" data-support-category="question">Вопрос</button>
+              <button type="button" data-support-category="bug">Сообщить об ошибке</button>
+              <button type="button" data-support-category="other">Другое</button>
+            </div>
+          </div>
           <div class="settings-section">
             <div class="settings-title">Новое обращение</div>
             <label class="field"><span>Категория</span><select id="supportCategory">
