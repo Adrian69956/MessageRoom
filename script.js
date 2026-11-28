@@ -1614,6 +1614,9 @@ async function startApp(user) {
   $("adminOpen").style.display = admin ? "flex" : "none";
   $("mmAdmin").style.display = admin ? "flex" : "none";
   $("railAdmin").style.display = admin ? "flex" : "none";
+  const canSeeReports = !!(window.appStatus.is_owner || window.appStatus.is_moderator);
+  $("railReports").style.display = canSeeReports ? "flex" : "none";
+  $("railJournal").style.display = (window.appStatus.is_owner || window.appStatus.is_admin_role || window.appStatus.is_moderator) ? "flex" : "none";
   updateTitle();
   relinkPushSub();
   touchPresence(); refreshPresence();
@@ -2170,7 +2173,7 @@ function postCard(post) {
   info.append(el("div", "post-author", author.display_name || "Пользователь"));
   info.append(el("div", "post-time", fmtPostTime(post.created_at) + (post.edited_at ? " · изменено" : "")));
   head.append(info);
-  if (post.author_id === me.id || window.appStatus.is_admin) {
+  if (post.author_id === me.id || window.appStatus.is_admin || window.appStatus.is_admin_role) {
     const del = el("button", "icon-btn post-del");
     del.title = "Удалить пост";
     del.innerHTML = ICONS.trash;
@@ -2208,6 +2211,12 @@ function postCard(post) {
   const cbtn = el("button", "react comments-btn", "💬" + (comments ? " " + comments : ""));
   cbtn.addEventListener("click", () => toggleComments(post, card));
   actions.append(cbtn);
+  if (post.author_id !== me.id && typeof window.openPostReport === "function") {
+    const reportBtn = el("button", "react post-report-btn", "⚑ Пожаловаться");
+    reportBtn.type = "button";
+    reportBtn.addEventListener("click", () => window.openPostReport(post));
+    actions.append(reportBtn);
+  }
   card.append(actions);
 
   card.append(el("div", "post-comments"));
@@ -2234,9 +2243,17 @@ async function toggleReaction(post, emoji) {
 }
 
 async function deletePost(post) {
-  if (!confirm("Удалить пост?")) return;
-  const { error } = await sb.from("posts").delete().eq("id", post.id);
-  if (error) { toast("Не удалось удалить: " + error.message); return; }
+  let result;
+  if (window.appStatus.is_admin_role && !window.appStatus.is_owner) {
+    const reason = prompt("Укажи, какое нарушение правил содержит публикация:");
+    if (!reason || !reason.trim()) return;
+    if (!confirm("Удалить публикацию за нарушение правил?")) return;
+    result = await sb.rpc("staff_delete_post", { target: post.id, reason: reason.trim() });
+  } else {
+    if (!confirm("Удалить пост?")) return;
+    result = await sb.from("posts").delete().eq("id", post.id);
+  }
+  if (result.error) { toast("Не удалось удалить: " + result.error.message); return; }
   await loadFeed();
 }
 
@@ -2255,11 +2272,18 @@ async function toggleComments(post, card) {
     const row = el("div", "comment");
     row.append(el("b", "", authorOf(c.author_id).display_name || "Пользователь"));
     row.append(document.createTextNode(": " + c.text));
-    if (c.author_id === me.id || window.appStatus.is_admin) {
+    if (c.author_id === me.id || window.appStatus.is_admin || window.appStatus.is_admin_role) {
       const del = el("button", "comment-del", "удалить");
       del.addEventListener("click", async () => {
-        const { error: err } = await sb.from("post_comments").delete().eq("id", c.id);
-        if (err) { toast("Не удалось: " + err.message); return; }
+        let result;
+        if (window.appStatus.is_admin_role && !window.appStatus.is_owner) {
+          const reason = prompt("Укажи, какое нарушение правил содержит комментарий:");
+          if (!reason || !reason.trim()) return;
+          result = await sb.rpc("staff_delete_comment", { target: c.id, reason: reason.trim() });
+        } else {
+          result = await sb.from("post_comments").delete().eq("id", c.id);
+        }
+        if (result.error) { toast("Не удалось: " + result.error.message); return; }
         await loadFeed();
       });
       row.append(del);

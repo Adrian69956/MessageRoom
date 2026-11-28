@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MessageRoom</title>
-  <link rel="stylesheet" href="style.css?v=mobile-feed-fix-1">
+  <link rel="stylesheet" href="style.css?v=roles-reports-1">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#0077ff">
@@ -20,6 +20,8 @@
       <button class="rail-btn" data-rail="scrArchive" title="Архив"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg><span class="rail-label">Архив</span></button>
       <button class="rail-btn" data-rail="scrSettings" title="Настройки"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="rail-label">Настройки</span></button>
       <div class="rail-spacer"></div>
+      <button class="rail-btn rail-extra" id="railJournal" title="Журнал действий" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/><circle cx="18" cy="19" r="2"/></svg></button>
+      <button class="rail-btn rail-extra" id="railReports" title="Поддержка · Лента" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg></button>
       <button class="rail-btn rail-extra" id="railAdmin" title="Админ-панель" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></button>
       <button class="rail-btn rail-extra" id="railTheme" title="Ночной режим"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></button>
       <button class="rail-me rail-extra" id="railMe" title="Мой профиль"><div class="avatar" id="railAvatar"></div></button>
@@ -459,6 +461,12 @@
       </div>
 
       <div class="settings-section">
+        <div class="settings-title">Роли сотрудников</div>
+        <input type="text" id="roleSearch" placeholder="Найти пользователя по имени или @юзернейму">
+        <div class="admin-users" id="roleUsers"></div>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-title">Рассылка</div>
         <input type="text" id="bcSubject" placeholder="Заголовок (для push и почты)">
         <textarea id="bcText" placeholder="Текст уведомления" maxlength="4000"></textarea>
@@ -490,11 +498,58 @@
     </div>
   </div>
 
+
+  <div class="overlay" id="reportQueueOverlay">
+    <div class="settings admin report-queue">
+      <div class="settings-head">
+        <h2>Поддержка</h2>
+        <button class="icon-btn" id="reportQueueClose" title="Закрыть"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <div class="report-tabs"><button class="report-tab active" type="button">Лента</button></div>
+      <div class="report-filters">
+        <button type="button" class="report-filter active" data-report-filter="new">Новые</button>
+        <button type="button" class="report-filter" data-report-filter="all">Все</button>
+      </div>
+      <div id="reportQueueList" class="report-queue-list"><div class="list-note">Загрузка жалоб…</div></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="journalOverlay">
+    <div class="settings admin report-queue">
+      <div class="settings-head"><h2>Журнал действий</h2><button class="icon-btn" id="journalClose" title="Закрыть"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
+      <div id="journalList" class="report-queue-list"><div class="list-note">Загрузка журнала…</div></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="postReportDialog">
+    <div class="settings report-dialog">
+      <div class="settings-head">
+        <h2>Пожаловаться на публикацию</h2>
+        <button class="icon-btn" id="postReportClose" title="Закрыть"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <label class="field"><span>Причина жалобы</span>
+        <select id="postReportReason">
+          <option>Спам или реклама</option>
+          <option>Оскорбления и травля</option>
+          <option>Ненависть или дискриминация</option>
+          <option>Неприемлемый контент</option>
+          <option>Мошенничество</option>
+          <option>Нарушение авторских прав</option>
+          <option>Другое</option>
+        </select>
+      </label>
+      <label class="field"><span>Подробности (необязательно)</span><textarea id="postReportDetails" maxlength="1000" rows="3" placeholder="Опишите, что именно нарушает правила"></textarea></label>
+      <div class="settings-msg" id="postReportMsg"></div>
+      <button class="save-btn" id="postReportSubmit">Отправить жалобу</button>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=1795780670"></script>
   <script src="auth.js?v=1795780670"></script>
-  <script src="script.js?v=feed-init-null-crash-1"></script>
+  <script src="script.js?v=roles-reports-1"></script>
   <script src="push.js?v=1795780670"></script>
-  <script src="admin.js?v=1795780670"></script>
+  <script src="admin.js?v=roles-reports-1"></script>
+  <script src="reports.js?v=roles-reports-1"></script>
 </body>
 </html>
