@@ -220,7 +220,7 @@
       try{
         const {data,error}=await sb.storage.from("story-media").createSignedUrl(s.media_path,3600);
         if(error||!data?.signedUrl)throw error||new Error("Медиа недоступно");
-        if(s.story_type==="video"){const video=node("video","");video.src=data.signedUrl;video.controls=true;video.autoplay=true;video.playsInline=true;video.addEventListener("loadedmetadata",()=>{const start=Math.max(0,Number(s.trim_start_seconds)||0);const end=Number(s.trim_end_seconds)||video.duration;try{video.currentTime=start;}catch(_){}video.addEventListener("timeupdate",()=>{if(video.currentTime>=end){video.pause();try{video.currentTime=start;}catch(_){}}});});content.append(video);}
+        if(s.story_type==="video"){const video=node("video","");video.src=data.signedUrl;video.controls=false;video.autoplay=true;video.playsInline=true;video.addEventListener("loadedmetadata",()=>{const start=Math.max(0,Number(s.trim_start_seconds)||0);const end=Number(s.trim_end_seconds)||video.duration;try{video.currentTime=start;}catch(_){}video.addEventListener("timeupdate",()=>{if(video.currentTime>=end){video.pause();try{video.currentTime=start;video.play();}catch(_){}}});});content.append(video);}
         else{const img=node("img","");img.src=data.signedUrl;img.alt="История";content.append(img);}
       }catch(e){content.append(node("div","story-media-error","Медиа недоступно"));}
       if(s.text)content.append(node("div","story-caption",s.text));
