@@ -1691,7 +1691,7 @@ function renderCreateChatPeople(list){const box=$("chatCreatePeople");box.innerH
 function createChoiceMark(selected){return el("span","chat-create-person-check",selected?"✓":"＋");}
 function createAvatarPreview(file){createChatAvatarFile=file;if(createChatAvatarPreviewUrl)URL.revokeObjectURL(createChatAvatarPreviewUrl);createChatAvatarPreviewUrl=file?URL.createObjectURL(file):null;const preview=$(createChatKind==="group"?"chatCreateGroupAvatarPreview":"chatCreateChannelAvatarPreview");preview.innerHTML="";if(createChatAvatarPreviewUrl){const img=document.createElement("img");img.src=createChatAvatarPreviewUrl;preview.append(img);}else preview.textContent="＋";}
 $("createChatVisible").addEventListener("click",openCreateChooser);
-$("chooseCreateGroup").addEventListener("click",()=>{resetCreateChat("group");showCreatePane("createGroupPeople");});
+$("chooseCreateGroup").addEventListener("click",async()=>{resetCreateChat("group");showCreatePane("createGroupPeople");const {data,error}=await sb.from("profiles").select("id,display_name,username,avatar_url").neq("id",me.id).order("display_name").limit(100);if(!error&&data)renderCreateChatPeople(data);});
 $("chooseCreateChannel").addEventListener("click",()=>{resetCreateChat("channel");showCreatePane("createChannelDetails");});
 $("chatCreateClose").addEventListener("click",closeCreateChat);
 document.querySelectorAll("[data-create-close]").forEach(b=>b.addEventListener("click",closeCreateChat));
