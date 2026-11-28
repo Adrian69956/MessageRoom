@@ -1614,6 +1614,8 @@ async function startApp(user) {
   $("adminOpen").style.display = admin ? "flex" : "none";
   $("mmAdmin").style.display = admin ? "flex" : "none";
   $("railAdmin").style.display = admin ? "flex" : "none";
+  const canSeeReports = !!(window.appStatus.is_owner || window.appStatus.is_moderator);
+  $("railReports").style.display = canSeeReports ? "flex" : "none";
   updateTitle();
   relinkPushSub();
   touchPresence(); refreshPresence();
@@ -2170,7 +2172,7 @@ function postCard(post) {
   info.append(el("div", "post-author", author.display_name || "Пользователь"));
   info.append(el("div", "post-time", fmtPostTime(post.created_at) + (post.edited_at ? " · изменено" : "")));
   head.append(info);
-  if (post.author_id === me.id || window.appStatus.is_admin) {
+  if (post.author_id === me.id || window.appStatus.is_admin || window.appStatus.is_admin_role) {
     const del = el("button", "icon-btn post-del");
     del.title = "Удалить пост";
     del.innerHTML = ICONS.trash;
@@ -2208,6 +2210,12 @@ function postCard(post) {
   const cbtn = el("button", "react comments-btn", "💬" + (comments ? " " + comments : ""));
   cbtn.addEventListener("click", () => toggleComments(post, card));
   actions.append(cbtn);
+  if (post.author_id !== me.id && typeof window.openPostReport === "function") {
+    const reportBtn = el("button", "react post-report-btn", "⚑ Пожаловаться");
+    reportBtn.type = "button";
+    reportBtn.addEventListener("click", () => window.openPostReport(post));
+    actions.append(reportBtn);
+  }
   card.append(actions);
 
   card.append(el("div", "post-comments"));
@@ -2255,7 +2263,7 @@ async function toggleComments(post, card) {
     const row = el("div", "comment");
     row.append(el("b", "", authorOf(c.author_id).display_name || "Пользователь"));
     row.append(document.createTextNode(": " + c.text));
-    if (c.author_id === me.id || window.appStatus.is_admin) {
+    if (c.author_id === me.id || window.appStatus.is_admin || window.appStatus.is_admin_role) {
       const del = el("button", "comment-del", "удалить");
       del.addEventListener("click", async () => {
         const { error: err } = await sb.from("post_comments").delete().eq("id", c.id);
