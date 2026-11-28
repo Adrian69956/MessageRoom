@@ -448,15 +448,22 @@
     modal.classList.add("open");
   }
   async function openStoryOwnerMenu(story) {
-    const action=prompt("Введите действие: 1 — изменить подпись, 2 — удалить историю");
-    if(action==="2"){await deleteStory(story);return;}
-    if(action!=="1")return;
-    const caption=prompt("Новая подпись:",story.text||"");
-    if(caption===null)return;
-    const {error}=await sb.from("stories").update({text:caption.slice(0,2000)}).eq("id",story.id).eq("user_id",me.id);
-    if(error){if(typeof toast==="function")toast("Не удалось изменить историю");return;}
-    story.text=caption.slice(0,2000);await renderViewerStory();
-    if(typeof toast==="function")toast("История обновлена");
+    const old=$s("storyOwnerMenuPopup");if(old){old.remove();return;}
+    const popup=node("div","story-owner-menu-popup");popup.id="storyOwnerMenuPopup";
+    const edit=node("button","","Изменить подпись");edit.type="button";
+    const remove=node("button","danger","Удалить историю");remove.type="button";
+    popup.append(edit,remove);$s("storyViewer").append(popup);
+    edit.onclick=async()=>{
+      popup.remove();
+      const caption=prompt("Новая подпись:",story.text||"");
+      if(caption===null)return;
+      const {error}=await sb.from("stories").update({text:caption.slice(0,2000)}).eq("id",story.id).eq("user_id",me.id);
+      if(error){if(typeof toast==="function")toast("Не удалось изменить историю");return;}
+      story.text=caption.slice(0,2000);await renderViewerStory();
+      if(typeof toast==="function")toast("История обновлена");
+    };
+    remove.onclick=()=>{popup.remove();deleteStory(story);};
+    setTimeout(()=>document.addEventListener("pointerdown",function closeMenu(e){if(!popup.contains(e.target)){popup.remove();document.removeEventListener("pointerdown",closeMenu);}}),0);
   }
   async function deleteStory(s){
     if(!confirm("Удалить эту историю?"))return;
