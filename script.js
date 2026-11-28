@@ -398,7 +398,9 @@ function renderChatList() {
       const serviceInfo = el("div", "chat-info");
       const serviceTop = el("div", "chat-top");
       serviceTop.append(el("div", "chat-name", "Служебные уведомления"));
-      serviceInfo.append(serviceTop, el("div", "chat-bottom", el("div", "chat-last", "Отправить выбранному пользователю или всем")));
+      const serviceBottom = el("div", "chat-bottom");
+      serviceBottom.append(el("div", "chat-last", "Отправить выбранному пользователю или всем"));
+      serviceInfo.append(serviceTop, serviceBottom);
       serviceItem.append(serviceInfo);
       chatList.append(serviceItem);
     }
