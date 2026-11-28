@@ -599,7 +599,7 @@ async function appendMediaPreview(container, path, type, bucket) {
     node.title = "Нажмите, чтобы открыть фото";
     node.addEventListener("click", () => openPhotoViewer(signedUrl, path.split("/").pop() || "messageroom-photo.jpg"));
   }
-  node.src = data.signedUrl;
+  node.src = signedUrl;
   wrap.append(node);
 }
 
