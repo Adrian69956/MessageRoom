@@ -1645,7 +1645,7 @@ async function publishPost() {
   }
   const { error } = await sb.from("posts").insert({ text: text || null, ...(media || {}) });
   $("postSend").disabled = false;
-  if (error) { toast("Не опубликовалось: " + error.message); return; }
+  if (error) { if (media) await sb.storage.from("post-media").remove([media.media_path]); toast("Не опубликовалось: " + error.message); return; }
   field.value = ""; $("postMediaFile").value = ""; $("postMediaName").textContent = "";
   updatePostCount();
   await loadFeed();
