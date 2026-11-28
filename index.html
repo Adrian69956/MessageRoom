@@ -273,16 +273,34 @@
         <div class="chat-media-pending" id="chatMediaPending" aria-live="polite"></div>
 <div class="photo-editor-backdrop" id="photoEditor" aria-hidden="true">
   <section class="photo-editor" role="dialog" aria-modal="true" aria-labelledby="photoEditorTitle">
-    <header class="photo-editor-head"><strong id="photoEditorTitle">Настроить фото</strong><button type="button" class="icon-btn" id="photoEditorClose" aria-label="Закрыть">×</button></header>
+    <header class="photo-editor-head"><strong id="photoEditorTitle">Редактор фото</strong><button type="button" class="icon-btn" id="photoEditorClose" aria-label="Закрыть">×</button></header>
     <div class="photo-editor-stage"><canvas id="photoEditorCanvas"></canvas></div>
-    <div class="photo-editor-tools">
-      <label>Обрезка <select id="photoCrop"><option value="original">Без обрезки</option><option value="1:1">Квадрат 1:1</option><option value="4:3">4:3</option><option value="16:9">16:9</option></select></label>
-      <label class="photo-compress"><input type="checkbox" id="photoCompress" checked> Сжать фото</label>
-      <label class="photo-text-tool">Текст <input id="photoText" type="text" maxlength="100" placeholder="Напишите на фото"></label>
-      <button type="button" class="link-btn" id="photoAddText">Добавить текст</button>
-      <button type="button" class="link-btn" id="photoDrawToggle">Рисовать: выкл.</button>
-    </div>
-    <footer class="photo-editor-actions"><button type="button" class="link-btn" id="photoEditorCancel">Отмена</button><button type="button" class="save-btn" id="photoEditorSave">Готово</button></footer>
+    <nav class="photo-editor-tabs" aria-label="Инструменты фото">
+      <button type="button" class="photo-tool-tab active" data-photo-tab="crop"><span aria-hidden="true">▣</span><br>Обрезать</button>
+      <button type="button" class="photo-tool-tab" data-photo-tab="draw"><span aria-hidden="true">🖌</span><br>Рисовать</button>
+      <button type="button" class="photo-tool-tab" data-photo-tab="text"><b>T</b><br>Текст</button>
+      <button type="button" class="photo-tool-tab" data-photo-tab="compress"><span aria-hidden="true">✓</span><br>Сжать</button>
+    </nav>
+    <section class="photo-tool-panel active" data-photo-panel="crop">
+      <label>Формат <select id="photoCrop"><option value="original">Оригинал</option><option value="1:1">1:1</option><option value="3:4">3:4</option><option value="4:3">4:3</option><option value="9:16">9:16</option><option value="16:9">16:9</option><option value="4:5">4:5</option><option value="5:4">5:4</option></select></label>
+      <p>Перетаскивай рамку на фото, чтобы выбрать нужную область</p>
+    </section>
+    <section class="photo-tool-panel" data-photo-panel="draw">
+      <div class="photo-draw-controls"><label>Толщина <input id="photoBrushSize" type="range" min="1" max="36" value="5"><output id="photoBrushValue">5</output></label><label>Цвет <input id="photoBrushColor" type="color" value="#ff334f"></label></div>
+      <div class="photo-color-presets" id="photoColorPresets"><button type="button" data-color="#ffffff" style="--swatch:#fff" aria-label="Белый"></button><button type="button" data-color="#111111" style="--swatch:#111" aria-label="Чёрный"></button><button type="button" data-color="#ff334f" style="--swatch:#ff334f" aria-label="Красный"></button><button type="button" data-color="#ffb020" style="--swatch:#ffb020" aria-label="Оранжевый"></button><button type="button" data-color="#ffe04b" style="--swatch:#ffe04b" aria-label="Жёлтый"></button><button type="button" data-color="#28c76f" style="--swatch:#28c76f" aria-label="Зелёный"></button><button type="button" data-color="#2894ff" style="--swatch:#2894ff" aria-label="Синий"></button><button type="button" data-color="#b56cff" style="--swatch:#b56cff" aria-label="Фиолетовый"></button></div>
+      <p>Рисуй пальцем или мышью прямо на фото</p>
+    </section>
+    <section class="photo-tool-panel" data-photo-panel="text">
+      <label class="photo-text-entry">Текст на фото <input id="photoText" type="text" maxlength="100" placeholder="Введите текст"></label>
+      <div class="photo-text-controls"><label>Размер <input id="photoTextSize" type="range" min="16" max="100" value="42"></label><label>Цвет <input id="photoTextColor" type="color" value="#ffffff"></label><label>Шрифт <select id="photoTextFont"><option value="Arial">Arial</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option><option value="Impact">Impact</option><option value="cursive">Рукописный</option><option value="serif">С засечками</option></select></label></div>
+      <label class="photo-text-fill"><input id="photoTextFill" type="checkbox"> Подложка под текст</label>
+      <button type="button" class="photo-tool-action" id="photoAddText">Добавить на фото</button>
+      <p>Текст можно добавить несколько раз — он появится на изображении</p>
+    </section>
+    <section class="photo-tool-panel" data-photo-panel="compress">
+      <label class="photo-compress-choice"><input type="checkbox" id="photoCompress" checked><span><b>Сжать фото</b><small>Уменьшить размер файла для быстрой отправки</small></span><span class="photo-checkmark">✓</span></label>
+    </section>
+    <footer class="photo-editor-actions"><button type="button" class="link-btn photo-cancel" id="photoEditorCancel">Отмена</button><button type="button" class="save-btn photo-done" id="photoEditorSave">Готово</button></footer>
   </section>
 </div>
 
