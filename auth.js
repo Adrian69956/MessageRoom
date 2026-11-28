@@ -217,6 +217,8 @@ async function handleSession(user) {
     return;
   }
   const st = await loadStatus();
+  const deleteAccountBtn = document.getElementById("deleteAccountBtn");
+  if (deleteAccountBtn) deleteAccountBtn.style.display = st.is_owner ? "none" : "block";
   const reason = blockedReason(st, true);
   if (reason) {
     authScreen.style.display = "none";
@@ -280,6 +282,26 @@ logoutBtn.addEventListener("click", async () => {
   if (!confirm("Выйти из аккаунта?")) return;
   await sb.auth.signOut();
 });
+
+const deleteAccountBtn = document.getElementById("deleteAccountBtn");
+if (deleteAccountBtn) {
+  deleteAccountBtn.addEventListener("click", async () => {
+    if (!confirm("Удалить аккаунт навсегда? Профиль, публикации, сообщения и связанные данные будут удалены. Это действие нельзя отменить.")) return;
+    const phrase = prompt('Для подтверждения введи: УДАЛИТЬ');
+    if (phrase !== "УДАЛИТЬ") return;
+    deleteAccountBtn.disabled = true;
+    const msg = document.getElementById("deleteAccountMsg");
+    if (msg) msg.textContent = "Удаляем аккаунт…";
+    const { data, error } = await sb.functions.invoke("delete-account", { body: {} });
+    if (error || !data?.success) {
+      if (msg) msg.textContent = "Не удалось удалить аккаунт: " + (data?.error || error?.message || "неизвестная ошибка");
+      deleteAccountBtn.disabled = false;
+      return;
+    }
+    await sb.auth.signOut();
+    location.reload();
+  });
+}
 
 // Запускаем, когда загружены все файлы страницы
 document.addEventListener("DOMContentLoaded", () => {
