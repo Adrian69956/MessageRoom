@@ -164,7 +164,7 @@ function copyText(text, note) { navigator.clipboard.writeText(text).then(() => t
 
 // ---------- Загрузка данных ----------
 const MSG_PAGE = 30;        // сколько сообщений одного чата грузим за раз
-const MSG_COLUMNS = "id, chat_id, sender_id, text, created_at, edited_at, reply_to, voice_path, voice_ms";
+const MSG_COLUMNS = "id, chat_id, sender_id, text, created_at, edited_at, reply_to, voice_path, voice_ms, media_path, media_type, media_mime, media_size, media_duration_ms";
 
 // Последние MSG_PAGE сообщений чата. before — подгрузить те, что старше указанной даты.
 async function fetchMessages(chatId, before, clearedAt) {
@@ -425,6 +425,7 @@ function renderMessages(opts) {
     }
     const body = el("div", "text");
     if (m.voice_path) body.append(voicePlayer(m.voice_path, m.voice_ms));
+    if (m.media_path) appendMediaPreview(body, m.media_path, m.media_type, "chat-media");
     if (m.text) appendText(body, m.text);
     const meta = el("span", "meta");
     if (m.edited_at) meta.append(el("span", "edited", "изм."));
@@ -538,6 +539,72 @@ function cancelCompose() {
 }
 $("cbClose").addEventListener("click", cancelCompose);
 
+
+// ---------- Фото и видео в сообщениях и ленте ----------
+function safeMediaExtension(name) {
+  const ext = (String(name).match(/\.[a-z0-9]{1,8}$/i) || [""])[0].toLowerCase();
+  return ext || ".bin";
+}
+async function validateMediaFile(file, isPost) {
+  const image = /^image\/(jpeg|png|webp|gif)$/i.test(file.type);
+  const video = /^video\/(mp4|webm|quicktime)$/i.test(file.type);
+  if (!image && !video) return "Поддерживаются JPG, PNG, WebP, GIF, MP4, WebM и MOV";
+  const max = isPost ? 50 : 25;
+  if (file.size > max * 1024 * 1024) return "Файл слишком большой. Максимум " + max + " МБ";
+  if (isPost && video) {
+    const duration = await readVideoDuration(file);
+    if (!Number.isFinite(duration) || duration <= 0) return "Не удалось определить длительность видео";
+    if (duration > 60) return "Видео для ленты должно быть не длиннее 60 секунд";
+    file._mediaDurationMs = Math.round(duration * 1000);
+  }
+  return "";
+}
+function readVideoDuration(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file), video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => { const d = video.duration; URL.revokeObjectURL(url); resolve(d); };
+    video.onerror = () => { URL.revokeObjectURL(url); resolve(NaN); };
+    video.src = url;
+  });
+}
+async function appendMediaPreview(container, path, type, bucket) {
+  const wrap = el("div", "media-preview");
+  wrap.append(el("div", "media-loading", "Загрузка медиа…"));
+  container.append(wrap);
+  const { data, error } = await sb.storage.from(bucket).createSignedUrl(path, 3600);
+  wrap.innerHTML = "";
+  if (error || !data || !data.signedUrl) { wrap.append(el("div", "media-error", "Медиа недоступно")); return; }
+  let node;
+  if (type === "video") {
+    node = document.createElement("video");
+    node.controls = true; node.playsInline = true; node.preload = "metadata";
+  } else {
+    node = document.createElement("img");
+    node.alt = "Изображение";
+    node.loading = "lazy";
+  }
+  node.src = data.signedUrl;
+  wrap.append(node);
+}
+async function uploadChatMedia(file) {
+  const c = currentChat();
+  if (!c || !canWrite(c)) return;
+  const check = await validateMediaFile(file, false);
+  if (check) { toast(check); return; }
+  const path = c.id + "/" + me.id + "/" + crypto.randomUUID() + safeMediaExtension(file.name);
+  toast("Загружаю файл…");
+  const up = await sb.storage.from("chat-media").upload(path, file, { contentType: file.type, upsert: false });
+  if (up.error) { toast("Не удалось загрузить: " + up.error.message); return; }
+  const row = { chat_id: c.id, text: null, media_path: path, media_type: file.type.startsWith("video/") ? "video" : "image", media_mime: file.type, media_size: file.size };
+  const { data, error } = await sb.from("messages").insert(row).select().single();
+  if (error) {
+    await sb.storage.from("chat-media").remove([path]);
+    toast("Не удалось отправить: " + error.message); return;
+  }
+  addMessage(data, true);
+}
+
 async function sendMessage() {
   const c = currentChat();
   const text = input.value.trim();
@@ -568,6 +635,8 @@ async function sendMessage() {
   addMessage(data, true);
 }
 $("sendBtn").addEventListener("click", sendMessage);
+$("chatMediaBtn").addEventListener("click", () => $("chatMediaFile").click());
+$("chatMediaFile").addEventListener("change", async () => { const f = $("chatMediaFile").files[0]; if (f) await uploadChatMedia(f); $("chatMediaFile").value = ""; });
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.isComposing) {
     const send = prefs.enterSend ? !e.shiftKey : (e.ctrlKey || e.metaKey);
@@ -1391,7 +1460,7 @@ async function loadFeed() {
   try {
     await loadStatus();
     const { data, error } = await sb.from("posts")
-      .select("id, author_id, text, created_at, edited_at, voice_path, voice_ms, post_reactions(user_id, emoji), post_comments(count)")
+      .select("id, author_id, text, created_at, edited_at, voice_path, voice_ms, media_path, media_type, media_mime, media_size, media_duration_ms, post_reactions(user_id, emoji), post_comments(count)")
       .order("created_at", { ascending: false })
       .limit(40);
     if (error) { toast("Лента не загрузилась: " + error.message); return; }
@@ -1464,6 +1533,7 @@ function postCard(post) {
     card.append(text);
   }
   if (post.voice_path) card.append(voicePlayer(post.voice_path, post.voice_ms));
+  if (post.media_path) appendMediaPreview(card, post.media_path, post.media_type, "post-media");
 
   const actions = el("div", "post-actions");
   const reaction = reactionList(post);
@@ -1561,12 +1631,22 @@ async function toggleComments(post, card) {
 async function publishPost() {
   const field = $("postText");
   const text = field.value.trim();
-  if (!text) { toast("Напишите что-нибудь"); return; }
+  const file = $("postMediaFile").files[0] || null;
+  if (!text && !file) { toast("Добавьте текст или фото/видео"); return; }
   $("postSend").disabled = true;
-  const { error } = await sb.from("posts").insert({ text: text });
+  let media = null;
+  if (file) {
+    const check = await validateMediaFile(file, true);
+    if (check) { $("postSend").disabled = false; toast(check); return; }
+    const path = me.id + "/" + crypto.randomUUID() + safeMediaExtension(file.name);
+    const up = await sb.storage.from("post-media").upload(path, file, { contentType: file.type, upsert: false });
+    if (up.error) { $("postSend").disabled = false; toast("Не удалось загрузить файл: " + up.error.message); return; }
+    media = { media_path: path, media_type: file.type.startsWith("video/") ? "video" : "image", media_mime: file.type, media_size: file.size, media_duration_ms: file._mediaDurationMs || null };
+  }
+  const { error } = await sb.from("posts").insert({ text: text || null, ...(media || {}) });
   $("postSend").disabled = false;
-  if (error) { toast("Не опубликовалось: " + error.message); return; }
-  field.value = "";
+  if (error) { if (media) await sb.storage.from("post-media").remove([media.media_path]); toast("Не опубликовалось: " + error.message); return; }
+  field.value = ""; $("postMediaFile").value = ""; $("postMediaName").textContent = "";
   updatePostCount();
   await loadFeed();
 }
@@ -1580,4 +1660,6 @@ $("railFeed").addEventListener("click", (e) => { e.stopPropagation(); enterFeed(
 $("feedBack").addEventListener("click", exitFeed);
 $("feedRefresh").addEventListener("click", () => loadFeed());
 $("postText").addEventListener("input", updatePostCount);
+$("postMediaBtn").addEventListener("click", () => $("postMediaFile").click());
+$("postMediaFile").addEventListener("change", async () => { const f = $("postMediaFile").files[0]; if (!f) return; const err = await validateMediaFile(f, true); if (err) { toast(err); $("postMediaFile").value = ""; return; } $("postMediaName").textContent = f.name; });
 $("postSend").addEventListener("click", publishPost);
