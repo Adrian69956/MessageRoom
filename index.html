@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MessageRoom</title>
-  <link rel="stylesheet" href="style.css?v=multi-photo-editor-scroll-12">
+  <link rel="stylesheet" href="style.css?v=video-editor-1">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#0077ff">
@@ -305,6 +305,47 @@
   </section>
 </div>
 
+
+<div class="video-editor-backdrop" id="videoEditor" aria-hidden="true">
+  <section class="video-editor" role="dialog" aria-modal="true" aria-labelledby="videoEditorTitle">
+    <header class="photo-editor-head"><div><strong id="videoEditorTitle">Редактор видео</strong><small id="videoEditorMeta">Подготовка видео</small></div><button type="button" class="icon-btn" id="videoEditorClose" aria-label="Закрыть">×</button></header>
+    <div class="video-editor-stage"><video id="videoEditorPlayer" playsinline preload="metadata"></video><canvas id="videoOverlayCanvas"></canvas><button type="button" id="videoEditorPlay" class="video-editor-play">▶</button></div>
+    <div class="video-timeline-wrap">
+      <div class="video-timeline" id="videoTimeline"><div class="video-trim-range" id="videoTrimRange"></div><div class="video-playhead" id="videoPlayhead"></div><input id="videoTrimStart" type="range" min="0" max="1000" value="0" aria-label="Начало обрезки"><input id="videoTrimEnd" type="range" min="0" max="1000" value="1000" aria-label="Конец обрезки"></div>
+      <div class="video-time-row"><span id="videoCurrentTime">0:00</span><span>Перетаскивай края, чтобы обрезать видео</span><span id="videoDuration">0:00</span></div>
+    </div>
+    <nav class="photo-editor-tabs video-editor-tabs">
+      <button type="button" class="photo-tool-tab active" data-video-tab="crop">▣<br>Кадрировать</button>
+      <button type="button" class="photo-tool-tab" data-video-tab="draw">🖌<br>Рисовать</button>
+      <button type="button" class="photo-tool-tab" data-video-tab="text"><b>T</b><br>Текст</button>
+      <button type="button" class="photo-tool-tab" data-video-tab="image">▧<br>Фото</button>
+    </nav>
+    <section class="video-tool-panel active" data-video-panel="crop">
+      <label>Формат <select id="videoCrop"><option value="original">Оригинал</option><option value="1:1">1:1</option><option value="3:4">3:4</option><option value="4:3">4:3</option><option value="9:16">9:16</option><option value="16:9">16:9</option></select></label>
+      <p>Выбери формат кадра. При экспорте изображение будет вписано в выбранные пропорции.</p>
+    </section>
+    <section class="video-tool-panel" data-video-panel="draw">
+      <div class="video-tool-row"><label>Цвет <input id="videoBrushColor" type="color" value="#ff334f"></label><label>Толщина <input id="videoBrushSize" type="range" min="1" max="24" value="5"></label></div>
+      <div class="video-tool-row"><label>Появление, сек. <input id="videoDrawIn" type="number" min="0" step="0.1" value="0"></label><label>Исчезновение, сек. <input id="videoDrawOut" type="number" min="0" step="0.1" value="0"></label><label class="video-all-time"><input type="checkbox" id="videoDrawAll" checked> Всё видео</label></div>
+      <p>Рисуй прямо поверх видео. Если снять «Всё видео», задай время показа.</p>
+    </section>
+    <section class="video-tool-panel" data-video-panel="text">
+      <label>Текст <input id="videoTextValue" type="text" maxlength="100" placeholder="Введите текст"></label>
+      <div class="video-tool-row"><label>Цвет <input id="videoTextColor" type="color" value="#ffffff"></label><label>Размер <input id="videoTextSize" type="range" min="16" max="90" value="42"></label></div>
+      <div class="video-tool-row"><label>Появление, сек. <input id="videoTextIn" type="number" min="0" step="0.1" value="0"></label><label>Исчезновение, сек. <input id="videoTextOut" type="number" min="0" step="0.1" value="0"></label><label class="video-all-time"><input type="checkbox" id="videoTextAll" checked> Всё видео</label></div>
+      <button type="button" class="photo-tool-action" id="videoAddText">Добавить текст</button>
+    </section>
+    <section class="video-tool-panel" data-video-panel="image">
+      <label>Фото для наложения <input id="videoOverlayFile" type="file" accept="image/*"></label>
+      <div class="video-tool-row"><label>Размер <input id="videoOverlaySize" type="range" min="10" max="100" value="35"></label><label>Появление, сек. <input id="videoImageIn" type="number" min="0" step="0.1" value="0"></label><label>Исчезновение, сек. <input id="videoImageOut" type="number" min="0" step="0.1" value="0"></label></div>
+      <label class="video-all-time"><input type="checkbox" id="videoImageAll" checked> Всё видео</label>
+      <p>После выбора фото перетащи его в нужное место на видео.</p>
+    </section>
+    <footer class="photo-editor-actions"><button type="button" class="link-btn photo-cancel" id="videoEditorCancel">Отмена</button><button type="button" class="save-btn photo-done" id="videoEditorSave">Сохранить видео</button></footer>
+    <div class="video-editor-status" id="videoEditorStatus" aria-live="polite"></div>
+  </section>
+</div>
+
         <div class="compose-bar" id="composeBar">
           <span class="cb-icon" id="cbIcon"></span>
           <div class="cb-body"><div class="cb-title" id="cbTitle"></div><div class="cb-text" id="cbText"></div></div>
@@ -450,7 +491,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=1795780670"></script>
   <script src="auth.js?v=1795780670"></script>
-  <script src="script.js?v=multi-photo-editor-scroll-12"></script>
+  <script src="script.js?v=video-editor-1"></script>
   <script src="push.js?v=1795780670"></script>
   <script src="admin.js?v=1795780670"></script>
 </body>
