@@ -314,6 +314,45 @@
     const done=node("button","story-privacy-done","Готово");done.type="button";done.addEventListener("click",()=>{list.hidden=true;});list.append(done);
   }
 
+  async function exportTrimmedStoryVideo(file,start,end) {
+    const url=URL.createObjectURL(file);
+    const video=document.createElement("video");
+    video.preload="auto";video.playsInline=true;video.src=url;video.volume=0;
+    try {
+      await new Promise((resolve,reject)=>{
+        video.onloadedmetadata=resolve;video.onerror=()=>reject(new Error("Не удалось открыть видео для обрезки"));
+      });
+      const capture=video.captureStream||video.mozCaptureStream;
+      if(typeof capture!=="function") throw new Error("Этот браузер не поддерживает физическую обрезку видео. Попробуйте Chrome или Edge.");
+      const stream=capture.call(video);
+      const mimeTypes=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm","video/mp4"];
+      const mimeType=mimeTypes.find(type=>MediaRecorder.isTypeSupported(type));
+      if(!mimeType) throw new Error("Браузер не поддерживает экспорт обрезанного видео");
+      const recorder=new MediaRecorder(stream,{mimeType});
+      const chunks=[];
+      const blobPromise=new Promise((resolve,reject)=>{
+        recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
+        recorder.onerror=()=>reject(new Error("Ошибка обработки видео"));
+        recorder.onstop=()=>resolve(new Blob(chunks,{type:recorder.mimeType||mimeType}));
+      });
+      await new Promise((resolve,reject)=>{
+        const timeout=setTimeout(()=>reject(new Error("Не удалось перейти к выбранному фрагменту")),8000);
+        video.onseeked=()=>{clearTimeout(timeout);resolve();};
+        video.currentTime=start;
+      });
+      recorder.start(250);
+      const stopAtEnd=()=>{if(video.currentTime>=end&&recorder.state==="recording"){video.pause();recorder.stop();}};
+      video.addEventListener("timeupdate",stopAtEnd);
+      await video.play();
+      const blob=await blobPromise;
+      const ext=blob.type.includes("mp4")?"mp4":"webm";
+      if(!blob.size)throw new Error("Не удалось создать обрезанный видеофайл");
+      return new File([blob],file.name.replace(/\.[^.]+$/,"")+"_trimmed."+ext,{type:blob.type||mimeType,lastModified:Date.now()});
+    } finally {
+      video.pause();video.removeAttribute("src");video.load();URL.revokeObjectURL(url);
+    }
+  }
+
   async function publishStory() {
     const button=$s("storyPublish"), errorBox=$s("storyCreateError");
     errorBox.textContent="";
@@ -333,7 +372,16 @@
       if(video){
         const clipStart=Number($s("storyTrimStart").value)||0;
         const clipEnd=Number($s("storyTrimEnd").value)||trimDuration;
-        if(!trimDuration||clipEnd<=clipStart||clipEnd-clipStart>60){errorBox.textContent="Выберите фрагмент видео длительностью от 1 до 60 секунд";return;}
+        if(!trimDuration||clipEnd<=clipStart||clipEnd-clipStart>60||clipEnd-clipStart<1){errorBox.textContent="Выберите фрагмент видео длительностью от 1 до 60 секунд";return;}
+        try{
+          file=await exportTrimmedStoryVideo(file,clipStart,clipEnd);
+          $s("storyFileName").textContent=file.name+" · обрезано";
+          $s("storyTrimStart").value="0";
+          $s("storyTrimEnd").value=String(clipEnd-clipStart);
+          $s("storyFrameScrub").value=String(Math.max(0,Number($s("storyFrameScrub").value)-clipStart));
+          trimDuration=clipEnd-clipStart;
+          updateTrimLabels();
+        }catch(trimError){errorBox.textContent=trimError.message||"Не удалось обрезать видео";return;}
       }
     }
     button.disabled=true;button.textContent="Публикуем…";
