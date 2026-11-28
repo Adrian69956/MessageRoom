@@ -687,6 +687,22 @@ function openPhotoViewer(url, filename) {
   viewer.dataset.filename = (filename || "messageroom-photo.jpg").replace(/[^a-z0-9._-]/gi, "_");
   viewer.classList.add("show");
 }
+function isQueuedVideo(file){
+ if(!file)return false;
+ if(file.type&&file.type.startsWith("video/"))return true;
+ return /\.(mp4|m4v|mov|webm|ogv|ogg|3gp|mkv)$/i.test(file.name||"");
+}
+function openQueuedMediaEditor(index){
+ const item=pendingChatFiles[index];if(!item)return;
+ if(isQueuedVideo(item.file)){
+   const open=()=>{$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");photoEditorDrawing=false;openVideoEditor(index);};
+   if($("photoEditor").classList.contains("show")&&photoEditorImage)saveCurrentPhotoEdit(open);else open();
+ }else{
+   if(ve("Editor")?.classList.contains("show"))closeVideoEditor();
+   openPhotoEditor(index);
+ }
+}
+
 let pendingChatFiles=[];
 let pendingChatFile=null,pendingChatPreviewUrl=null,photoEditorIndex=0;
 function clearPendingChatFile(){
@@ -700,11 +716,11 @@ function renderPendingChatFiles(){
   if(!pendingChatFiles.length){preview.classList.remove("show");return;}
   pendingChatFiles.forEach((item,index)=>{
     const card=el("div","chat-media-pending-item");
-    const thumb=item.file.type.startsWith("video/")?el("video"):el("img");thumb.src=item.previewUrl;thumb.alt=item.file.name;
-    if(thumb.tagName==="VIDEO"){thumb.muted=true;thumb.playsInline=true;thumb.preload="metadata";}else thumb.addEventListener("click",()=>openPhotoEditor(index));
+    const thumb=isQueuedVideo(item.file)?el("video"):el("img");thumb.src=item.previewUrl;thumb.alt=item.file.name;
+    if(thumb.tagName==="VIDEO"){thumb.muted=true;thumb.playsInline=true;thumb.preload="metadata";}thumb.addEventListener("click",()=>openQueuedMediaEditor(index));
     const info=el("div","chat-media-pending-info");
     info.append(el("div","chat-media-pending-name",item.file.name),el("div","chat-media-pending-size",Math.max(1,Math.round(item.file.size/1024))+" КБ"));
-    if(item.file.type.startsWith("image/")){const edit=el("button","link-btn","Настроить фото");edit.type="button";edit.addEventListener("click",()=>openPhotoEditor(index));info.append(edit);}else if(item.file.type.startsWith("video/")){const edit=el("button","link-btn","Настроить видео");edit.type="button";edit.addEventListener("click",()=>openVideoEditor(index));info.append(edit);}
+    if(!isQueuedVideo(item.file)){const edit=el("button","link-btn","Настроить фото");edit.type="button";edit.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();openQueuedMediaEditor(index);});info.append(edit);}else if(isQueuedVideo(item.file)){const edit=el("button","link-btn","Настроить видео");edit.type="button";edit.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();openQueuedMediaEditor(index);});info.append(edit);}
     const remove=el("button","icon-btn chat-media-pending-remove","×");remove.type="button";remove.addEventListener("click",()=>{URL.revokeObjectURL(item.previewUrl);pendingChatFiles.splice(index,1);photoEditorIndex=Math.min(photoEditorIndex,Math.max(0,pendingChatFiles.length-1));pendingChatFile=pendingChatFiles[photoEditorIndex]?.file||null;updateQueuedVideoFormat();renderPendingChatFiles();});
     card.append(thumb,info,remove);preview.append(card);
   });
@@ -719,7 +735,7 @@ function showPendingChatFiles(files){
   renderPhotoEditorThumbnails();renderVideoEditorThumbnails();
   photoEditorIndex=pendingChatFiles.length-incoming.length;pendingChatFile=pendingChatFiles[photoEditorIndex].file;updateQueuedVideoFormat();renderPendingChatFiles();
 }
-function updateQueuedVideoFormat(){const video=pendingChatFiles.find(x=>x.file.type.startsWith("video/"));const format=video?veFormatName(video.file):"—";if($("videoModeFormat"))$("videoModeFormat").textContent=format;if($("videoModeFormatActive"))$("videoModeFormatActive").textContent=format;}
+function updateQueuedVideoFormat(){const video=pendingChatFiles.find(x=>isQueuedVideo(x.file));const format=video?veFormatName(video.file):"—";if($("videoModeFormat"))$("videoModeFormat").textContent=format;if($("videoModeFormatActive"))$("videoModeFormatActive").textContent=format;}
 function showPendingChatFile(file){showPendingChatFiles([file]);}
 
 let photoEditorSourceName="messageroom-photo.jpg";
@@ -836,7 +852,7 @@ function saveCurrentPhotoEdit(onDone){
 $("photoEditorSave").addEventListener("click",()=>saveCurrentPhotoEdit(()=>$("photoEditorClose").click()));
 function renderPhotoEditorThumbnails(){
   const strip=$("photoEditorThumbnails");if(!strip)return;strip.innerHTML="";
-  pendingChatFiles.forEach((item,index)=>{const b=el("button","photo-editor-thumb"+(index===photoEditorIndex?" active":""));b.type="button";const media=item.file.type.startsWith("video/")?el("video"):el("img");media.src=item.previewUrl;media.alt=item.file.name;if(media.tagName==="VIDEO"){media.muted=true;media.playsInline=true;media.preload="metadata";}b.append(media,el("span","",item.file.type.startsWith("video/")?"▶ "+(index+1):String(index+1)));b.addEventListener("click",()=>{if(index===photoEditorIndex)return;const open=()=>{if(item.file.type.startsWith("video/")){$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");openVideoEditor(index);}else openPhotoEditor(index);};if(photoEditorImage)saveCurrentPhotoEdit(open);else open();});strip.append(b);});
+  pendingChatFiles.forEach((item,index)=>{const b=el("button","photo-editor-thumb"+(index===photoEditorIndex?" active":""));b.type="button";const media=isQueuedVideo(item.file)?el("video"):el("img");media.src=item.previewUrl;media.alt=item.file.name;if(media.tagName==="VIDEO"){media.muted=true;media.playsInline=true;media.preload="metadata";}b.append(media,el("span","",isQueuedVideo(item.file)?"▶ "+(index+1):String(index+1)));b.addEventListener("click",()=>{if(index===photoEditorIndex)return;const open=()=>{if(isQueuedVideo(item.file)){$("photoEditor").classList.remove("show");$("photoEditor").setAttribute("aria-hidden","true");openVideoEditor(index);}else openPhotoEditor(index);};if($("photoEditor").classList.contains("show")&&photoEditorImage)saveCurrentPhotoEdit(open);else open();});strip.append(b);});
   const add=el("button","chat-media-add-more","+ Добавить фото/видео");add.type="button";add.addEventListener("click",()=>$("chatMediaFile").click());strip.append(add);
 }
 
@@ -849,9 +865,10 @@ function veTime(t){t=Math.max(0,t||0);return Math.floor(t/60)+":"+String(Math.fl
 function veBounds(prefix){const all=ve(prefix+"All").checked;return all?{start:0,end:videoDuration}:{start:Math.max(0,Number(ve(prefix+"In").value)||0),end:Math.min(videoDuration,Number(ve(prefix+"Out").value)||videoDuration)};}
 function veVisible(layer,t){return t>=layer.start&&t<=layer.end;}
 function setVideoTab(tab){videoMode=tab;$("videoEditorStage").dataset.freeCrop=String(tab==="crop"&&ve("Crop").value==="free");document.querySelectorAll("[data-video-tab]").forEach(b=>b.classList.toggle("active",b.dataset.videoTab===tab));document.querySelectorAll("[data-video-panel]").forEach(p=>p.classList.toggle("active",p.dataset.videoPanel===tab));ve("OverlayCanvas").style.cursor=tab==="draw"?"crosshair":tab==="image"&&videoOverlayImage?"move":"default";drawVideoOverlay();}
-function renderVideoEditorThumbnails(){const strip=$("videoEditorThumbnails");if(!strip)return;strip.innerHTML="";pendingChatFiles.forEach((item,index)=>{const b=el("button","photo-editor-thumb"+(index===videoEditIndex?" active":""));b.type="button";const media=item.file.type.startsWith("video/")?el("video"):el("img");media.src=item.previewUrl;media.alt=item.file.name;if(media.tagName==="VIDEO"){media.muted=true;media.playsInline=true;media.preload="metadata";}b.append(media,el("span","",item.file.type.startsWith("video/")?"▶ "+(index+1):String(index+1)));b.addEventListener("click",()=>{if(index===videoEditIndex)return;const next=()=>{closeVideoEditor();if(item.file.type.startsWith("video/"))openVideoEditor(index);else openPhotoEditor(index);};if(videoRecorder&&videoRecorder.state!=="inactive"){toast("Дождись завершения экспорта видео");return;}next();});strip.append(b);});const add=el("button","chat-media-add-more","+ Добавить фото/видео");add.type="button";add.addEventListener("click",()=>$("chatMediaFile").click());strip.append(add);}
+function renderVideoEditorThumbnails(){const strip=$("videoEditorThumbnails");if(!strip)return;strip.innerHTML="";pendingChatFiles.forEach((item,index)=>{const b=el("button","photo-editor-thumb"+(index===videoEditIndex?" active":""));b.type="button";const media=isQueuedVideo(item.file)?el("video"):el("img");media.src=item.previewUrl;media.alt=item.file.name;if(media.tagName==="VIDEO"){media.muted=true;media.playsInline=true;media.preload="metadata";}b.append(media,el("span","",isQueuedVideo(item.file)?"▶ "+(index+1):String(index+1)));b.addEventListener("click",()=>{if(index===videoEditIndex)return;if(videoRecorder&&videoRecorder.state!=="inactive"){toast("Дождись завершения экспорта видео");return;}closeVideoEditor();if(isQueuedVideo(item.file))openVideoEditor(index);else openPhotoEditor(index);});strip.append(b);});const add=el("button","chat-media-add-more","+ Добавить фото/видео");add.type="button";add.addEventListener("click",()=>$("chatMediaFile").click());strip.append(add);}
 function openVideoEditor(index){
- const item=pendingChatFiles[index];if(!item||!item.file.type.startsWith("video/"))return;
+ const item=pendingChatFiles[index];if(!item||!isQueuedVideo(item.file))return;
+ if(videoEditUrl){URL.revokeObjectURL(videoEditUrl);videoEditUrl=null;}
  videoEditIndex=index;renderVideoEditorThumbnails();videoEditFile=item.file;videoEditUrl=URL.createObjectURL(item.file);$("videoModeFormat").textContent=veFormatName(item.file);$("videoModeFormatActive").textContent=veFormatName(item.file);videoFreeCrop={x:.1,y:.1,w:.8,h:.8};videoCropDrag=null;videoStrokes=[];videoTexts=[];videoOverlayImage=null;videoDuration=0;videoTrimA=0;videoTrimB=0;
  const v=ve("EditorPlayer");v.pause();v.src=videoEditUrl;v.load();ve("Editor").classList.add("show");ve("Editor").setAttribute("aria-hidden","false");ve("EditorMeta").textContent=item.file.name;ve("EditorStatus").textContent="Загружаю видео…";
  v.onloadedmetadata=()=>{videoDuration=v.duration||0;videoTrimB=videoDuration;ve("Duration").textContent=veTime(videoDuration);ve("CurrentTime").textContent="0:00";ve("TrimStart").value=0;ve("TrimEnd").value=1000;updateVideoTimeline();resizeVideoOverlay();ve("EditorStatus").textContent="Готово к редактированию";drawVideoOverlay();};
