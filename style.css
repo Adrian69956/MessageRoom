@@ -650,6 +650,10 @@ input:checked + .switch { background: var(--grad); }
   flex: 1; overflow-y: auto; padding: 16px max(16px, calc((100% - 620px) / 2)) 28px;
   display: flex; flex-direction: column; gap: 12px;
 }
+.feed-sort-bar { display:flex; align-items:center; flex-wrap:wrap; gap:8px; position:sticky; top:0; z-index:4; padding:8px 10px; background:var(--bg-side); border-radius:12px; }
+.feed-sort-bar > span { color:var(--text-muted); font-size:13px; }
+.feed-sort-btn { border:1px solid var(--border); border-radius:18px; padding:7px 12px; background:var(--bg); color:var(--text); font:inherit; font-size:13px; cursor:pointer; }
+.feed-sort-btn.active { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
 .feed-compose { background: var(--bg); border-radius: 14px; box-shadow: var(--shadow); padding: 10px 12px; }
 .feed-compose textarea {
   width: 100%; border: none; outline: none; resize: vertical; min-height: 54px;
@@ -930,3 +934,6 @@ input:checked + .switch { background: var(--grad); }
 .editor-switch-icon{font-size:20px;line-height:1}
 .editor-switch-btn small{font-size:8px;line-height:1;font-weight:800;letter-spacing:.04em}
 @media(max-width:520px){.editor-switch{gap:4px}.editor-switch-btn{min-width:42px;width:42px;min-height:42px}}
+
+.post-view-count { display:inline-flex; align-items:center; color:var(--text-muted); font-size:13px; padding:7px 9px; margin-right:auto; }
+.app.feed-mode .feed { display:flex !important; }
