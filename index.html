@@ -278,13 +278,7 @@
         </button>
       </header>
       <div class="messages-wrap" id="messagesWrap">
-      <nav class="chat-content-tabs" id="chatContentTabs" aria-label="Содержимое чата">
-        <button type="button" class="active" data-content-tab="all">Все</button>
-        <button type="button" data-content-tab="media">Медиа</button>
-        <button type="button" data-content-tab="files">Файлы</button>
-        <button type="button" data-content-tab="voice">Голосовые</button>
-        <button type="button" data-content-tab="links">Ссылки</button>
-      </nav>
+      
         <div class="messages" id="messages"></div>
         <button class="to-bottom" id="toBottom" title="Вниз">
           <svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
@@ -416,6 +410,13 @@
           <div class="pc-name" id="infoName"></div>
           <div class="pc-status" id="infoStatus"></div>
         </div>
+        <nav class="chat-content-tabs profile-content-tabs" id="chatContentTabs" aria-label="Содержимое профиля">
+          <button type="button" class="active" data-content-tab="media">Медиа</button>
+          <button type="button" data-content-tab="files">Файлы</button>
+          <button type="button" data-content-tab="voice">Голосовые</button>
+          <button type="button" data-content-tab="links">Ссылки</button>
+          <button type="button" data-content-tab="members" id="profileMembersTab">Участники</button>
+        </nav>
         <div class="tg-list" id="infoRows"></div>
         <div class="tg-list" id="infoActions"></div>
       </div>
