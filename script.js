@@ -153,7 +153,7 @@ function makeAvatar(c_or_p, size) {
   if (c_or_p.members) {     // чат
     if (isSystemChat(c_or_p)) { a.classList.add("av-system"); a.innerHTML = ICONS.logo; return a; }
     const p = c_or_p.type === "private" ? profiles[otherUserId(c_or_p)] : null;
-    name = chatTitle(c_or_p); id = p ? p.id : c_or_p.id; url = p && p.avatar_url;
+    name = chatTitle(c_or_p); id = p ? p.id : c_or_p.id; url = c_or_p.type === "private" ? (p && p.avatar_url) : (c_or_p.photo_path || null);
   } else { name = c_or_p.display_name; id = c_or_p.id; url = c_or_p.avatar_url; }
   a.classList.add("av" + colorIndex(id));
   if (url) { const img = el("img"); img.src = url; img.alt = ""; img.onerror = () => img.remove(); a.append(img); }
@@ -247,7 +247,7 @@ async function loadAll() {
     const others = group.filter((r) => r.user_id !== me.id);
     const clearedAt = mine.cleared_at ? new Date(mine.cleared_at).getTime() : 0;
     return {
-      id: id, type: mine.chats.type, title: mine.chats.title, description: mine.chats.description || "", visibility: mine.chats.visibility || "private", username: mine.chats.username || null, joinApproval: !!mine.chats.join_approval, historyVisible: mine.chats.history_visible !== false, slowModeSeconds: mine.chats.slow_mode_seconds || 0, reactionsEnabled: mine.chats.reactions_enabled !== false, allowedReactions: mine.chats.allowed_reactions || ["❤️","👍","👎","🔥","🎉","😁","😢","😡"], usernameChangedAt: mine.chats.username_changed_at || null, role: mine.role || "member", memberSettings: mine,
+      id: id, type: mine.chats.type, title: mine.chats.title, description: mine.chats.description || "", visibility: mine.chats.visibility || "private", username: mine.chats.username || null, joinApproval: !!mine.chats.join_approval, historyVisible: mine.chats.history_visible !== false, slowModeSeconds: mine.chats.slow_mode_seconds || 0, canSendMedia: mine.chats.can_send_media !== false, reactionsEnabled: mine.chats.reactions_enabled !== false, allowedReactions: mine.chats.allowed_reactions || ["❤️","👍","👎","🔥","🎉","😁","😢","😡"], usernameChangedAt: mine.chats.username_changed_at || null, role: mine.role || "member", memberSettings: mine,
       createdAt: new Date(mine.chats.created_at).getTime(),
       pinned: mine.pinned, archived: mine.archived, muted: mine.muted, clearedAt: clearedAt,
       lastRead: new Date(mine.last_read_at).getTime(),
