@@ -181,6 +181,16 @@ async function fetchMessages(chatId, before, clearedAt) {
 }
 
 async function loadAll() {
+  const previousChats = new Map(chats.map(c => [c.id, c]));
+  const activeScroll = currentId && messagesBox ? {
+    top: messagesBox.scrollTop,
+    height: messagesBox.scrollHeight,
+    anchor: (() => {
+      const box = messagesBox.getBoundingClientRect();
+      const node = [...messagesBox.querySelectorAll(".message[data-id]")].find(n => n.getBoundingClientRect().bottom > box.top);
+      return node ? { id: node.dataset.id, offset: node.getBoundingClientRect().top - box.top } : null;
+    })()
+  } : null;
   const { data: rows, error } = await sb.from("chat_members")
     .select("chat_id, user_id, pinned, archived, muted, cleared_at, last_read_at, chats(id, type, title, created_at)");
   if (error) { console.error(error); return; }
@@ -201,14 +211,20 @@ async function loadAll() {
       lastRead: new Date(mine.last_read_at).getTime(),
       otherRead: others.length ? Math.max(...others.map((o) => new Date(o.last_read_at).getTime())) : 0,
       members: group.map((r) => r.user_id),
-      messages: [], hasMore: false, loadingOlder: false
+      messages: previousChats.has(id) ? previousChats.get(id).messages : [], hasMore: previousChats.has(id) ? previousChats.get(id).hasMore : false, loadingOlder: false
     };
   }).filter(Boolean);
   // История грузится отдельно для каждого чата: раньше один общий лимит на 1000
   // сообщений «съедал» старые переписки, теперь у каждого чата своя страница.
   await Promise.all(chats.map(async (c) => {
-    c.messages = await fetchMessages(c.id, null, c.clearedAt);
-    c.hasMore = c.messages.length === MSG_PAGE;
+    const fresh = await fetchMessages(c.id, null, c.clearedAt);
+    const previous = previousChats.get(c.id);
+    if (previous && previous.messages && previous.messages.length) {
+      const byId = new Map(previous.messages.map(m => [m.id, m]));
+      fresh.forEach(m => byId.set(m.id, m));
+      c.messages = [...byId.values()].sort((a,b) => new Date(a.created_at)-new Date(b.created_at));
+    } else c.messages = fresh;
+    c.hasMore = c.messages.length >= MSG_PAGE;
     // Точное число непрочитанных берём у базы: в памяти лежит только страница истории
     const { count } = await sb.from("messages").select("id", { count: "exact", head: true })
       .eq("chat_id", c.id)
@@ -220,6 +236,14 @@ async function loadAll() {
   if (currentId && !currentChat()) closeChat();
   syncTypingChannels();
   renderAll();
+  if (activeScroll && currentId) {
+    requestAnimationFrame(() => {
+      const anchor = activeScroll.anchor && messagesBox.querySelector('[data-id="' + activeScroll.anchor.id + '"]');
+      if (anchor) messagesBox.scrollTop += anchor.getBoundingClientRect().top - messagesBox.getBoundingClientRect().top - activeScroll.anchor.offset;
+      else messagesBox.scrollTop = Math.min(activeScroll.top, Math.max(0, messagesBox.scrollHeight - messagesBox.clientHeight));
+      updateToBottom();
+    });
+  }
 }
 async function loadProfiles(ids) {
   if (!ids.length) return;
@@ -387,6 +411,9 @@ function renderMessages(opts) {
   const c = currentChat();
   const keepBottom = isAtBottom();
   const prevTop = messagesBox.scrollTop;
+  const boxRect = messagesBox.getBoundingClientRect();
+  const anchorNode = [...messagesBox.querySelectorAll(".message[data-id]")].find(n => n.getBoundingClientRect().bottom > boxRect.top);
+  const scrollAnchor = anchorNode ? { id: anchorNode.dataset.id, offset: anchorNode.getBoundingClientRect().top - boxRect.top } : null;
   messagesBox.innerHTML = "";
   if (!c) return;
   messagesBox.dataset.wall = WALLPAPERS[prefs.wallpaper] || "default";
@@ -443,7 +470,11 @@ function renderMessages(opts) {
   }
   if (opts.scroll === "unread" && $("unreadSep")) $("unreadSep").scrollIntoView({ block: "center" });
   else if (opts.scroll === "bottom" || opts.scroll === "unread" || keepBottom) messagesBox.scrollTop = messagesBox.scrollHeight;
-  else messagesBox.scrollTop = prevTop;
+  else {
+    const anchor = scrollAnchor && messagesBox.querySelector('[data-id="' + scrollAnchor.id + '"]');
+    if (anchor) messagesBox.scrollTop += anchor.getBoundingClientRect().top - messagesBox.getBoundingClientRect().top - scrollAnchor.offset;
+    else messagesBox.scrollTop = prevTop;
+  }
   updateToBottom();
 }
 function jumpTo(id) {
@@ -594,7 +625,10 @@ async function appendMediaPreview(container, path, type, bucket) {
   } else {
     node = document.createElement("img");
     node.alt = "Изображение";
-    node.loading = "lazy";
+    node.loading = "eager";
+    node.decoding = "async";
+    node.referrerPolicy = "strict-origin-when-cross-origin";
+    node.addEventListener("error", () => { const err=el("div","media-error","Не удалось загрузить фото. Нажмите, чтобы повторить."); err.style.cursor="pointer"; err.addEventListener("click",()=>{mediaSignedUrlCache.delete(bucket+":"+path);wrap.innerHTML="";appendMediaPreview(container,path,type,bucket);}); wrap.replaceChildren(err); });
     node.classList.add("media-openable");
     node.title = "Нажмите, чтобы открыть фото";
     node.addEventListener("click", () => openPhotoViewer(signedUrl, path.split("/").pop() || "messageroom-photo.jpg"));
