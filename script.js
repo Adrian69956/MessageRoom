@@ -669,7 +669,7 @@ $("photoEditorSave").addEventListener("click",()=>{
   const rect=photoCropRect(), canvas=document.createElement("canvas"), maxSide=$("photoCompress").checked?1800:Math.max(rect.w,rect.h), scale=Math.min(1,maxSide/Math.max(rect.w,rect.h));
   canvas.width=Math.max(1,Math.round(rect.w*scale));canvas.height=Math.max(1,Math.round(rect.h*scale));
   const ctx=canvas.getContext("2d");ctx.drawImage(photoEditorImage,rect.x,rect.y,rect.w,rect.h,0,0,canvas.width,canvas.height);
-  photoEditorStrokes.forEach(stroke=>{ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width*scale;ctx.lineCap="round";ctx.beginPath();stroke.points.forEach((p,i)=>{if(!i)ctx.moveTo(p.x*scale,p.y*scale);else ctx.lineTo(p.x*scale,p.y*scale);});ctx.stroke();});
+  photoEditorStrokes.forEach(stroke=>{const k=scale/photoEditorPreviewScale;ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width*k;ctx.lineCap="round";ctx.beginPath();stroke.points.forEach((p,i)=>{if(!i)ctx.moveTo(p.x*k,p.y*k);else ctx.lineTo(p.x*k,p.y*k);});ctx.stroke();});
   photoEditorText.forEach(t=>{ctx.font="bold "+Math.max(18,Math.round(canvas.width*.055))+"px sans-serif";ctx.textAlign="center";ctx.lineWidth=4;ctx.strokeStyle="#000";ctx.fillStyle="#fff";ctx.strokeText(t,canvas.width/2,canvas.height*.85);ctx.fillText(t,canvas.width/2,canvas.height*.85);});
   const compressed=$("photoCompress").checked;
   canvas.toBlob(blob=>{
