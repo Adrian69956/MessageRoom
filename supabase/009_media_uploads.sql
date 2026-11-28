@@ -23,6 +23,12 @@ alter table public.messages add constraint messages_media_type_check
 alter table public.messages drop constraint if exists messages_media_path_length;
 alter table public.messages add constraint messages_media_path_length
  check (media_path is null or char_length(media_path) <= 500);
+alter table public.messages drop constraint if exists messages_media_pair_check;
+alter table public.messages add constraint messages_media_pair_check
+ check ((media_path is null and media_type is null) or (media_path is not null and media_type is not null));
+alter table public.messages drop constraint if exists messages_media_mime_check;
+alter table public.messages add constraint messages_media_mime_check
+ check (media_type is null or (media_type = 'image' and media_mime like 'image/%') or (media_type = 'video' and media_mime like 'video/%'));
 
 alter table public.posts add column if not exists media_path text;
 alter table public.posts add column if not exists media_type text;
@@ -41,7 +47,13 @@ alter table public.posts add constraint posts_media_path_length
  check (media_path is null or char_length(media_path) <= 500);
 alter table public.posts drop constraint if exists posts_video_duration_limit;
 alter table public.posts add constraint posts_video_duration_limit
- check (media_type is distinct from 'video' or media_duration_ms is null or media_duration_ms <= 60000);
+ check (media_type is distinct from 'video' or (media_duration_ms between 1 and 60000));
+alter table public.posts drop constraint if exists posts_media_pair_check;
+alter table public.posts add constraint posts_media_pair_check
+ check ((media_path is null and media_type is null) or (media_path is not null and media_type is not null));
+alter table public.posts drop constraint if exists posts_media_mime_check;
+alter table public.posts add constraint posts_media_mime_check
+ check (media_type is null or (media_type = 'image' and media_mime like 'image/%') or (media_type = 'video' and media_mime like 'video/%'));
 
 drop policy if exists chat_media_insert on storage.objects;
 create policy chat_media_insert on storage.objects for insert to authenticated
