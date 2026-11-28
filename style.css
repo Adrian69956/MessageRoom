@@ -1039,3 +1039,5 @@ input:checked + .switch { background: var(--grad); }
   .rail-me{display:flex!important;flex:1;width:auto;margin:0;padding:4px}
   .rail-me .avatar{width:30px;height:30px;font-size:13px}
 }
+
+.support-sender-link{color:var(--accent);cursor:pointer}.support-sender-link:hover{text-decoration:underline}
