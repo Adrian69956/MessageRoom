@@ -2051,7 +2051,8 @@ function openChatSettings(c) {
   };
 }
 
-function refreshInfo() {\n  currentContentTab = currentContentTab || "media";
+function refreshInfo() {
+  currentContentTab = currentContentTab || "media";
   if (!infoPanel.classList.contains("open")) return;
   const c = currentChat();
   if (!c) { closeInfo(); return; }
