@@ -55,6 +55,14 @@
     if (typeof toast === "function") toast("Жалоба отправлена");
   });
 
+  async function openReportedUser(userId) {
+    if (!userId) return;
+    if (typeof startChatWith === "function") {
+      await startChatWith(userId);
+      if (typeof openInfo === "function") openInfo();
+    }
+  }
+
   async function loadQueue() {
     if (!canSeeQueue() || loading) return;
     loading = true;
@@ -102,9 +110,24 @@
       card.append(head);
       const meta = document.createElement("div");
       meta.className = "report-card-meta";
-      meta.textContent = "От: " + (reporter ? "@" + reporter.username : "пользователь") +
-        " · Автор: " + (author ? "@" + author.username : "неизвестен") +
-        " · " + new Date(report.created_at).toLocaleString("ru-RU");
+      meta.innerHTML = "";
+      meta.append(document.createTextNode("От: "));
+      if (reporter) {
+        const reporterLink = document.createElement("button");
+        reporterLink.type = "button"; reporterLink.className = "report-user-link";
+        reporterLink.textContent = "@" + reporter.username;
+        reporterLink.addEventListener("click", () => openReportedUser(reporter.id));
+        meta.append(reporterLink);
+      } else meta.append(document.createTextNode("пользователь"));
+      meta.append(document.createTextNode(" · Автор: "));
+      if (author) {
+        const authorLink = document.createElement("button");
+        authorLink.type = "button"; authorLink.className = "report-user-link";
+        authorLink.textContent = "@" + author.username;
+        authorLink.addEventListener("click", () => openReportedUser(author.id));
+        meta.append(authorLink);
+      } else meta.append(document.createTextNode("неизвестен"));
+      meta.append(document.createTextNode(" · " + new Date(report.created_at).toLocaleString("ru-RU")));
       card.append(meta);
       const reason = document.createElement("div");
       reason.className = "report-card-reason";
