@@ -1183,6 +1183,7 @@ const VOICE_MIMES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio
 let recording = null;
 let recordingStopTimer = null;
 let activeAudio = null;
+let pendingPostVoice = null;
 
 function pickVoiceMime() {
   if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== "function") return "";
@@ -1292,6 +1293,13 @@ async function stopRecording(send) {
   if (!send) return;
   if (ms < 500) { toast("Слишком короткая запись"); return; }
   const blob = new Blob(current.chunks, { type: current.mime });
+  if (current.context === "post") {
+    pendingPostVoice = { blob: blob, ms: ms };
+    const name = $("postMediaName");
+    if (name) name.textContent = (name.textContent ? name.textContent + " · " : "") + "Голосовая запись готова";
+    toast("Голосовая запись добавлена к публикации. Нажмите «Опубликовать».");
+    return;
+  }
   await sendVoiceBlob(blob, ms, current.context);
 }
 
@@ -2115,7 +2123,7 @@ function hiddenAuthorNotice(authorId) {
   const notice = el("article", "post post-hidden-notice");
   const message = el("div", "post-hidden-message");
   message.append(el("strong", "", "Публикации скрыты"));
-  message.append(el("span", "", "Публикации пользователя «" + (authorOf(authorId).display_name || "Пользователь") + "» больше не будут показываться."));
+  message.append(el("span", "", "Вы поставили дизлайк. Публикации пользователя «" + (authorOf(authorId).display_name || "Пользователь") + "» больше не будут вам видны."));
   const undo = el("button", "link-btn", "Отменить");
   undo.addEventListener("click", () => unhideAuthorPosts(authorId));
   notice.append(message, undo);
@@ -2191,7 +2199,7 @@ function postCard(post) {
   if (post.author_id !== me.id) {
     const hide = el("button", "react hide-author-btn", "👎");
     hide.type = "button";
-    hide.title = "Не показывать публикации этого пользователя";
+    hide.title = "Дизлайк — скрыть все публикации этого пользователя";
     hide.setAttribute("aria-label", hide.title);
     hide.addEventListener("click", () => hideAuthorPosts(post.author_id));
     actions.append(hide);
@@ -2285,10 +2293,12 @@ async function publishPost() {
   const field = $("postText");
   const text = field.value.trim();
   const file = $("postMediaFile").files[0] || null;
-  if (!text && !file) { toast("Добавьте текст или фото/видео"); return; }
+  const voice = pendingPostVoice;
+  if (!text && !file && !voice) { toast("Добавьте текст, фото/видео или голосовую запись"); return; }
   const send = $("postSend");
   send.disabled = true;
   let media = null;
+  let voicePath = null;
   try {
     // Обновляем серверные права перед публикацией, чтобы не опираться на старый статус.
     const { data: status, error: statusError } = await sb.rpc("get_app_status");
@@ -2305,13 +2315,23 @@ async function publishPost() {
       if (up.error) throw new Error("Не удалось загрузить файл: " + up.error.message);
       media = { media_path: path, media_type: file.type.startsWith("video/") ? "video" : "image", media_mime: file.type, media_size: file.size, media_duration_ms: file._mediaDurationMs || null };
     }
-    const { error } = await sb.from("posts").insert({ text: text || null, ...(media || {}) });
+    if (voice) {
+      const type = voice.blob.type || "audio/webm";
+      const ext = type.indexOf("mp4") !== -1 ? "m4a" : type.indexOf("ogg") !== -1 ? "ogg" : "webm";
+      const randomName = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+      voicePath = me.id + "/" + randomName + "." + ext;
+      const voiceUpload = await sb.storage.from("voice").upload(voicePath, voice.blob, { contentType: type, upsert: false });
+      if (voiceUpload.error) throw new Error("Не удалось загрузить голосовую запись: " + voiceUpload.error.message);
+    }
+    const { error } = await sb.from("posts").insert({ text: text || null, ...(media || {}), ...(voicePath ? { voice_path: voicePath, voice_ms: voice.ms } : {}) });
     if (error) throw new Error("Не опубликовалось: " + error.message);
     field.value = ""; $("postMediaFile").value = ""; $("postMediaName").textContent = "";
+    pendingPostVoice = null;
     updatePostCount();
     await loadFeed();
   } catch (error) {
     if (media) { try { await sb.storage.from("post-media").remove([media.media_path]); } catch (cleanupError) { console.warn("Could not clean up uploaded media:", cleanupError); } }
+    if (voicePath) { try { await sb.storage.from("voice").remove([voicePath]); } catch (cleanupError) { console.warn("Could not clean up voice:", cleanupError); } }
     console.error("Post publish failed:", error);
     toast(error.message || "Не удалось опубликовать пост");
   } finally {
