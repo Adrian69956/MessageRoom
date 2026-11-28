@@ -12,6 +12,7 @@
   let trimDuration = 0;
   let trimObjectUrl = null;
   let editedMediaFile = null;
+  let editedOverlayFile = null;
   let storyChannel = null;
   let audienceMode = "everyone";
   let selectedAudienceIds = [];
@@ -93,7 +94,7 @@
     document.querySelectorAll("[data-story-type]").forEach(b=>b.classList.toggle("active",b.dataset.storyType===storyType));
     $s("storyMediaFields").hidden=false;
     $s("storyTextFields").hidden=true;
-    $s("storyMediaFile").value="";editedMediaFile=null;
+    $s("storyMediaFile").value="";editedMediaFile=null;editedOverlayFile=null;
     $s("storyFileName").textContent="Файл не выбран";
     $s("storyVideoTrim").hidden=true;
     $s("storyTrimPreview").removeAttribute("src");
@@ -196,6 +197,7 @@
     updateTrimLabels();seekTrimPreview(end);
   });
   $s("storyFrameScrub").addEventListener("input",e=>seekTrimPreview(e.target.value));
+  $s("storyVideoEdit").addEventListener("click",()=>openStoryVideoOverlayEditor());
 
 
   async function loadPrivacyPeople() {
@@ -267,15 +269,21 @@
     button.disabled=true;button.textContent="Публикуем…";
     try{
       const storyId=crypto.randomUUID();
+      let overlayPath=null;
       if(file){
         const clean=(typeof safeMediaFilename==="function"?safeMediaFilename(file.name):file.name.replace(/[^a-z0-9._-]/gi,"_"));
         mediaPath=me.id+"/"+storyId+"__"+clean;
         const {error:uploadError}=await sb.storage.from("story-media").upload(mediaPath,file,{contentType:file.type,upsert:false});
         if(uploadError)throw uploadError;
       }
+      if(editedOverlayFile){
+        overlayPath=me.id+"/"+storyId+"__overlay.png";
+        const {error:overlayError}=await sb.storage.from("story-media").upload(overlayPath,editedOverlayFile,{contentType:"image/png",upsert:false});
+        if(overlayError)throw overlayError;
+      }
         const {error}=await sb.from("stories").insert({
         id:storyId,user_id:me.id,story_type:storyType==="text"?"text":(file.type.startsWith("video/")?"video":"photo"),
-        text,media_path:mediaPath,background:storyType==="text"?$s("storyBackground").value:null,
+        text,media_path:mediaPath,overlay_path:overlayPath,background:storyType==="text"?$s("storyBackground").value:null,
         audience,audience_mode:audienceMode,selected_user_ids:audienceMode==="selected"?selectedAudienceIds:[],excluded_user_ids:audienceMode==="everyone"?excludedAudienceIds:[],duration_hours:duration,
         trim_start_seconds:file&&file.type.startsWith("video/")?(Number($s("storyTrimStart").value)||0):0,
         trim_end_seconds:file&&file.type.startsWith("video/")?Number($s("storyTrimEnd").value):null,
@@ -289,7 +297,7 @@
     }catch(error){
       console.error("Story publish failed:",error);
       errorBox.textContent=error.message||"Не удалось опубликовать историю";
-      if(mediaPath)await sb.storage.from("story-media").remove([mediaPath]);
+      const cleanup=[mediaPath,overlayPath].filter(Boolean);if(cleanup.length)await sb.storage.from("story-media").remove(cleanup);
     }finally{button.disabled=false;button.textContent="Опубликовать историю";}
   }
   $s("storyPublish").addEventListener("click",publishStory);
