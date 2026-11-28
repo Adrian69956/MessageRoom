@@ -2022,7 +2022,9 @@ function refreshInfo() {
     rows.append(infoRow(ICONS.at, "@" + p.username, "Имя пользователя", () => copyText("@" + p.username, "Имя пользователя скопировано")));
     if (p.bio) rows.append(infoRow(ICONS.info, p.bio, "О себе"));
     fillInfoExtra(p, rows);
-  } else if (["group","channel"].includes(c.type)) {\n    if (c.description) rows.append(infoRow(ICONS.info,c.description,"Описание"));\n  } else if (isSystemChat(c)) {
+  } else if (["group","channel"].includes(c.type)) {
+    if (c.description) rows.append(infoRow(ICONS.info,c.description,"Описание"));
+  } else if (isSystemChat(c)) {
     rows.append(infoRow(ICONS.info, c.type === "notice" ? "Персональные сообщения от администрации и модерации. Ответить или удалить этот чат нельзя." : "Официальные новости и уведомления MessageRoom. Писать в этот чат может только администратор.", "Описание"));
   }
   const profileTabs = $("chatContentTabs");
