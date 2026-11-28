@@ -26,6 +26,7 @@
       .gt("expires_at", new Date().toISOString()).order("created_at", {ascending:true}).limit(300);
     if (error) { console.warn("Stories unavailable:", error); return; }
     storyRows = data || [];
+    if (typeof loadProfiles === "function") await loadProfiles([...new Set(storyRows.map(s=>s.user_id))]);
     const byUser = new Map();
     storyRows.forEach(s => {
       if (!byUser.has(s.user_id)) byUser.set(s.user_id, []);
@@ -127,8 +128,7 @@
         const {error:uploadError}=await sb.storage.from("story-media").upload(mediaPath,file,{contentType:file.type,upsert:false});
         if(uploadError)throw uploadError;
       }
-      const created=new Date();
-      const {error}=await sb.from("stories").insert({
+        const {error}=await sb.from("stories").insert({
         id:storyId,user_id:me.id,story_type:storyType==="text"?"text":(file.type.startsWith("video/")?"video":"photo"),
         text,media_path:mediaPath,background:storyType==="text"?$s("storyBackground").value:null,
         audience,duration_hours:duration,
