@@ -457,7 +457,7 @@
         finally{like.disabled=false;}
       });
       const {data:existing}=await sb.from("story_views").select("story_id").eq("story_id",s.id).eq("viewer_id",me.id).maybeSingle();
-      if(!existing)await sb.from("story_views").insert({story_id:s.id,viewer_id:me.id});
+      if(!existing){await sb.from("story_views").insert({story_id:s.id,viewer_id:me.id});await renderStories();}
       bottom.append(status,reply,like);
     }
     $s("storyPrev").disabled=activeStoryIndex===0;
@@ -535,6 +535,7 @@
       .on("postgres_changes",{event:"*",schema:"public",table:"stories"},loadStories)
       .on("postgres_changes",{event:"*",schema:"public",table:"profile_visits"},loadStories)
       .on("postgres_changes",{event:"*",schema:"public",table:"close_friends"},loadStories)
+      .on("postgres_changes",{event:"*",schema:"public",table:"story_views"},loadStories)
       .subscribe();
   };
   const oldSubscribe=window.subscribeRealtime;
