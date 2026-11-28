@@ -1182,3 +1182,9 @@ input:checked + .switch { background: var(--grad); }
 .story-video-overlay-stage video,.story-video-overlay-stage canvas{grid-area:1/1;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
 .story-video-overlay-stage canvas{touch-action:none;z-index:2}
 .story-video-edit-btn{width:100%;border:1px solid var(--accent);border-radius:9px;background:var(--bg);color:var(--accent);padding:9px 12px;margin:8px 0;cursor:pointer}
+
+
+.story-owner-menu-popup{position:absolute;z-index:20;top:62px;right:14px;min-width:190px;padding:6px;border:1px solid #ffffff30;border-radius:12px;background:#202020f2;box-shadow:0 10px 32px #0008;display:flex;flex-direction:column;gap:3px}
+.story-owner-menu-popup button{border:0;border-radius:8px;padding:11px 12px;text-align:left;background:transparent;color:#fff;font-size:13px;cursor:pointer}
+.story-owner-menu-popup button:hover{background:#ffffff18}
+.story-owner-menu-popup button.danger{color:#ff5367}
