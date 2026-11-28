@@ -1,13 +1,12 @@
 // Owner-only composer for the protected per-user service-notice chats.
 (() => {
-  const rail = document.getElementById("railServiceNotices");
   const overlay = document.getElementById("serviceNoticesOverlay");
   const close = document.getElementById("serviceNoticesClose");
   const target = document.getElementById("serviceNoticeTarget");
   const body = document.getElementById("serviceNoticeText");
   const status = document.getElementById("serviceNoticeStatus");
   const send = document.getElementById("serviceNoticeSend");
-  if (!rail || !overlay) return;
+  if (!overlay || !close || !target || !body || !status || !send) return;
 
   async function loadRecipients() {
     target.innerHTML = '<option value="all">Всем пользователям</option>';
@@ -34,7 +33,6 @@
     status.textContent = "";
     if (target.options.length <= 1) await loadRecipients();
   };
-  rail.addEventListener("click", openComposer);
   settingsButton?.addEventListener("click", openComposer);
   document.getElementById("chatList")?.addEventListener("click", event => {
     if (event.target.closest(".service-notice-shortcut")) openComposer();
