@@ -294,6 +294,21 @@
       const {data:existing}=await sb.from("story_views").select("story_id").eq("story_id",s.id).eq("viewer_id",me.id).maybeSingle();
       if(!existing)await sb.from("story_views").insert({story_id:s.id,viewer_id:me.id});
       bottom.textContent="История исчезнет через "+s.duration_hours+" ч. после публикации";
+      const reply=node("button","story-like","Ответить");reply.type="button";
+      reply.addEventListener("click",async()=>{
+        const message=prompt("Ответ на историю:");
+        if(!message||!message.trim())return;
+        try{
+          const {data:chatId,error:chatError}=await sb.rpc("start_private_chat",{other_user:s.user_id});
+          if(chatError)throw chatError;
+          const {error}=await sb.from("messages").insert({chat_id:chatId,sender_id:me.id,text:"Ответ на историю: "+message.trim().slice(0,1800)});
+          if(error)throw error;
+          closeOverlay("storyViewerOverlay");
+          if(typeof window.openChat==="function")window.openChat(chatId);
+          if(typeof toast==="function")toast("Ответ отправлен");
+        }catch(e){if(typeof toast==="function")toast(e.message==="dm_not_allowed"?"Пользователь не принимает личные сообщения":"Не удалось отправить ответ");}
+      });
+      bottom.append(reply);
     }
     if(s.user_id===me.id){
       const {count}=await sb.from("story_likes").select("user_id",{count:"exact",head:true}).eq("story_id",s.id);
