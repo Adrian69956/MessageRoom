@@ -98,6 +98,7 @@
     $s("storyCreateError").textContent="";
     audienceMode="everyone";selectedAudienceIds=[];excludedAudienceIds=[];closeFriendIds=[];
     renderPrivacyControls();
+    $s("storyCreateCard").hidden=false;$s("storyPrivacyScreen").hidden=true;
     $s("storyCreateOverlay").classList.add("open");
     $s("storyCreateOverlay").setAttribute("aria-hidden","false");
   }
@@ -108,6 +109,9 @@
     $s("storyTextFields").hidden=storyType!=="text";
   }));
   $s("storyCreateClose").addEventListener("click",()=>closeOverlay("storyCreateOverlay"));
+  $s("storyNextPrivacy").addEventListener("click",()=>{if(storyType!=="text"&&!$s("storyMediaFile").files[0]){$s("storyCreateError").textContent="Выбери фото или видео";return;}$s("storyCreateCard").hidden=true;$s("storyPrivacyScreen").hidden=false;});
+  $s("storyPrivacyBack").addEventListener("click",()=>{$s("storyPrivacyScreen").hidden=true;$s("storyCreateCard").hidden=false;});
+  $s("storyPrivacyClose").addEventListener("click",()=>closeOverlay("storyCreateOverlay"));
   $s("storyCreateOverlay").addEventListener("click",e=>{if(e.target.id==="storyCreateOverlay")closeOverlay("storyCreateOverlay");});
   function formatStoryTime(seconds) {
     const n=Math.max(0,Math.floor(Number(seconds)||0));
