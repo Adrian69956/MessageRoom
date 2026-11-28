@@ -1674,39 +1674,40 @@ function back() { if (screenStack.length > 1) screenStack.pop(); showScreen(scre
 document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", back));
 document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
 
-// ---------- Создание групп и каналов ----------
-let createChatKind = "group";
-let createChatSelected = new Map();
-let createChatSearchTimer = null;
-const createOverlay = $("chatCreateOverlay");
-function openCreateChat(kind) {
-  createChatKind = kind === "channel" ? "channel" : "group"; createChatSelected.clear();
-  $("chatCreateTitle").textContent = createChatKind === "group" ? "Создать группу" : "Создать канал";
-  $("chatCreateName").value = ""; $("chatCreateDescription").value = ""; $("chatCreateMemberSearch").value = ""; $("chatCreateUsername").value = "";
-  $("chatCreateApproval").checked = false; $("chatCreateHistory").checked = true; $("chatCreateMessage").textContent = "";
-  $("chatCreateMembersSection").style.display = createChatKind === "group" ? "" : "none";
-  document.querySelectorAll("[data-create-kind]").forEach(b=>b.classList.toggle("active",b.dataset.createKind===createChatKind));
-  createOverlay.classList.add("open"); createOverlay.setAttribute("aria-hidden","false"); renderCreateChatSelected(); renderCreateChatPeople([]);
-  setTimeout(()=>$("chatCreateName").focus(),50);
-}
-function closeCreateChat(){createOverlay.classList.remove("open");createOverlay.setAttribute("aria-hidden","true");}
+// ---------- Пошаговое создание групп и каналов ----------
+let createChatKind="group";
+let createChatSelected=new Map();
+let createChatSearchTimer=null;
+let createChatAvatarFile=null;
+let createChatAvatarPreviewUrl=null;
+const createOverlay=$("chatCreateOverlay");
+const createPanes=["createChooser","createGroupPeople","createGroupDetails","createChannelDetails","createChannelSuccess"];
+function showCreatePane(id){createPanes.forEach(pid=>$(pid).hidden=pid!==id);createOverlay.classList.add("open");createOverlay.setAttribute("aria-hidden","false");}
+function openCreateChooser(){createChatSelected.clear();createChatAvatarFile=null;showCreatePane("createChooser");renderCreateChatSelected();renderCreateChatPeople([]);}
+function closeCreateChat(){createOverlay.classList.remove("open");createOverlay.setAttribute("aria-hidden","true");if(createChatAvatarPreviewUrl){URL.revokeObjectURL(createChatAvatarPreviewUrl);createChatAvatarPreviewUrl=null;}createChatAvatarFile=null;}
+function resetCreateChat(kind){createChatKind=kind;createChatSelected.clear();createChatAvatarFile=null;$("chatCreateName").value="";$("chatCreateDescription").value="";$("chatCreateUsername").value="";$("chatCreateMemberSearch").value="";$("chatCreateMessage").textContent="";$("channelCreateMessage").textContent="";$("channelVisibilityMessage").textContent="";$("channelDescriptionCount").textContent="0 / 1000";$("chatCreateAvatar").value="";$("chatCreateAvatarPreview").textContent="＋";renderCreateChatSelected();renderCreateChatPeople([]);}
 function renderCreateChatSelected(){const box=$("chatCreateSelected");box.innerHTML="";createChatSelected.forEach(p=>{const b=el("button","chat-create-chip",p.display_name+" ×");b.type="button";b.addEventListener("click",()=>{createChatSelected.delete(p.id);renderCreateChatSelected();});box.append(b);});}
-function renderCreateChatPeople(list){const box=$("chatCreatePeople");box.innerHTML="";if(!list.length){box.append(el("div","list-note","Начни вводить имя или @username"));return;}list.forEach(p=>{const b=el("button","chat-create-person");b.type="button";b.append(makeAvatar(p,"small"));const info=el("span","chat-create-person-info");info.append(el("strong","",p.display_name||"Пользователь"),el("small","","@"+(p.username||"")));b.append(info);b.append(el("span","chat-create-person-check",createChatSelected.has(p.id)?"✓":"＋"));b.addEventListener("click",()=>{if(createChatSelected.has(p.id))createChatSelected.delete(p.id);else createChatSelected.set(p.id,p);renderCreateChatSelected();renderCreateChatPeople(list);});box.append(b);});}
-$("chatCreateMemberSearch").addEventListener("input",()=>{clearTimeout(createChatSearchTimer);const q=$("chatCreateMemberSearch").value.trim().replace(/^@/,"");if(q.length<2){renderCreateChatPeople([]);return;}createChatSearchTimer=setTimeout(async()=>{const {data,error}=await sb.from("profiles").select("id,display_name,username,avatar_url").or("username.ilike.*"+q+"*,display_name.ilike.*"+q+"*").neq("id",me.id).limit(20);if(error){$("chatCreatePeople").textContent="Не удалось загрузить пользователей";return;}renderCreateChatPeople(data||[]);},250);});
-document.querySelectorAll("[data-create-kind]").forEach(b=>b.addEventListener("click",()=>openCreateChat(b.dataset.createKind)));
-document.querySelectorAll('input[name="chatCreateVisibility"]').forEach(r=>r.addEventListener("change",()=>{$("chatCreateUsernameWrap").hidden=document.querySelector('input[name="chatCreateVisibility"]:checked').value!=="public";}));
-$("chatCreateClose").addEventListener("click",closeCreateChat); createOverlay.addEventListener("click",e=>{if(e.target===createOverlay)closeCreateChat();});
-$("chatCreateSubmit").addEventListener("click",async()=>{
- const title=$("chatCreateName").value.trim(), description=$("chatCreateDescription").value.trim(); const visibility=document.querySelector('input[name="chatCreateVisibility"]:checked').value; const username=$("chatCreateUsername").value.trim().toLowerCase(); const btn=$("chatCreateSubmit"),msg=$("chatCreateMessage");
- if(!title){msg.textContent="Укажи название.";return;} if(createChatKind==="group"&&!createChatSelected.size){msg.textContent="Добавь хотя бы одного участника.";return;} if(visibility==="public"&&!/^[a-z0-9_]{5,32}$/.test(username)){msg.textContent="Проверь публичную ссылку: 5–32 символа, латиница, цифры и _.";return;}
- btn.disabled=true;btn.textContent="Создаём…";msg.textContent="";
- try{const {data,error}=await sb.rpc("create_group_or_channel",{p_kind:createChatKind,p_title:title,p_description:description,p_member_ids:[...createChatSelected.keys()],p_visibility:visibility,p_username:username||null,p_join_approval:$("chatCreateApproval").checked,p_history_visible:$("chatCreateHistory").checked});if(error)throw error;closeCreateChat();await loadAll();openChat(data);toast(createChatKind==="group"?"Группа создана":"Канал создан");}
- catch(error){const map={username_taken:"Это публичное имя уже занято.",member_not_found:"Один из участников не найден.",group_needs_members:"Для группы нужен хотя бы один участник.",invalid_public_username:"Проверь публичную ссылку."};msg.textContent=map[error.message]||("Не удалось создать: "+(error.message||"ошибка"));}
- finally{btn.disabled=false;btn.textContent="Создать";}
-});
-$("createChatVisible").addEventListener("click",()=>openCreateChat("group"));
-$("mmNewGroup").addEventListener("click",()=>{mainMenu.classList.remove("open");openCreateChat("group");});
-$("mmNewChannel").addEventListener("click",()=>{mainMenu.classList.remove("open");openCreateChat("channel");});
+function renderCreateChatPeople(list){const box=$("chatCreatePeople");box.innerHTML="";if(!list.length){box.append(el("div","list-note","Введите имя или @username, чтобы найти людей"));return;}list.forEach(p=>{const b=el("button","chat-create-person");b.type="button";b.append(makeAvatar(p,"small"));const info=el("span","chat-create-person-info");info.append(el("strong","",p.display_name||"Пользователь"),el("small","",p.username?"@"+p.username:""));b.append(info,badge=createChoiceMark(createChatSelected.has(p.id)));b.addEventListener("click",()=>{if(createChatSelected.has(p.id))createChatSelected.delete(p.id);else createChatSelected.set(p.id,p);renderCreateChatSelected();renderCreateChatPeople(list);});box.append(b);});}
+function createChoiceMark(selected){return el("span","chat-create-person-check",selected?"✓":"＋");}
+function createAvatarPreview(file){createChatAvatarFile=file;if(createChatAvatarPreviewUrl)URL.revokeObjectURL(createChatAvatarPreviewUrl);createChatAvatarPreviewUrl=file?URL.createObjectURL(file):null;const preview=$("chatCreateAvatarPreview");preview.innerHTML="";if(createChatAvatarPreviewUrl){const img=document.createElement("img");img.src=createChatAvatarPreviewUrl;preview.append(img);}else preview.textContent="＋";}
+$("createChatVisible").addEventListener("click",openCreateChooser);
+$("chooseCreateGroup").addEventListener("click",()=>{resetCreateChat("group");showCreatePane("createGroupPeople");});
+$("chooseCreateChannel").addEventListener("click",()=>{resetCreateChat("channel");showCreatePane("createChannelDetails");});
+$("chatCreateClose").addEventListener("click",closeCreateChat);
+document.querySelectorAll("[data-create-close]").forEach(b=>b.addEventListener("click",closeCreateChat));
+document.querySelectorAll("[data-create-back]").forEach(b=>b.addEventListener("click",()=>{const target=b.dataset.createBack;showCreatePane(target==="people"?"createGroupPeople":target==="channel"?"createChannelDetails":target==="chooser"?"createChooser":"createChooser");}));
+createOverlay.addEventListener("click",e=>{if(e.target===createOverlay)closeCreateChat();});
+$("chatCreateMemberSearch").addEventListener("input",()=>{clearTimeout(createChatSearchTimer);const q=$("chatCreateMemberSearch").value.trim().replace(/^@/,"");if(q.length<2){renderCreateChatPeople([]);return;}createChatSearchTimer=setTimeout(async()=>{const {data,error}=await sb.from("profiles").select("id,display_name,username,avatar_url").or("username.ilike.*"+q+"*,display_name.ilike.*"+q+"*").neq("id",me.id).limit(30);if(error){$("chatCreatePeople").textContent="Не удалось загрузить пользователей";return;}renderCreateChatPeople(data||[]);},250);});
+$("groupPeopleNext").addEventListener("click",()=>{showCreatePane("createGroupDetails");$("chatCreateName").focus();});
+$("chatCreateName").addEventListener("input",()=>{const ok=!!$("chatCreateName").value.trim();$("groupCreateSubmit").disabled=!ok;$("channelDetailsNext").disabled=!ok;});
+$("chatCreateDescription").addEventListener("input",()=>$("channelDescriptionCount").textContent=$("chatCreateDescription").value.length+" / 1000");
+$("chatCreateAvatar").addEventListener("change",e=>{const file=e.target.files&&e.target.files[0];if(!file)return;if(!file.type.startsWith("image/")||file.size>5*1024*1024){toast("Выбери изображение до 5 МБ");e.target.value="";return;}createAvatarPreview(file);});
+async function uploadCreatedChatAvatar(chatId){if(!createChatAvatarFile)return null;const ext=(createChatAvatarFile.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg";const path="chats/"+chatId+"/"+Date.now()+"."+ext;const {error}=await sb.storage.from("avatars").upload(path,createChatAvatarFile,{upsert:true,contentType:createChatAvatarFile.type});if(error)throw error;const {data}=sb.storage.from("avatars").getPublicUrl(path);const upd=await sb.from("chats").update({photo_path:data.publicUrl}).eq("id",chatId);if(upd.error)throw upd.error;return data.publicUrl;}
+async function submitCreatedChat(kind,visibility){const title=$("chatCreateName").value.trim();const description=kind==="channel"?$("chatCreateDescription").value.trim():"";const username=$("chatCreateUsername").value.trim().toLowerCase();const msg=$(kind==="group"?"chatCreateMessage":"channelVisibilityMessage");if(!title){msg.textContent="Сначала укажи название.";return;}if(kind==="channel"&&visibility==="public"&&!/^[a-z0-9_]{5,32}$/.test(username)){msg.textContent="Для публичного канала нужен юзернейм: 5–32 символа, латиница, цифры и _.";return;}const button=$(kind==="group"?"groupCreateSubmit":"channelFinish");button.disabled=true;button.textContent="Создаём…";msg.textContent="";try{const {data,error}=await sb.rpc("create_group_or_channel",{p_kind:kind,p_title:title,p_description:description,p_member_ids:kind==="group"?[...createChatSelected.keys()]:[],p_visibility:visibility,p_username:visibility==="public"?username:null,p_join_approval:false,p_history_visible:true});if(error)throw error;await uploadCreatedChatAvatar(data);closeCreateChat();await loadAll();openChat(data);toast(kind==="group"?"Группа создана":"Канал создан");}catch(error){const map={username_taken:"Этот юзернейм уже занят.",member_not_found:"Один из участников не найден.",group_needs_members:"Не удалось создать группу.",invalid_public_username:"Проверь юзернейм канала.",description_too_long:"Описание не должно превышать 1000 символов."};msg.textContent=map[error.message]||("Не удалось создать: "+(error.message||"ошибка"));}finally{button.disabled=false;button.textContent=kind==="group"?"Далее":"Продолжить";}}
+$("groupCreateSubmit").addEventListener("click",()=>submitCreatedChat("group","private"));
+$("channelDetailsNext").addEventListener("click",()=>{if(!$("chatCreateName").value.trim())return;showCreatePane("createChannelSuccess");});
+$("channelFinish").addEventListener("click",()=>submitCreatedChat("channel",document.querySelector('input[name="channelVisibility"]:checked').value));
+
 
 $("menuBtn").addEventListener("click", (e) => {
   e.stopPropagation();
