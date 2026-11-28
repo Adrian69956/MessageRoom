@@ -1922,7 +1922,18 @@ setTheme(prefs.theme);
 applyScale(prefs.scale);
 
 // ===================== Профиль собеседника =====================
-function openInfo() { infoPanel.classList.add("open"); app.classList.add("info-open"); refreshInfo(); }
+function openInfo() {
+  infoPanel.classList.add("open");
+  app.classList.add("info-open");
+  refreshInfo();
+  const c = currentChat();
+  const target = c && c.type === "private" ? otherUserId(c) : null;
+  if (target && target !== me.id) {
+    sb.rpc("record_profile_visit", { profile_id: target }).then(({ error }) => {
+      if (error) console.warn("Profile visit was not recorded:", error);
+    });
+  }
+}
 function closeInfo() { infoPanel.classList.remove("open"); app.classList.remove("info-open"); }
 function infoRow(icon, main, sub, onClick) {
   const r = el(onClick ? "button" : "div", "tg-row" + (onClick ? " click" : ""));
@@ -1993,6 +2004,34 @@ function refreshInfo() {
     acts.append(infoAction(ICONS.trash, "Удалить чат", () => clearChat(c, true), true));
   }
   if (p) {
+    const closeFriendButton = infoAction(ICONS.info, "Близкие друзья…", async () => {
+      closeFriendButton.disabled = true;
+      const { data: existing, error: lookupError } = await sb.from("close_friends")
+        .select("friend_id").eq("friend_id", p.id).maybeSingle();
+      if (lookupError) {
+        toast("Не удалось проверить список близких друзей");
+        closeFriendButton.disabled = false;
+        return;
+      }
+      if (existing) {
+        const { error } = await sb.from("close_friends").delete().eq("friend_id", p.id);
+        if (error) toast("Не удалось удалить пользователя из близких друзей");
+        else toast("Пользователь удалён из близких друзей");
+      } else {
+        const { error } = await sb.from("close_friends").insert({ owner_id: me.id, friend_id: p.id });
+        if (error) toast("Не удалось добавить пользователя в близкие друзья");
+        else toast("Пользователь добавлен в близкие друзья");
+      }
+      closeFriendButton.disabled = false;
+      refreshInfo();
+    });
+    closeFriendButton.dataset.closeFriend = "1";
+    acts.append(closeFriendButton);
+    sb.from("close_friends").select("friend_id").eq("friend_id", p.id).maybeSingle().then(({ data, error }) => {
+      if (!error && closeFriendButton.isConnected) {
+        closeFriendButton.lastChild.textContent = data ? "Убрать из близких друзей" : "Добавить в близкие друзья";
+      }
+    });
     const isB = blocked.has(p.id);
     acts.append(infoAction(ICONS.block, isB ? "Разблокировать" : "Заблокировать", () => setBlocked(p.id, !isB), !isB));
   }
