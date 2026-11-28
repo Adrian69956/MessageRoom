@@ -586,6 +586,34 @@ async function appendMediaPreview(container, path, type, bucket) {
   }
   node.src = data.signedUrl;
   wrap.append(node);
+  if (type !== "video") {
+    const save = el("button", "media-save-btn", "Сохранить фото");
+    save.type = "button";
+    save.addEventListener("click", async () => {
+      save.disabled = true;
+      save.textContent = "Скачивание…";
+      try {
+        const response = await fetch(data.signedUrl);
+        if (!response.ok) throw new Error("download failed");
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = (path.split("/").pop() || "messageroom-photo").replace(/[^a-z0-9._-]/gi, "_");
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+      } catch (e) {
+        window.open(data.signedUrl, "_blank", "noopener");
+        toast("Открываю фото для сохранения");
+      } finally {
+        save.disabled = false;
+        save.textContent = "Сохранить фото";
+      }
+    });
+    wrap.append(save);
+  }
 }
 let pendingChatFile = null;
 let pendingChatPreviewUrl = null;
