@@ -952,3 +952,33 @@ input:checked + .switch { background: var(--grad); }
 .post-hidden-message strong { font-size: 14px; font-weight: 600; }
 .post-hidden-message span { color: var(--text-muted); font-size: 13px; line-height: 1.4; }
 .hide-author-btn { flex: 0 0 auto; }
+
+/* Роли сотрудников и очередь жалоб на публикации */
+.role-user-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;background:var(--bg-2);border-radius:11px;margin:5px 0}
+.role-user-info{min-width:0;display:flex;flex-direction:column;gap:3px}
+.role-user-info strong{font-size:14px;overflow-wrap:anywhere}
+.role-user-info small{font-size:12px;color:var(--text-muted)}
+.role-user-row select{width:auto;min-width:128px;max-width:42%;padding:8px;border:1px solid var(--border);border-radius:9px;background:var(--input-bg);color:var(--text)}
+.report-queue{max-height:min(90vh,900px);display:flex;flex-direction:column}
+.report-tabs{display:flex;gap:8px;border-bottom:1px solid var(--border);margin:0 0 12px}
+.report-tab{padding:10px 15px;border:0;border-bottom:2px solid var(--accent);background:transparent;color:var(--text);font-weight:700}
+.report-filters{display:flex;gap:8px;margin-bottom:12px}
+.report-filter{border:1px solid var(--border);border-radius:18px;padding:7px 13px;background:var(--bg);color:var(--text);cursor:pointer}
+.report-filter.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.report-queue-list{overflow:auto;min-height:120px;display:flex;flex-direction:column;gap:10px}
+.report-card{padding:13px;border:1px solid var(--border);border-radius:13px;background:var(--bg-2)}
+.report-card-head,.report-card-meta,.report-card-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.report-card-head strong{font-size:14px}
+.report-priority{color:#b45309;font-size:12px;font-weight:700}
+.report-status{font-size:12px;color:var(--text-muted)}
+.report-card-meta{justify-content:flex-start;color:var(--text-muted);font-size:12px;margin:7px 0}
+.report-card-content{font-size:13px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}
+.report-card-reason{font-weight:700;font-size:13px;margin-top:7px}
+.report-card-details{font-size:12px;color:var(--text-muted);margin-top:5px;white-space:pre-wrap}
+.report-card-actions{justify-content:flex-end;margin-top:10px}
+.report-card-actions button{border:1px solid var(--border);border-radius:9px;padding:7px 10px;background:var(--panel);color:var(--text);cursor:pointer}
+.report-card-actions button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.report-card-actions button.danger{color:var(--danger)}
+.report-dialog{width:min(500px,94vw)}
+.post-report-btn{font-size:12px;color:var(--danger);padding-inline:8px}
+@media(max-width:520px){.role-user-row{align-items:flex-start;flex-direction:column}.role-user-row select{max-width:none;width:100%}.report-card-actions button{flex:1}}
