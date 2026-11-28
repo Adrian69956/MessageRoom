@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MessageRoom</title>
-  <link rel="stylesheet" href="style.css?v=staff-notice-12">
+  <link rel="stylesheet" href="style.css?v=staff-notice-13">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#0077ff">
@@ -23,7 +23,7 @@
       <button class="rail-btn rail-extra" id="railStaff" title="Модерация" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7z"/><path d="m9 12 2 2 4-4"/></svg></button>
       <button class="rail-btn rail-extra" id="railSupport" title="Поддержка" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v12H8l-4 4z"/><path d="M8 9h8M8 13h5"/></svg></button>
       <button class="rail-btn rail-extra" id="railJournal" title="Журнал действий" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/><circle cx="18" cy="19" r="2"/></svg></button>
-      <button class="rail-btn rail-extra" id="railReports" title="Поддержка · Лента" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg></button>
+      <button class="rail-btn rail-extra" id="railServiceNotices" title="Служебные уведомления" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7z"/><path d="M12 8v5M12 16h.01"/></svg></button>
       <button class="rail-btn rail-extra" id="railAdmin" title="Админ-панель" style="display:none"><svg class="ic" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></button>
       <button class="rail-btn rail-extra" id="railTheme" title="Ночной режим"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></button>
       <button class="rail-me rail-extra" id="railMe" title="Мой профиль"><div class="avatar" id="railAvatar"></div></button>
@@ -529,6 +529,23 @@
     </div>
   </div>
 
+  <div class="overlay" id="serviceNoticesOverlay">
+    <div class="settings service-notices-window">
+      <div class="settings-head"><h2>Служебные уведомления</h2><button class="icon-btn" id="serviceNoticesClose" title="Закрыть"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
+      <div class="settings-section">
+        <div class="settings-title">Кому отправить</div>
+        <select id="serviceNoticeTarget"><option value="all">Всем пользователям</option></select>
+        <div class="hint">При выборе конкретного пользователя сообщение попадёт только в его чат «Уведомления». Массовая отправка создаст сообщение в таком же чате у каждого пользователя.</div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-title">Текст уведомления</div>
+        <textarea id="serviceNoticeText" rows="5" maxlength="4000" placeholder="Напишите предупреждение или служебное сообщение…"></textarea>
+        <div class="settings-msg" id="serviceNoticeStatus"></div>
+        <button class="save-btn" id="serviceNoticeSend">Отправить уведомление</button>
+      </div>
+    </div>
+  </div>
+
   <div class="overlay" id="journalOverlay">
     <div class="settings admin report-queue">
       <div class="settings-head"><h2>Журнал действий</h2><button class="icon-btn" id="journalClose" title="Закрыть"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
@@ -642,6 +659,7 @@
         </div>
       </div>
       <div id="supportStaffView" style="display:none">
+        <button type="button" class="support-feed-reports-btn" id="supportFeedReportsBtn">Жалобы из ленты</button>
         <div class="support-category-tabs" id="supportCategoryTabs"></div>
         <div class="support-staff-layout">
           <div id="supportStaffTickets" class="support-ticket-list">Загрузка…</div>
@@ -659,10 +677,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=1795780670"></script>
   <script src="auth.js?v=1795780670"></script>
-  <script src="script.js?v=staff-notice-12"></script>
+  <script src="script.js?v=staff-notice-13"></script>
   <script src="push.js?v=1795780670"></script>
-  <script src="admin.js?v=staff-notice-12"></script>
-  <script src="reports.js?v=staff-notice-12"></script>
-  <script src="staff.js?v=staff-notice-12"></script>
+  <script src="admin.js?v=staff-notice-13"></script>
+  <script src="reports.js?v=staff-notice-13"></script>
+  <script src="staff.js?v=staff-notice-13"></script>
 </body>
 </html>
