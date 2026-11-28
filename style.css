@@ -982,3 +982,8 @@ input:checked + .switch { background: var(--grad); }
 .report-dialog{width:min(500px,94vw)}
 .post-report-btn{font-size:12px;color:var(--danger);padding-inline:8px}
 @media(max-width:520px){.role-user-row{align-items:flex-start;flex-direction:column}.role-user-row select{max-width:none;width:100%}.report-card-actions button{flex:1}}
+
+.journal-entry{padding:11px 12px;border:1px solid var(--border);border-radius:11px;background:var(--bg-2)}
+.journal-entry strong{display:block;font-size:13px}
+.journal-entry small{display:block;margin-top:4px;color:var(--text-muted);font-size:11px}
+.journal-entry p{margin:7px 0 0;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text-muted)}
