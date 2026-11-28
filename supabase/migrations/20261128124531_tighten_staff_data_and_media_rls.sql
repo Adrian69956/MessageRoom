@@ -1,0 +1,12 @@
+drop policy if exists chat_media_insert on storage.objects;
+create policy chat_media_insert on storage.objects for insert to authenticated with check(bucket_id='chat-media' and (storage.foldername(name))[2]=auth.uid()::text and public.is_chat_member(((storage.foldername(name))[1])::uuid) and not public.has_active_restriction(auth.uid(),'media'));
+drop policy if exists user_warnings_read_self_or_staff on public.user_warnings;
+create policy user_warnings_read_self_or_owner on public.user_warnings for select to authenticated using(user_id=auth.uid() or public.is_owner());
+drop policy if exists user_restrictions_read_self_or_staff on public.user_restrictions;
+create policy user_restrictions_read_self_or_owner on public.user_restrictions for select to authenticated using(user_id=auth.uid() or public.is_owner());
+revoke execute on function public.has_active_restriction(uuid,text) from public,anon;
+grant execute on function public.has_active_restriction(uuid,text) to authenticated;
+revoke execute on function public.support_staff_can_access(text) from public,anon;
+grant execute on function public.support_staff_can_access(text) to authenticated;
+revoke execute on function public.support_can_access_ticket(uuid) from public,anon;
+grant execute on function public.support_can_access_ticket(uuid) to authenticated;
