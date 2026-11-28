@@ -752,3 +752,12 @@ input:checked + .switch { background: var(--grad); }
 .media-attach .ic { width: 22px; height: 22px; }
 .media-native-input { display: none !important; }
 .feed-compose-row .media-attach { flex-shrink: 0; }
+
+/* Предпросмотр вложения перед отправкой в чат */
+.chat-media-pending { display:none; align-items:center; gap:10px; padding:8px 12px; margin:0 0 8px; background:var(--bg); border:1px solid var(--border); border-radius:14px; max-width:100%; }
+.chat-media-pending.show { display:flex; }
+.chat-media-pending img, .chat-media-pending video { width:64px; height:64px; object-fit:cover; border-radius:9px; background:#000; flex-shrink:0; }
+.chat-media-pending-info { min-width:0; flex:1; }
+.chat-media-pending-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; color:var(--text); }
+.chat-media-pending-size { font-size:11px; color:var(--text-muted); margin-top:3px; }
+.chat-media-pending-remove { flex-shrink:0; font-size:22px; }

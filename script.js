@@ -587,28 +587,75 @@ async function appendMediaPreview(container, path, type, bucket) {
   node.src = data.signedUrl;
   wrap.append(node);
 }
-async function uploadChatMedia(file) {
+let pendingChatFile = null;
+let pendingChatPreviewUrl = null;
+
+function clearPendingChatFile() {
+  pendingChatFile = null;
+  if (pendingChatPreviewUrl) URL.revokeObjectURL(pendingChatPreviewUrl);
+  pendingChatPreviewUrl = null;
+  const preview = $("chatMediaPending");
+  if (preview) { preview.classList.remove("show"); preview.innerHTML = ""; }
+  $("chatMediaFile").value = "";
+}
+
+function showPendingChatFile(file) {
+  clearPendingChatFile();
+  pendingChatFile = file;
+  pendingChatPreviewUrl = URL.createObjectURL(file);
+  const preview = $("chatMediaPending");
+  preview.innerHTML = "";
+  const thumb = file.type.startsWith("video/") ? document.createElement("video") : document.createElement("img");
+  thumb.src = pendingChatPreviewUrl;
+  if (thumb.tagName === "VIDEO") { thumb.muted = true; thumb.playsInline = true; thumb.preload = "metadata"; }
+  else thumb.alt = "Предпросмотр фото";
+  preview.append(thumb);
+  const info = el("div", "chat-media-pending-info");
+  info.append(el("div", "chat-media-pending-name", file.name));
+  info.append(el("div", "chat-media-pending-size", Math.max(1, Math.round(file.size / 1024)) + " КБ"));
+  const remove = el("button", "icon-btn chat-media-pending-remove", "×");
+  remove.type = "button"; remove.title = "Убрать вложение";
+  remove.addEventListener("click", clearPendingChatFile);
+  preview.append(info, remove);
+  preview.classList.add("show");
+}
+
+async function uploadChatMedia(file, messageText) {
   const c = currentChat();
-  if (!c || !canWrite(c)) return;
+  if (!c || !canWrite(c)) return false;
   const check = await validateMediaFile(file, false);
-  if (check) { toast(check); return; }
+  if (check) { toast(check); return false; }
   const path = c.id + "/" + me.id + "/" + crypto.randomUUID() + safeMediaExtension(file.name);
   toast("Загружаю файл…");
   const up = await sb.storage.from("chat-media").upload(path, file, { contentType: file.type, upsert: false });
-  if (up.error) { toast("Не удалось загрузить: " + up.error.message); return; }
-  const row = { chat_id: c.id, text: null, media_path: path, media_type: file.type.startsWith("video/") ? "video" : "image", media_mime: file.type, media_size: file.size };
+  if (up.error) { toast("Не удалось загрузить: " + up.error.message); return false; }
+  const row = { chat_id: c.id, text: messageText || null, media_path: path, media_type: file.type.startsWith("video/") ? "video" : "image", media_mime: file.type, media_size: file.size };
+  if (replyTo) row.reply_to = replyTo.id;
   const { data, error } = await sb.from("messages").insert(row).select().single();
   if (error) {
     await sb.storage.from("chat-media").remove([path]);
-    toast("Не удалось отправить: " + error.message); return;
+    toast("Не удалось отправить: " + error.message); return false;
   }
   addMessage(data, true);
+  return true;
 }
 
 async function sendMessage() {
   const c = currentChat();
   const text = input.value.trim();
-  if (!c || !text || !canWrite(c)) return;
+  const file = pendingChatFile;
+  if (!c || (!text && !file) || !canWrite(c)) return;
+  if (file && !editing) {
+    $("sendBtn").disabled = true;
+    const sent = await uploadChatMedia(file, text);
+    $("sendBtn").disabled = false;
+    if (!sent) return;
+    clearPendingChatFile();
+    input.value = ""; autoGrow(); cancelCompose();
+    $("emojiPanel").classList.remove("show");
+    input.focus(); unreadFrom = 0;
+    return;
+  }
   if (editing) {
     const m = editing;
     cancelCompose(); input.value = ""; autoGrow();
@@ -635,7 +682,13 @@ async function sendMessage() {
   addMessage(data, true);
 }
 $("sendBtn").addEventListener("click", sendMessage);
-$("chatMediaFile").addEventListener("change", async () => { const f = $("chatMediaFile").files[0]; if (f) await uploadChatMedia(f); $("chatMediaFile").value = ""; });
+$("chatMediaFile").addEventListener("change", async () => {
+  const file = $("chatMediaFile").files[0];
+  if (!file) return;
+  const check = await validateMediaFile(file, false);
+  if (check) { toast(check); clearPendingChatFile(); return; }
+  showPendingChatFile(file);
+});
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.isComposing) {
     const send = prefs.enterSend ? !e.shiftKey : (e.ctrlKey || e.metaKey);
