@@ -69,7 +69,9 @@
       const ring=node("span","story-ring");
       const av=node("span","story-avatar");
       av.append(typeof makeAvatar==="function" ? makeAvatar(group.profile,"") : node("span","","?"));
-      const n=group.stories.length, seg=100/n;\n      ring.style.background="conic-gradient("+group.stories.map((_,i)=>"hsl("+(i*360/n)+" 85% 58%) "+(i*seg)+"% "+((i+1)*seg-1)+"%").join(",")+")";\n      ring.append(av);
+      const n=group.stories.length, seg=100/n;
+      ring.style.background="conic-gradient("+group.stories.map((_,i)=>"hsl("+(i*360/n)+" 85% 58%) "+(i*seg)+"% "+((i+1)*seg-1)+"%").join(",")+")";
+      ring.append(av);
       b.append(ring,node("span","story-label",group.profile.display_name||"Пользователь"));
       b.addEventListener("click",()=>openViewer(group.stories));
       rail.append(b);
@@ -293,7 +295,7 @@
       bottom.append(like);
       const {data:existing}=await sb.from("story_views").select("story_id").eq("story_id",s.id).eq("viewer_id",me.id).maybeSingle();
       if(!existing)await sb.from("story_views").insert({story_id:s.id,viewer_id:me.id});
-      bottom.textContent="История исчезнет через "+s.duration_hours+" ч. после публикации";
+      bottom.insertAdjacentText("afterbegin","История исчезнет через "+s.duration_hours+" ч. после публикации");
       const reply=node("button","story-like","Ответить");reply.type="button";
       reply.addEventListener("click",async()=>{
         const message=prompt("Ответ на историю:");
