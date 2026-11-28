@@ -554,7 +554,7 @@ async function validateMediaFile(file, isPost) {
   if (isPost && video) {
     const duration = await readVideoDuration(file);
     if (!Number.isFinite(duration) || duration <= 0) return "Не удалось определить длительность видео";
-    if (duration > 60.05) return "Видео для ленты должно быть не длиннее 60 секунд";
+    if (duration > 60) return "Видео для ленты должно быть не длиннее 60 секунд";
     file._mediaDurationMs = Math.round(duration * 1000);
   }
   return "";
