@@ -136,6 +136,36 @@
   }
 
 
+
+  function openCanvasTextEditor(canvas,ctx,state,snapshot) {
+    let panel=$s("storyTextOverlayEditor");
+    if(!panel){
+      panel=node("div","story-text-overlay-editor");panel.id="storyTextOverlayEditor";
+      panel.innerHTML='<section><header><strong>Добавить текст</strong><button type="button" data-text-close>×</button></header><textarea rows="3" maxlength="160" placeholder="Введите текст…"></textarea><div class="story-text-emoji"><button type="button">😀</button><button type="button">❤️</button><button type="button">🔥</button><button type="button">✨</button><button type="button">😂</button><button type="button">🥰</button></div><div class="story-text-settings"><select data-font><option value="Arial">Современный</option><option value="Georgia">С засечками</option><option value="monospace">Моноширинный</option></select><input data-size type="range" min="18" max="96" value="42"><input data-color type="color" value="#ffffff"><label><input data-fill type="checkbox"> Подложка</label></div><button type="button" data-text-apply>Готово</button></section>';
+      document.body.append(panel);
+      panel.querySelector("[data-text-close]").onclick=()=>panel.classList.remove("open");
+      panel.querySelectorAll(".story-text-emoji button").forEach(b=>b.onclick=()=>{
+        const area=panel.querySelector("textarea"),start=area.selectionStart,end=area.selectionEnd;
+        area.value=area.value.slice(0,start)+b.textContent+area.value.slice(end);area.focus();area.selectionStart=area.selectionEnd=start+b.textContent.length;
+      });
+    }
+    const area=panel.querySelector("textarea");area.value="";panel.classList.add("open");area.focus();
+    panel.querySelector("[data-text-apply]").onclick=()=>{
+      const value=area.value.trim();if(!value){panel.classList.remove("open");return;}
+      snapshot();
+      const font=panel.querySelector("[data-font]").value,size=Number(panel.querySelector("[data-size]").value),color=panel.querySelector("[data-color]").value,fill=panel.querySelector("[data-fill]").checked;
+      const lines=value.split("\n").slice(0,5),lineHeight=size*1.2,totalHeight=lines.length*lineHeight;
+      ctx.save();ctx.font="bold "+size+"px "+font;ctx.textAlign="center";ctx.textBaseline="middle";
+      const maxWidth=canvas.width*.86,wrapped=[];
+      lines.forEach(line=>{let current="";line.split(/\s+/).forEach(word=>{const test=current?current+" "+word:word;if(ctx.measureText(test).width>maxWidth&&current){wrapped.push(current);current=word;}else current=test;});if(current)wrapped.push(current);});
+      const widest=Math.max(0,...wrapped.map(line=>ctx.measureText(line).width));
+      const x=canvas.width/2,y=canvas.height/2;
+      if(fill){ctx.fillStyle="#0009";const w=Math.min(maxWidth,widest+size*.7),h=wrapped.length*lineHeight+size*.35;ctx.beginPath();ctx.roundRect(x-w/2,y-h/2,w,h,size*.18);ctx.fill();}
+      ctx.fillStyle=color;wrapped.forEach((line,i)=>{const yy=y+(i-(wrapped.length-1)/2)*lineHeight;ctx.strokeStyle="#0009";ctx.lineWidth=Math.max(2,size*.08);ctx.strokeText(line,x,yy,maxWidth);ctx.fillText(line,x,yy,maxWidth);});
+      ctx.restore();panel.classList.remove("open");
+    };
+  }
+
   function openStoryVideoOverlayEditor() {
     const source=$s("storyTrimPreview");
     if(!source||!source.videoWidth){if(typeof toast==="function")toast("Сначала выберите видео");return;}
@@ -163,7 +193,7 @@
     modal.querySelector("[data-overlay-redo]").onclick=()=>{if(state.redo.length){const value=state.redo.pop();state.history.push(value);restore(value);}};
     modal.querySelectorAll("[data-overlay-tool]").forEach(b=>b.onclick=()=>{
       state.tool=b.dataset.overlayTool;modal.querySelectorAll("[data-overlay-tool]").forEach(x=>x.classList.toggle("active",x===b));
-      if(state.tool==="text"){const value=prompt("Текст на видео");if(value){snapshot();ctx.font="bold "+Math.max(28,canvas.width*.06)+"px Arial";ctx.textAlign="center";ctx.lineWidth=4;ctx.strokeStyle="#0009";ctx.fillStyle=state.color;ctx.strokeText(value.slice(0,100),canvas.width/2,canvas.height/2,canvas.width*.88);ctx.fillText(value.slice(0,100),canvas.width/2,canvas.height/2,canvas.width*.88);}}
+      if(state.tool==="text")openCanvasTextEditor(canvas,ctx,state,snapshot);
     });
     modal.querySelectorAll("[data-overlay-color]").forEach(b=>b.onclick=()=>{state.color=b.dataset.overlayColor;});
     modal.querySelector("[data-overlay-save]").onclick=()=>canvas.toBlob(blob=>{if(blob){editedOverlayFile=new File([blob],"story-overlay.png",{type:"image/png"});modal.classList.remove("open");if(typeof toast==="function")toast("Рисунок добавлен к видео");}},"image/png");
@@ -192,7 +222,7 @@
     modal.querySelectorAll("[data-photo-tool]").forEach(button=>button.onclick=()=>{
       state.tool=button.dataset.photoTool;
       modal.querySelectorAll("[data-photo-tool]").forEach(x=>x.classList.toggle("active",x===button));
-      if(state.tool==="text"){const value=prompt("Текст на истории");if(value){snapshot();ctx.font="bold "+Math.max(28,canvas.width*.06)+"px Arial";ctx.textAlign="center";ctx.lineWidth=4;ctx.strokeStyle="#0009";ctx.fillStyle=state.color;ctx.strokeText(value.slice(0,100),canvas.width/2,canvas.height/2,canvas.width*.88);ctx.fillText(value.slice(0,100),canvas.width/2,canvas.height/2,canvas.width*.88);}}
+      if(state.tool==="text")openCanvasTextEditor(canvas,ctx,state,snapshot);
     });
     modal.querySelectorAll("[data-color]").forEach(button=>button.onclick=()=>{state.color=button.dataset.color;});
     modal.querySelector("[data-photo-save]").onclick=()=>canvas.toBlob(blob=>{if(blob){editedMediaFile=new File([blob],"story-edited.jpg",{type:"image/jpeg"});$s("storyFileName").textContent=editedMediaFile.name+" · изменено";modal.classList.remove("open");}},"image/jpeg",.92);
