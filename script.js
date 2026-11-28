@@ -542,12 +542,12 @@ $("cbClose").addEventListener("click", cancelCompose);
 
 // ---------- Фото и видео в сообщениях и ленте ----------
 function safeMediaExtension(name) {
-  const ext = (String(name).match(/\\.[a-z0-9]{1,8}$/i) || [""])[0].toLowerCase();
+  const ext = (String(name).match(/\.[a-z0-9]{1,8}$/i) || [""])[0].toLowerCase();
   return ext || ".bin";
 }
 async function validateMediaFile(file, isPost) {
-  const image = /^image\\/(jpeg|png|webp|gif)$/i.test(file.type);
-  const video = /^video\\/(mp4|webm|quicktime)$/i.test(file.type);
+  const image = /^image\/(jpeg|png|webp|gif)$/i.test(file.type);
+  const video = /^video\/(mp4|webm|quicktime)$/i.test(file.type);
   if (!image && !video) return "Поддерживаются JPG, PNG, WebP, GIF, MP4, WebM и MOV";
   const max = isPost ? 50 : 25;
   if (file.size > max * 1024 * 1024) return "Файл слишком большой. Максимум " + max + " МБ";
