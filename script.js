@@ -568,7 +568,7 @@ function readVideoDuration(file) {
     video.src = url;
   });
 }
-async async function appendMediaPreview(container, path, type, bucket) {
+async function appendMediaPreview(container, path, type, bucket) {
   const wrap = el("div", "media-preview");
   wrap.append(el("div", "media-loading", "Загрузка медиа…"));
   container.append(wrap);
