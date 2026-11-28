@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MessageRoom</title>
-  <link rel="stylesheet" href="style.css?v=staff-support-10">
+  <link rel="stylesheet" href="style.css?v=staff-notice-11">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#0077ff">
@@ -579,6 +579,12 @@
         <textarea id="warningCustom" rows="2" maxlength="1000" placeholder="Укажи причину" style="display:none"></textarea>
         <button class="save-btn" id="issueWarning">Выдать предупреждение</button>
       </div>
+      <div id="personalNoticeControls" class="settings-section">
+        <div class="settings-title">Личное уведомление выбранному пользователю</div>
+        <textarea id="personalNoticeText" rows="3" maxlength="4000" placeholder="Сообщение увидит только выбранный пользователь"></textarea>
+        <div class="settings-msg" id="personalNoticeMsg"></div>
+        <button class="save-btn" id="sendPersonalNotice">Отправить личное уведомление</button>
+      </div>
       <div id="restrictionControls" class="settings-section">
         <div class="settings-title">Временное ограничение (до 24 часов)</div>
         <select id="restrictionType">
@@ -653,10 +659,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=1795780670"></script>
   <script src="auth.js?v=1795780670"></script>
-  <script src="script.js?v=staff-support-10"></script>
+  <script src="script.js?v=staff-notice-11"></script>
   <script src="push.js?v=1795780670"></script>
-  <script src="admin.js?v=staff-support-10"></script>
-  <script src="reports.js?v=staff-support-10"></script>
-  <script src="staff.js?v=staff-support-10"></script>
+  <script src="admin.js?v=staff-notice-11"></script>
+  <script src="reports.js?v=staff-notice-11"></script>
+  <script src="staff.js?v=staff-notice-11"></script>
 </body>
 </html>
