@@ -489,7 +489,7 @@ function renderMessages(opts) {
     if (currentContentTab === "media") return !!m.media_path && ["image","video"].includes(m.media_type);
     if (currentContentTab === "files") return !!m.media_path && !["image","video"].includes(m.media_type);
     if (currentContentTab === "voice") return !!m.voice_path;
-    if (currentContentTab === "links") return /https?:\\/\\//i.test(m.text || "");
+    if (currentContentTab === "links") return /https?:/.test(m.text || "") && ((m.text || "").includes("http://") || (m.text || "").includes("https://"));
     return true;
   });
   shownMessages.forEach((m, i) => {
