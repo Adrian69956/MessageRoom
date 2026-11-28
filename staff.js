@@ -315,7 +315,8 @@
     if(!internal){$id(textareaId).value="";$id(fileInputId).value="";}
     else {$id(textareaId).value="";$id("supportInternal").checked=false;}
     btn.disabled=false;
-    await loadTicketMessages(ticketId,internal||isSupportStaff()?"supportStaffMessages":"supportUserMessages",isSupportStaff());
+    const staffMode=$id("supportStaffView").style.display!=="none";
+    await loadTicketMessages(ticketId,staffMode?"supportStaffMessages":"supportUserMessages",staffMode);
   }
   $id("supportUserSend").addEventListener("click",()=>userTicketId&&sendSupportMessage(userTicketId,"supportUserReply","supportUserFile",false));
   $id("supportStaffSend").addEventListener("click",()=>staffTicketId&&sendSupportMessage(staffTicketId,"supportStaffReply","supportStaffFile",$id("supportInternal").checked));
