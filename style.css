@@ -689,7 +689,7 @@ input:checked + .switch { background: var(--grad); }
 }
 .react:hover { background: var(--hover); }
 .react.on { background: var(--accent); color: var(--on-accent); }
-.react.comments-btn { margin-left: auto; }
+.react.comments-btn { margin-left: 0; }
 .post-comments { display: none; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
 .post.comments-open .post-comments { display: block; }
 .comment { font-size: 14px; line-height: 1.4; padding: 3px 0; overflow-wrap: anywhere; }
