@@ -700,7 +700,7 @@ function renderPendingChatFiles(){
 }
 function showPendingChatFiles(files){
   const incoming=[...files];if(!incoming.length)return;
-  if(pendingChatFiles.length+incoming.length>7){toast("Можно отправить не больше 7 фото за раз");return;}
+  if(pendingChatFiles.length+incoming.length>7){toast("Можно отправить не больше 7 фото за раз");$("chatMediaFile").value="";return;}
   if(incoming.some(f=>!f.type.startsWith("image/"))&&(incoming.length>1||pendingChatFiles.length)){toast("Видео отправляется отдельно от фото");return;}
   if(incoming.some(f=>f.type.startsWith("video/"))&&pendingChatFiles.length){toast("Сначала отправьте выбранные фото");return;}
   incoming.forEach(file=>pendingChatFiles.push({file,previewUrl:URL.createObjectURL(file)}));
@@ -860,7 +860,12 @@ async function sendMessage() {
   if(files.length&&!editing){
     $("sendBtn").disabled = true;
     try {
-      for(let i=0;i<files.length;i++){const sent=await uploadChatMedia(files[i],i===0?text:"");if(!sent){toast("Не все фото удалось отправить");return;}}
+      let first=true;
+      while(pendingChatFiles.length){
+        const item=pendingChatFiles[0],sent=await uploadChatMedia(item.file,first?text:"");
+        if(!sent){toast("Остальные фото остались в очереди — можно повторить отправку");return;}
+        first=false;URL.revokeObjectURL(item.previewUrl);pendingChatFiles.shift();pendingChatFile=pendingChatFiles[0]?.file||null;renderPendingChatFiles();
+      }
       clearPendingChatFile();
       input.value = ""; autoGrow(); cancelCompose();
       $("emojiPanel").classList.remove("show");
