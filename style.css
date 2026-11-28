@@ -1018,3 +1018,10 @@ input:checked + .switch { background: var(--grad); }
 .support-owner-actions button{border:1px solid var(--border);border-radius:9px;padding:8px 10px;background:var(--bg-2);color:var(--text)}
 .support-internal-notes{font-size:12px;color:var(--text-muted);margin-top:8px}
 @media(max-width:650px){.support-staff-layout{grid-template-columns:1fr}.support-staff-chat{display:flex;flex-direction:column}.support-staff-layout #supportStaffTickets{max-height:25vh}.support-messages{max-height:35vh}}
+
+
+/* Support category shortcuts */
+.support-quick-categories{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.support-quick-categories button{border:1px solid var(--border);background:var(--bg-2);color:var(--text);border-radius:12px;padding:11px 12px;text-align:left;font:inherit;font-size:14px;cursor:pointer;transition:border-color .15s,background .15s}
+.support-quick-categories button:hover,.support-quick-categories button.active{border-color:var(--accent);background:var(--grad-soft);color:var(--accent)}
+.support-quick-categories button:last-child{grid-column:1/-1}
