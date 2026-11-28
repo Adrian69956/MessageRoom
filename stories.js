@@ -281,25 +281,21 @@
     }
     const bottom=$s("storyViewerBottom");bottom.innerHTML="";
     if(s.user_id===me.id){
-      const {data:views}=await sb.from("story_views").select("viewer_id,viewed_at").eq("story_id",s.id).order("viewed_at",{ascending:false});
-      const ids=(views||[]).map(v=>v.viewer_id).filter(id=>id!==me.id);
-      if(ids.length){
-        const {data:people}=await sb.from("profiles").select("id,display_name,avatar_url").in("id",ids);
-        bottom.textContent="Просмотры: "+ids.length+" · "+(people||[]).map(p=>p.display_name).join(", ");
-      }else bottom.textContent="Пока нет просмотров";
-      const del=node("button","story-delete","Удалить историю");
-      del.addEventListener("click",()=>deleteStory(s));
-      bottom.append(del);
+      const {count:viewCount}=await sb.from("story_views").select("viewer_id",{count:"exact",head:true}).eq("story_id",s.id);
+      const viewsButton=node("button","story-owner-views","◉ "+(viewCount||0)+" просмотров");
+      viewsButton.type="button";
+      viewsButton.addEventListener("click",()=>showStoryViewers(s));
+      bottom.append(viewsButton);
+      const {count:likeCount}=await sb.from("story_likes").select("user_id",{count:"exact",head:true}).eq("story_id",s.id);
+      bottom.append(node("span","story-like-count","♥ "+(likeCount||0)));
+      const menu=node("button","story-owner-menu","⋯");
+      menu.type="button";menu.setAttribute("aria-label","Меню истории");
+      menu.addEventListener("click",()=>openStoryOwnerMenu(s));
+      $s("storyViewerAuthor").append(menu);
     }else{
-      const like=node("button","story-like","♡ Нравится");like.type="button";
-      const {data:mineLike}=await sb.from("story_likes").select("story_id").eq("story_id",s.id).eq("user_id",me.id).maybeSingle();
-      if(mineLike){like.classList.add("liked");like.textContent="♥ Вам нравится";}
-      like.addEventListener("click",async()=>{like.disabled=true;try{if(like.classList.contains("liked")){const {error}=await sb.from("story_likes").delete().eq("story_id",s.id).eq("user_id",me.id);if(error)throw error;like.classList.remove("liked");like.textContent="♡ Нравится";}else{const {error}=await sb.from("story_likes").insert({story_id:s.id,user_id:me.id});if(error)throw error;like.classList.add("liked");like.textContent="♥ Вам нравится";}}catch(e){if(typeof toast==="function")toast("Не удалось поставить отметку");}finally{like.disabled=false;}});
-      bottom.append(like);
-      const {data:existing}=await sb.from("story_views").select("story_id").eq("story_id",s.id).eq("viewer_id",me.id).maybeSingle();
-      if(!existing)await sb.from("story_views").insert({story_id:s.id,viewer_id:me.id});
-      bottom.insertAdjacentText("afterbegin","История исчезнет через "+s.duration_hours+" ч. после публикации");
-      const reply=node("button","story-like","Ответить");reply.type="button";
+      const status=node("span","story-viewer-status","Ответить на историю");
+      const reply=node("button","story-reply","Ответить");
+      reply.type="button";
       reply.addEventListener("click",async()=>{
         const message=prompt("Ответ на историю:");
         if(!message||!message.trim())return;
@@ -313,14 +309,54 @@
           if(typeof toast==="function")toast("Ответ отправлен");
         }catch(e){if(typeof toast==="function")toast(e.message==="dm_not_allowed"?"Пользователь не принимает личные сообщения":"Не удалось отправить ответ");}
       });
-      bottom.append(reply);
-    }
-    if(s.user_id===me.id){
-      const {count}=await sb.from("story_likes").select("user_id",{count:"exact",head:true}).eq("story_id",s.id);
-      bottom.prepend(node("span","story-like-count","♥ "+(count||0)));
+      const like=node("button","story-like","♡");
+      like.type="button";like.setAttribute("aria-label","Нравится");
+      const {data:mineLike}=await sb.from("story_likes").select("story_id").eq("story_id",s.id).eq("user_id",me.id).maybeSingle();
+      if(mineLike){like.classList.add("liked");like.textContent="♥";}
+      like.addEventListener("click",async()=>{
+        like.disabled=true;
+        try{
+          if(like.classList.contains("liked")){
+            const {error}=await sb.from("story_likes").delete().eq("story_id",s.id).eq("user_id",me.id);
+            if(error)throw error;like.classList.remove("liked");like.textContent="♡";
+          }else{
+            const {error}=await sb.from("story_likes").insert({story_id:s.id,user_id:me.id});
+            if(error)throw error;like.classList.add("liked");like.textContent="♥";
+          }
+        }catch(e){if(typeof toast==="function")toast("Не удалось поставить отметку");}
+        finally{like.disabled=false;}
+      });
+      const {data:existing}=await sb.from("story_views").select("story_id").eq("story_id",s.id).eq("viewer_id",me.id).maybeSingle();
+      if(!existing)await sb.from("story_views").insert({story_id:s.id,viewer_id:me.id});
+      bottom.append(status,reply,like);
     }
     $s("storyPrev").disabled=activeStoryIndex===0;
     $s("storyNext").disabled=activeStoryIndex===viewerStories.length-1;
+  }
+
+  async function showStoryViewers(story) {
+    const {data:views,error}=await sb.from("story_views").select("viewer_id,viewed_at").eq("story_id",story.id).order("viewed_at",{ascending:false});
+    if(error){if(typeof toast==="function")toast("Не удалось загрузить зрителей");return;}
+    const ids=[...new Set((views||[]).map(v=>v.viewer_id).filter(id=>id!==me.id))];
+    const {data:people}=ids.length?await sb.from("profiles").select("id,display_name,avatar_url").in("id",ids):{data:[]};
+    const byId=new Map((people||[]).map(p=>[p.id,p]));
+    let modal=$s("storyViewersModal");
+    if(!modal){modal=node("div","story-viewers-modal");modal.id="storyViewersModal";modal.innerHTML='<section><header><strong>Просмотрели историю</strong><button type="button" aria-label="Закрыть">×</button></header><div class="story-viewers-list"></div></section>';document.body.append(modal);modal.querySelector("header button").onclick=()=>modal.classList.remove("open");}
+    const list=modal.querySelector(".story-viewers-list");list.innerHTML="";
+    ids.forEach(id=>{const p=byId.get(id)||{display_name:"Пользователь"};list.append(node("div","story-viewer-person",p.display_name));});
+    if(!ids.length)list.append(node("p","","Пока никто не посмотрел"));
+    modal.classList.add("open");
+  }
+  async function openStoryOwnerMenu(story) {
+    const action=prompt("Введите действие: 1 — изменить подпись, 2 — удалить историю");
+    if(action==="2"){await deleteStory(story);return;}
+    if(action!=="1")return;
+    const caption=prompt("Новая подпись:",story.text||"");
+    if(caption===null)return;
+    const {error}=await sb.from("stories").update({text:caption.slice(0,2000)}).eq("id",story.id).eq("user_id",me.id);
+    if(error){if(typeof toast==="function")toast("Не удалось изменить историю");return;}
+    story.text=caption.slice(0,2000);await renderViewerStory();
+    if(typeof toast==="function")toast("История обновлена");
   }
   async function deleteStory(s){
     if(!confirm("Удалить эту историю?"))return;
