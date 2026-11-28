@@ -692,7 +692,7 @@ function renderPendingChatFiles(){
     const info=el("div","chat-media-pending-info");
     info.append(el("div","chat-media-pending-name",item.file.name),el("div","chat-media-pending-size",Math.max(1,Math.round(item.file.size/1024))+" КБ"));
     if(item.file.type.startsWith("image/")){const edit=el("button","link-btn","Настроить фото");edit.type="button";edit.addEventListener("click",()=>openPhotoEditor(index));info.append(edit);}else if(item.file.type.startsWith("video/")){const edit=el("button","link-btn","Настроить видео");edit.type="button";edit.addEventListener("click",()=>openVideoEditor(index));info.append(edit);}
-    const remove=el("button","icon-btn chat-media-pending-remove","×");remove.type="button";remove.addEventListener("click",()=>{URL.revokeObjectURL(item.previewUrl);pendingChatFiles.splice(index,1);photoEditorIndex=Math.min(photoEditorIndex,Math.max(0,pendingChatFiles.length-1));pendingChatFile=pendingChatFiles[photoEditorIndex]?.file||null;renderPendingChatFiles();});
+    const remove=el("button","icon-btn chat-media-pending-remove","×");remove.type="button";remove.addEventListener("click",()=>{URL.revokeObjectURL(item.previewUrl);pendingChatFiles.splice(index,1);photoEditorIndex=Math.min(photoEditorIndex,Math.max(0,pendingChatFiles.length-1));pendingChatFile=pendingChatFiles[photoEditorIndex]?.file||null;updateQueuedVideoFormat();renderPendingChatFiles();});
     card.append(thumb,info,remove);preview.append(card);
   });
   const add=el("button","chat-media-add-more","+ Добавить");add.type="button";add.addEventListener("click",()=>$("chatMediaFile").click());preview.append(add);
@@ -700,12 +700,11 @@ function renderPendingChatFiles(){
 }
 function showPendingChatFiles(files){
   const incoming=[...files];if(!incoming.length)return;
-  if(pendingChatFiles.length+incoming.length>7){toast("Можно отправить не больше 7 фото за раз");$("chatMediaFile").value="";return;}
-  if(incoming.some(f=>!f.type.startsWith("image/"))&&(incoming.length>1||pendingChatFiles.length)){toast("Видео отправляется отдельно от фото");return;}
-  if(incoming.some(f=>f.type.startsWith("video/"))&&pendingChatFiles.length){toast("Сначала отправьте выбранные фото");return;}
+  if(pendingChatFiles.length+incoming.length>7){toast("Можно отправить не больше 7 файлов за раз");$("chatMediaFile").value="";return;}
   incoming.forEach(file=>pendingChatFiles.push({file,previewUrl:URL.createObjectURL(file)}));
-  photoEditorIndex=pendingChatFiles.length-incoming.length;pendingChatFile=pendingChatFiles[photoEditorIndex].file;renderPendingChatFiles();
+  photoEditorIndex=pendingChatFiles.length-incoming.length;pendingChatFile=pendingChatFiles[photoEditorIndex].file;updateQueuedVideoFormat();renderPendingChatFiles();
 }
+function updateQueuedVideoFormat(){const video=pendingChatFiles.find(x=>x.file.type.startsWith("video/"));const format=video?veFormatName(video.file):"—";if($("videoModeFormat"))$("videoModeFormat").textContent=format;if($("videoModeFormatActive"))$("videoModeFormatActive").textContent=format;}
 function showPendingChatFile(file){showPendingChatFiles([file]);}
 
 let photoEditorSourceName="messageroom-photo.jpg";
@@ -932,7 +931,7 @@ async function sendMessage() {
       let first=true;
       while(pendingChatFiles.length){
         const item=pendingChatFiles[0],sent=await uploadChatMedia(item.file,first?text:"");
-        if(!sent){toast("Остальные фото остались в очереди — можно повторить отправку");return;}
+        if(!sent){toast("Остальные файлы остались в очереди — можно повторить отправку");return;}
         first=false;URL.revokeObjectURL(item.previewUrl);pendingChatFiles.shift();pendingChatFile=pendingChatFiles[0]?.file||null;renderPendingChatFiles();
       }
       clearPendingChatFile();
