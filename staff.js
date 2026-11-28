@@ -126,6 +126,7 @@
     $id("supportStaffView").style.display="none";
     $id("supportHome").style.display="block";
     $id("supportUserChat").style.display="none";
+    $id("supportCategory").value="";updateSupportCategoryFields();
     loadMyTickets();
   }
   function supportStaffView(){
@@ -198,6 +199,8 @@
   };
   function updateSupportCategoryFields(){
     const f=catFields[$id("supportCategory").value];
+    if(!f){$id("supportFields").style.display="none";return;}
+    $id("supportFields").style.display="block";
     $id("supportSubjectLabel").textContent=f.subject;
     $id("supportSubject").placeholder=f.subjectHint;
     $id("supportDescriptionLabel").textContent=f.desc;
@@ -207,6 +210,7 @@
 
   $id("supportCreate").addEventListener("click",async()=>{
     const category=$id("supportCategory").value;
+    if(!category){showMsg("supportCreateMsg","Сначала выбери категорию обращения.",true);return;}
     const subject=$id("supportSubject").value.trim();
     const description=$id("supportDescription").value.trim();
     if(!subject||!description){showMsg("supportCreateMsg","Заполни тему и описание.",true);return;}
