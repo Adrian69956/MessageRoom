@@ -1609,6 +1609,7 @@ async function startApp(user) {
   searchResults = []; search.value = ""; presence = {};
   await loadBlocked();
   await loadAll();
+  if (typeof window.refreshMyModerationStatus === "function") window.refreshMyModerationStatus();
   subscribeRealtime();
   const admin = !!window.appStatus.is_admin;
   $("adminOpen").style.display = admin ? "flex" : "none";
