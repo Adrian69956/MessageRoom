@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MessageRoom</title>
-  <link rel="stylesheet" href="style.css?v=desktop-photo-label-scroll-11">
+  <link rel="stylesheet" href="style.css?v=multi-photo-editor-scroll-12">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <meta name="theme-color" content="#0077ff">
@@ -274,6 +274,7 @@
 <div class="photo-editor-backdrop" id="photoEditor" aria-hidden="true">
   <section class="photo-editor" role="dialog" aria-modal="true" aria-labelledby="photoEditorTitle">
     <header class="photo-editor-head"><strong id="photoEditorTitle">Редактор фото</strong><button type="button" class="icon-btn" id="photoEditorClose" aria-label="Закрыть">×</button></header>
+    <div class="photo-editor-thumbnails" id="photoEditorThumbnails" aria-label="Выбранные фото"></div>
     <div class="photo-editor-stage"><canvas id="photoEditorCanvas"></canvas></div>
     <nav class="photo-editor-tabs" aria-label="Инструменты фото">
       <button type="button" class="photo-tool-tab active" data-photo-tab="crop"><span aria-hidden="true">▣</span><br>Обрезать</button>
@@ -320,7 +321,7 @@
           <div class="input-wrap">
             <label class="media-attach" title="Прикрепить фото или видео" aria-label="Прикрепить фото или видео">
               <svg class="ic" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.82-2.82l8.49-8.48"/></svg>
-              <input id="chatMediaFile" class="media-native-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime">
+              <input id="chatMediaFile" class="media-native-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple>
             </label>
             <button class="icon-btn" id="emojiBtn" title="Смайлики">
               <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg>
@@ -449,7 +450,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=1795780670"></script>
   <script src="auth.js?v=1795780670"></script>
-  <script src="script.js?v=desktop-photo-label-scroll-11"></script>
+  <script src="script.js?v=multi-photo-editor-scroll-12"></script>
   <script src="push.js?v=1795780670"></script>
   <script src="admin.js?v=1795780670"></script>
 </body>

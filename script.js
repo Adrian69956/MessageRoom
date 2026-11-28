@@ -484,17 +484,12 @@ messagesBox.addEventListener("scroll", () => {
 async function loadOlder(c) {
   if (!c || c.loadingOlder || !c.hasMore || !c.messages.length) return;
   const before = c.messages[0].created_at;
-  const prevHeight = messagesBox.scrollHeight;
-  const prevTop = messagesBox.scrollTop;
   c.loadingOlder = true;
-  renderMessages();
   const older = await fetchMessages(c.id, before, c.clearedAt);
   c.messages = older.concat(c.messages);
   c.hasMore = older.length === MSG_PAGE;
   c.loadingOlder = false;
   renderMessages();
-  // Сохраняем позицию чтения: иначе список «прыгает», когда подгрузилось сверху
-  messagesBox.scrollTop = prevTop + (messagesBox.scrollHeight - prevHeight);
 }
 toBottom.addEventListener("click", () => { messagesBox.scrollTo({ top: messagesBox.scrollHeight, behavior: "smooth" }); });
 
@@ -679,42 +674,39 @@ function openPhotoViewer(url, filename) {
   viewer.dataset.filename = (filename || "messageroom-photo.jpg").replace(/[^a-z0-9._-]/gi, "_");
   viewer.classList.add("show");
 }
-let pendingChatFile = null;
-let pendingChatPreviewUrl = null;
-
-function clearPendingChatFile() {
-  pendingChatFile = null;
-  if (pendingChatPreviewUrl) URL.revokeObjectURL(pendingChatPreviewUrl);
-  pendingChatPreviewUrl = null;
-  const preview = $("chatMediaPending");
-  if (preview) { preview.classList.remove("show"); preview.innerHTML = ""; }
-  $("chatMediaFile").value = "";
+let pendingChatFiles=[];
+let pendingChatFile=null,pendingChatPreviewUrl=null,photoEditorIndex=0;
+function clearPendingChatFile(){
+  pendingChatFiles.forEach(x=>{if(x.previewUrl)URL.revokeObjectURL(x.previewUrl);});
+  pendingChatFiles=[];pendingChatFile=null;pendingChatPreviewUrl=null;
+  const preview=$("chatMediaPending");if(preview){preview.classList.remove("show");preview.innerHTML="";}
+  $("chatMediaFile").value="";
 }
-
-function showPendingChatFile(file) {
-  clearPendingChatFile();
-  pendingChatFile = file;
-  pendingChatPreviewUrl = URL.createObjectURL(file);
-  const preview = $("chatMediaPending");
-  preview.innerHTML = "";
-  const thumb = file.type.startsWith("video/") ? document.createElement("video") : document.createElement("img");
-  thumb.src = pendingChatPreviewUrl;
-  if (thumb.tagName === "VIDEO") { thumb.muted = true; thumb.playsInline = true; thumb.preload = "metadata"; }
-  else { thumb.alt = "Предпросмотр фото"; thumb.addEventListener("click", openPhotoEditor); }
-  preview.append(thumb);
-  const info = el("div", "chat-media-pending-info");
-  info.append(el("div", "chat-media-pending-name", file.name));
-  info.append(el("div", "chat-media-pending-size", Math.max(1, Math.round(file.size / 1024)) + " КБ"));
-  const edit = el("button", "link-btn", file.type.startsWith("image/") ? "Настроить фото" : "Видео выбрано");
-  edit.type = "button"; edit.disabled = !file.type.startsWith("image/"); edit.addEventListener("click", openPhotoEditor);
-  const remove = el("button", "icon-btn chat-media-pending-remove", "×");
-  remove.type = "button"; remove.title = "Убрать вложение";
-  remove.addEventListener("click", clearPendingChatFile);
-  info.append(edit);
-  preview.append(info, remove);
+function renderPendingChatFiles(){
+  const preview=$("chatMediaPending");preview.innerHTML="";
+  if(!pendingChatFiles.length){preview.classList.remove("show");return;}
+  pendingChatFiles.forEach((item,index)=>{
+    const card=el("div","chat-media-pending-item");
+    const thumb=item.file.type.startsWith("video/")?el("video"):el("img");thumb.src=item.previewUrl;thumb.alt=item.file.name;
+    if(thumb.tagName==="VIDEO"){thumb.muted=true;thumb.playsInline=true;thumb.preload="metadata";}else thumb.addEventListener("click",()=>openPhotoEditor(index));
+    const info=el("div","chat-media-pending-info");
+    info.append(el("div","chat-media-pending-name",item.file.name),el("div","chat-media-pending-size",Math.max(1,Math.round(item.file.size/1024))+" КБ"));
+    if(item.file.type.startsWith("image/")){const edit=el("button","link-btn","Настроить фото");edit.type="button";edit.addEventListener("click",()=>openPhotoEditor(index));info.append(edit);}
+    const remove=el("button","icon-btn chat-media-pending-remove","×");remove.type="button";remove.addEventListener("click",()=>{URL.revokeObjectURL(item.previewUrl);pendingChatFiles.splice(index,1);photoEditorIndex=Math.min(photoEditorIndex,Math.max(0,pendingChatFiles.length-1));pendingChatFile=pendingChatFiles[photoEditorIndex]?.file||null;renderPendingChatFiles();});
+    card.append(thumb,info,remove);preview.append(card);
+  });
+  const add=el("button","chat-media-add-more","+ Добавить");add.type="button";add.addEventListener("click",()=>$("chatMediaFile").click());preview.append(add);
   preview.classList.add("show");
 }
-
+function showPendingChatFiles(files){
+  const incoming=[...files];if(!incoming.length)return;
+  if(pendingChatFiles.length+incoming.length>7){toast("Можно отправить не больше 7 фото за раз");$("chatMediaFile").value="";return;}
+  if(incoming.some(f=>!f.type.startsWith("image/"))&&(incoming.length>1||pendingChatFiles.length)){toast("Видео отправляется отдельно от фото");return;}
+  if(incoming.some(f=>f.type.startsWith("video/"))&&pendingChatFiles.length){toast("Сначала отправьте выбранные фото");return;}
+  incoming.forEach(file=>pendingChatFiles.push({file,previewUrl:URL.createObjectURL(file)}));
+  photoEditorIndex=pendingChatFiles.length-incoming.length;pendingChatFile=pendingChatFiles[photoEditorIndex].file;renderPendingChatFiles();
+}
+function showPendingChatFile(file){showPendingChatFiles([file]);}
 
 let photoEditorSourceName="messageroom-photo.jpg";
 let photoEditorImage=null,photoEditorDrawing=false,photoEditorStrokes=[],photoEditorText=[],photoEditorPreviewScale=1,photoEditorDown=false;
@@ -728,9 +720,10 @@ function setPhotoEditorTab(tab){
   $("photoEditorCanvas").style.touchAction=(tab==="crop"||tab==="draw"||tab==="text")?"none":"pan-y";
   drawPhotoEditor();
 }
-function openPhotoEditor(){
-  if(!pendingChatFile||!pendingChatFile.type.startsWith("image/"))return;
-  photoEditorSourceName = pendingChatFile.name || "messageroom-photo.jpg";
+function openPhotoEditor(index=photoEditorIndex){
+  if(!pendingChatFiles[index]||!pendingChatFiles[index].file.type.startsWith("image/"))return;
+  photoEditorIndex=index;pendingChatFile=pendingChatFiles[index].file;renderPhotoEditorThumbnails();
+  photoEditorSourceName=pendingChatFile.name||"messageroom-photo.jpg";
   const url=URL.createObjectURL(pendingChatFile),img=new Image();
   img.onload=()=>{photoEditorImage=img;photoEditorStrokes=[];photoEditorText=[];photoCropSelection={x:.5,y:.5};photoCropCustom={x:.1,y:.1,w:.8,h:.8};
     $("photoCrop").value="original";$("photoCompress").checked=false;$("photoText").value="";
@@ -809,20 +802,29 @@ photoCanvas.addEventListener("pointermove",e=>{
   if(!photoEditorDown)return;photoEditorStrokes[photoEditorStrokes.length-1].points.push(photoCanvasPoint(e));drawPhotoEditor();
 });
 ["pointerup","pointercancel"].forEach(ev=>photoCanvas.addEventListener(ev,()=>{photoEditorDown=false;photoCropDrag=null;photoTextDrag=null;}));
-$("photoEditorSave").addEventListener("click",()=>{
-  if(!photoEditorImage)return;const rect=photoCropRect(),canvas=document.createElement("canvas"),compressed=$("photoCompress").checked;
+function saveCurrentPhotoEdit(onDone){
+  if(!photoEditorImage)return;
+  const rect=photoCropRect(),canvas=document.createElement("canvas"),compressed=$("photoCompress").checked;
   const maxSide=compressed?1800:Math.max(rect.w,rect.h),scale=Math.min(1,maxSide/Math.max(rect.w,rect.h));
   canvas.width=Math.max(1,Math.round(rect.w*scale));canvas.height=Math.max(1,Math.round(rect.h*scale));
   const ctx=canvas.getContext("2d");ctx.drawImage(photoEditorImage,rect.x,rect.y,rect.w,rect.h,0,0,canvas.width,canvas.height);
   photoEditorStrokes.forEach(stroke=>{ctx.strokeStyle=stroke.color;ctx.lineWidth=stroke.width/photoEditorPreviewScale*scale;ctx.lineCap="round";ctx.lineJoin="round";ctx.beginPath();stroke.points.forEach((p,i)=>{const x=(p.x/photoEditorPreviewScale-rect.x)*scale,y=(p.y/photoEditorPreviewScale-rect.y)*scale;if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();});
   photoEditorText.forEach(t=>{ctx.save();const size=t.size/photoEditorPreviewScale*scale;ctx.font=size+"px "+t.font;ctx.textAlign="center";ctx.textBaseline="middle";const x=(t.x*photoEditorImage.naturalWidth-rect.x)*scale,y=(t.y*photoEditorImage.naturalHeight-rect.y)*scale;if(t.fill){const m=ctx.measureText(t.text);ctx.fillStyle=t.fillColor||"#000000";ctx.globalAlpha=.72;ctx.fillRect(x-m.width/2-12*scale,y-size*.68,m.width+24*scale,size*1.35);ctx.globalAlpha=1;}ctx.fillStyle=t.color;ctx.fillText(t.text,x,y);ctx.restore();});
-  canvas.toBlob(blob=>{if(!blob){toast("Не удалось обработать фото");return;}const outName=(compressed?"compressed__":"")+photoEditorSourceName.replace(/^compressed__/, "");const out=new File([blob],outName,{type:"image/jpeg",lastModified:Date.now()});pendingChatFile=out;
-    if(pendingChatPreviewUrl)URL.revokeObjectURL(pendingChatPreviewUrl);pendingChatPreviewUrl=URL.createObjectURL(out);
-    const preview=$("chatMediaPending"),img=preview.querySelector("img");if(img)img.src=pendingChatPreviewUrl;
-    const size=preview.querySelector(".chat-media-pending-size");if(size)size.textContent=Math.max(1,Math.round(out.size/1024))+" КБ"+(compressed?" · сжато":"");
-    preview.classList.toggle("is-compressed",compressed);$("photoEditorClose").click();toast("Фото обработано");
-  },"image/jpeg",compressed ? 0.72 : 0.94);
-});
+  canvas.toBlob(blob=>{
+    if(!blob){toast("Не удалось обработать фото");return;}
+    const item=pendingChatFiles[photoEditorIndex];if(!item)return;
+    const name=(compressed?"compressed__":"")+photoEditorSourceName.replace(/^compressed__/,"");
+    const out=new File([blob],name,{type:"image/jpeg",lastModified:Date.now()});
+    URL.revokeObjectURL(item.previewUrl);item.file=out;item.previewUrl=URL.createObjectURL(out);pendingChatFile=out;
+    renderPendingChatFiles();toast("Фото обработано");if(onDone)onDone();
+  },"image/jpeg",compressed?0.72:0.94);
+}
+$("photoEditorSave").addEventListener("click",()=>saveCurrentPhotoEdit(()=>$("photoEditorClose").click()));
+function renderPhotoEditorThumbnails(){
+  const strip=$("photoEditorThumbnails");if(!strip)return;strip.innerHTML="";
+  pendingChatFiles.forEach((item,index)=>{const b=el("button","photo-editor-thumb"+(index===photoEditorIndex?" active":""));b.type="button";const img=el("img");img.src=item.previewUrl;img.alt=item.file.name;b.append(img,el("span","",String(index+1)));b.addEventListener("click",()=>{if(index!==photoEditorIndex)saveCurrentPhotoEdit(()=>openPhotoEditor(index));});strip.append(b);});
+}
+
 
 async function uploadChatMedia(file, messageText) {
   const c = currentChat();
@@ -853,13 +855,17 @@ async function uploadChatMedia(file, messageText) {
 async function sendMessage() {
   const c = currentChat();
   const text = input.value.trim();
-  const file = pendingChatFile;
-  if (!c || (!text && !file) || !canWrite(c)) return;
-  if (file && !editing) {
+  const files=pendingChatFiles.map(item=>item.file);
+  if(!c||(!text&&!files.length&&!pendingChatFile)||!canWrite(c))return;
+  if(files.length&&!editing){
     $("sendBtn").disabled = true;
     try {
-      const sent = await uploadChatMedia(file, text);
-      if (!sent) return;
+      let first=true;
+      while(pendingChatFiles.length){
+        const item=pendingChatFiles[0],sent=await uploadChatMedia(item.file,first?text:"");
+        if(!sent){toast("Остальные фото остались в очереди — можно повторить отправку");return;}
+        first=false;URL.revokeObjectURL(item.previewUrl);pendingChatFiles.shift();pendingChatFile=pendingChatFiles[0]?.file||null;renderPendingChatFiles();
+      }
       clearPendingChatFile();
       input.value = ""; autoGrow(); cancelCompose();
       $("emojiPanel").classList.remove("show");
@@ -896,12 +902,9 @@ async function sendMessage() {
 }
 $("sendBtn").addEventListener("click", sendMessage);
 $("chatMediaFile").addEventListener("change", async () => {
-  const file = $("chatMediaFile").files && $("chatMediaFile").files[0];
-  if (!file) return;
-  const check = await validateMediaFile(file, false);
-  if (check) { toast(check); $("chatMediaFile").value = ""; return; }
-  // Selecting a file only stages it. It must never upload or send here.
-  showPendingChatFile(file);
+  const files=[...($("chatMediaFile").files||[])];if(!files.length)return;
+  for(const file of files){const check=await validateMediaFile(file,false);if(check){toast(check);$("chatMediaFile").value="";return;}}
+  showPendingChatFiles(files);$("chatMediaFile").value="";
 });
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.isComposing) {
